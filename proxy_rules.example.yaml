@@ -1,0 +1,20 @@
+# Proxy routing rules.
+# Section priority is fixed: direct > local > remote.
+# '*.youtube.com' also matches 'youtube.com'.
+# '*.ru' matches real .ru domains like 'rutube.ru', but not the bare 'ru'.
+# Add '!' to the end of a rule to make it priority over ordinary rules.
+
+routing:
+  direct:
+    # No proxy for RU domains
+    - "*.ru"
+    - "*.vk.com"
+
+  local:
+    # Local proxy for YouTube and short links
+    - "*.youtube.com"
+    - "*.youtu.be"
+
+  remote:
+    # Fallback for everything else
+    - "*"

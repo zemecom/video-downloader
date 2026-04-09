@@ -1,0 +1,362 @@
+<?php
+
+declare(strict_types=1);
+
+namespace YtdPhp\Bootstrap;
+
+use function array_key_exists;
+use function array_values;
+use function basename;
+use function count;
+use function dirname;
+use function explode;
+use function getenv;
+use function is_dir;
+use function is_file;
+use function is_string;
+use function ltrim;
+use function max;
+use function preg_replace;
+use function putenv;
+use function realpath;
+use function str_contains;
+use function str_starts_with;
+use function trim;
+
+final class RuntimeBootstrap
+{
+    public const string LOCAL_PROXY_RULES_FILE = 'proxy_rules.yaml';
+
+    private const array RUNTIME_MARKERS = ['.env', self::LOCAL_PROXY_RULES_FILE, 'proxy_rules.example.yaml'];
+
+    private const string INSTALL_PROJECT_DIRNAME = 'project';
+
+    /** @var list<string> */
+    private const array MULTI_SHORT_MAP = [
+        '-np',
+        '-dr',
+        '-nps',
+        '-cd',
+        '-dc',
+    ];
+
+    /** @var array<string, string> */
+    private const array MULTI_SHORT_REPLACEMENTS = [
+        '-np' => '--no-proxy',
+        '-dr' => '--dry-run',
+        '-nps' => '--no-playlist-sizes',
+        '-cd' => '--concurrent-downloads',
+        '-dc' => '--doctor',
+    ];
+
+    public function __construct(
+        private readonly ?string $packageRoot = null,
+    ) {}
+
+    public function getPackageRoot(): string
+    {
+        $root = $this->packageRoot ?? dirname(__DIR__, 2);
+
+        return $this->normalizePath($root);
+    }
+
+    /**
+     * @param list<string> $argv
+     * @return list<string>
+     */
+    public function normalizeArgv(array $argv): array
+    {
+        $normalized = [];
+        foreach ($argv as $token) {
+            $normalized[] = self::MULTI_SHORT_REPLACEMENTS[$token] ?? $token;
+        }
+
+        return array_values($normalized);
+    }
+
+    public function normalizeGlobalArgv(): void
+    {
+        $argv = $_SERVER['argv'] ?? $GLOBALS['argv'] ?? [];
+        if (!is_array($argv)) {
+            return;
+        }
+
+        $normalized = $this->normalizeArgv($argv);
+        $_SERVER['argv'] = $normalized;
+        $_SERVER['argc'] = count($normalized);
+        $GLOBALS['argv'] = $normalized;
+        $GLOBALS['argc'] = count($normalized);
+    }
+
+    public function ensureProjectRoot(): string
+    {
+        $projectRoot = $this->getProjectRoot();
+        if (getenv('YTD_PROJECT_ROOT') === false) {
+            $this->setEnvValue('YTD_PROJECT_ROOT', $projectRoot);
+        }
+
+        return $projectRoot;
+    }
+
+    public function getProjectRoot(): string
+    {
+        $configuredRoot = getenv('YTD_PROJECT_ROOT');
+        if (is_string($configuredRoot) && $configuredRoot !== '') {
+            return $this->normalizePath($configuredRoot);
+        }
+
+        return $this->discoverRuntimeRoot();
+    }
+
+    public function initializeEnvironment(): void
+    {
+        $this->loadEnvFile('.env');
+    }
+
+    public function loadEnvFile(string $filename): void
+    {
+        $envPath = $this->getProjectRoot() . DIRECTORY_SEPARATOR . $filename;
+        if (!is_file($envPath)) {
+            return;
+        }
+
+        foreach ($this->readKeyValueFile($envPath) as $key => $value) {
+            if (getenv($key) === false) {
+                $this->setEnvValue($key, $value);
+            }
+        }
+    }
+
+    public function getProxyEpilog(): string
+    {
+        $proxy = getenv('PROXY_LOCAL');
+
+        return is_string($proxy) && $proxy !== '' ? $proxy : 'Не задан';
+    }
+
+    public function getProxyRulesPath(): string
+    {
+        $envPath = getenv('PROXY_RULES_FILE');
+        if (is_string($envPath) && $envPath !== '') {
+            $expandedPath = $this->expandPath($envPath);
+            if ($this->isAbsolutePath($expandedPath)) {
+                return $this->normalizePath($expandedPath);
+            }
+
+            return $this->normalizePath($this->getProjectRoot() . DIRECTORY_SEPARATOR . $expandedPath);
+        }
+
+        return $this->normalizePath($this->getProjectRoot() . DIRECTORY_SEPARATOR . self::LOCAL_PROXY_RULES_FILE);
+    }
+
+    public function getErrorLogPath(): string
+    {
+        $envPath = getenv('YTD_ERROR_LOG_FILE');
+        if (is_string($envPath) && $envPath !== '') {
+            $expandedPath = $this->expandPath($envPath);
+            if ($this->isAbsolutePath($expandedPath)) {
+                return $this->normalizePath($expandedPath);
+            }
+
+            return $this->normalizePath($this->getProjectRoot() . DIRECTORY_SEPARATOR . $expandedPath);
+        }
+
+        return $this->normalizePath($this->getProjectRoot() . DIRECTORY_SEPARATOR . 'logs' . DIRECTORY_SEPARATOR . 'errors.log');
+    }
+
+    public function getDownloadBasePath(string $videoUrl): string
+    {
+        $envPath = $this->isYoutubeUrl($videoUrl)
+            ? (getenv('DOWNLOAD_DIR_YOUTUBE') ?: '~/Movies/Downloaded/Youtube')
+            : (getenv('DOWNLOAD_DIR_GENERAL') ?: '~/Movies/Downloaded');
+
+        return $this->expandPath((string) $envPath);
+    }
+
+    public function getDefaultOutputFormat(): string
+    {
+        $format = getenv('OUTPUT_FORMAT');
+
+        return is_string($format) && $format !== '' ? strtolower($format) : 'mkv';
+    }
+
+    public function isYoutubeUrl(string $videoUrl): bool
+    {
+        return str_contains($videoUrl, 'youtube.com') || str_contains($videoUrl, 'youtu.be');
+    }
+
+    public function looksLikePlaylistUrl(string $videoUrl): bool
+    {
+        $parts = parse_url($videoUrl);
+        $path = strtolower((string) ($parts['path'] ?? ''));
+
+        return str_contains($path, '/playlist')
+            || str_contains($path, '/playlists')
+            || str_contains($path, '/plst/')
+            || str_ends_with($path, '/plst');
+    }
+
+    public function formatProxyForDisplay(string $proxyUrl): string
+    {
+        if (str_contains($proxyUrl, '@')) {
+            $parts = explode('@', $proxyUrl);
+
+            return (string) end($parts);
+        }
+
+        if (str_contains($proxyUrl, '://')) {
+            $parts = explode('://', $proxyUrl, 2);
+
+            return $parts[1];
+        }
+
+        return $proxyUrl;
+    }
+
+    public function sanitizePathComponent(string $value, string $fallback = 'playlist'): string
+    {
+        $normalized = preg_replace('/[\\\\\\/:*?"<>|\\x00-\\x1f]+/u', '_', trim($value));
+        $normalized = preg_replace('/\\s+/u', ' ', (string) $normalized);
+        $normalized = trim((string) $normalized, " ._");
+
+        return $normalized !== '' ? $normalized : $fallback;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function readKeyValueFile(string $path): array
+    {
+        $values = [];
+        $lines = @file($path, FILE_IGNORE_NEW_LINES);
+        if ($lines === false) {
+            return $values;
+        }
+
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if ($line === '' || str_starts_with($line, '#') || !str_contains($line, '=')) {
+                continue;
+            }
+
+            [$key, $value] = explode('=', $line, 2);
+            $values[trim($key)] = trim($value);
+        }
+
+        return $values;
+    }
+
+    private function discoverRuntimeRoot(): string
+    {
+        $seen = [];
+        $startDirs = [
+            getcwd() ?: null,
+            $this->resolveCommandDir($_SERVER['argv'][0] ?? null),
+            $this->resolveCommandDir(PHP_BINARY),
+            $this->getPackageRoot(),
+        ];
+
+        foreach ($startDirs as $startDir) {
+            foreach ($this->iterCandidateRoots($startDir) as $candidate) {
+                if (isset($seen[$candidate])) {
+                    continue;
+                }
+                $seen[$candidate] = true;
+
+                if ($this->hasRuntimeMarker($candidate)) {
+                    return $candidate;
+                }
+            }
+        }
+
+        return $this->getPackageRoot();
+    }
+
+    private function resolveCommandDir(?string $path): ?string
+    {
+        if (!is_string($path) || $path === '') {
+            return null;
+        }
+
+        $expandedPath = $this->expandPath($path);
+        if ($this->isAbsolutePath($expandedPath) || str_contains($expandedPath, DIRECTORY_SEPARATOR)) {
+            return dirname($this->normalizePath($expandedPath));
+        }
+
+        return null;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function iterCandidateRoots(?string $startDir): array
+    {
+        if (!is_string($startDir) || $startDir === '') {
+            return [];
+        }
+
+        $roots = [];
+        $current = $this->normalizePath($startDir);
+        while (true) {
+            $roots[] = $current;
+
+            $installProjectDir = $current . DIRECTORY_SEPARATOR . self::INSTALL_PROJECT_DIRNAME;
+            if (is_dir($installProjectDir)) {
+                $roots[] = $this->normalizePath($installProjectDir);
+            }
+
+            $parent = dirname($current);
+            if ($parent === $current) {
+                break;
+            }
+            $current = $parent;
+        }
+
+        return $roots;
+    }
+
+    private function hasRuntimeMarker(string $path): bool
+    {
+        foreach (self::RUNTIME_MARKERS as $marker) {
+            if (is_file($path . DIRECTORY_SEPARATOR . $marker)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function normalizePath(string $path): string
+    {
+        $expandedPath = $this->expandPath($path);
+        $realPath = realpath($expandedPath);
+
+        return $realPath !== false ? $realPath : $expandedPath;
+    }
+
+    private function expandPath(string $path): string
+    {
+        if (str_starts_with($path, '~')) {
+            $home = getenv('HOME');
+            if (is_string($home) && $home !== '') {
+                $suffix = ltrim(substr($path, 1), DIRECTORY_SEPARATOR);
+
+                return $suffix === '' ? $home : $home . DIRECTORY_SEPARATOR . $suffix;
+            }
+        }
+
+        return $path;
+    }
+
+    private function isAbsolutePath(string $path): bool
+    {
+        return str_starts_with($path, DIRECTORY_SEPARATOR) || (strlen($path) > 1 && ctype_alpha($path[0]) && $path[1] === ':');
+    }
+
+    private function setEnvValue(string $key, string $value): void
+    {
+        putenv($key . '=' . $value);
+        $_ENV[$key] = $value;
+        $_SERVER[$key] = $value;
+    }
+}

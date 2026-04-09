@@ -1,0 +1,44 @@
+{
+  "name": "zemecom/ytd-php",
+  "description": "PHP CLI wrapper around yt-dlp with domain-based proxy routing.",
+  "type": "project",
+  "license": "MIT",
+  "require": {
+    "php": "^8.5",
+    "symfony/console": "^7.3",
+    "symfony/dotenv": "^7.3",
+    "symfony/filesystem": "^7.3",
+    "symfony/process": "^7.3",
+    "symfony/yaml": "^7.3"
+  },
+  "require-dev": {
+    "friendsofphp/php-cs-fixer": "^3.82",
+    "phpstan/phpstan": "^2.1",
+    "phpunit/phpunit": "^11.5"
+  },
+  "autoload": {
+    "psr-4": {
+      "YtdPhp\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "YtdPhp\\Tests\\": "tests/"
+    }
+  },
+  "bin": [
+    "bin/ytd"
+  ],
+  "scripts": {
+    "test": "vendor/bin/phpunit --testsuite unit",
+    "test-integration": "vendor/bin/phpunit --testsuite integration",
+    "lint": [
+      "vendor/bin/php-cs-fixer fix --dry-run --diff --using-cache=no --config=.php-cs-fixer.dist.php --sequential",
+      "vendor/bin/phpstan analyse --configuration=phpstan.neon --no-progress --debug"
+    ],
+    "check": [
+      "@lint",
+      "@test"
+    ]
+  }
+}

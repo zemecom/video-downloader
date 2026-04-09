@@ -1,0 +1,7 @@
+/vendor/
+/.phpunit.result.cache
+/.php-cs-fixer.cache
+/logs/
+/.env
+/proxy_rules.yaml
+/.DS_Store
