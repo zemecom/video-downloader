@@ -4,4 +4,4 @@
 /logs/
 /.env
 /proxy_rules.yaml
-/.DS_Store
+.DS_Store
