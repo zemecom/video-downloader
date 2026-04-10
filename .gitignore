@@ -5,3 +5,5 @@
 /.env
 /proxy_rules.yaml
 .DS_Store
+.idea/
+.phpunit.cache/

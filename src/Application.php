@@ -54,7 +54,7 @@ final class Application
     {
         $application = new SymfonyApplication('YTD', '0.1.0');
         $application->setAutoExit(false);
-        $application->add(new YtdCommand(
+        $application->addCommand(new YtdCommand(
             $this->bootstrap,
             $this->logger,
             $this->prompter,
