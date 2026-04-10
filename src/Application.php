@@ -11,8 +11,10 @@ use YtdPhp\Service\ConsoleLogger;
 use YtdPhp\Service\DoctorService;
 use YtdPhp\Service\DownloaderService;
 use YtdPhp\Service\InputPrompter;
+use YtdPhp\Service\PlaylistFlowService;
 use YtdPhp\Service\PlaylistService;
 use YtdPhp\Service\RoutingService;
+use YtdPhp\Service\SingleVideoFlowService;
 use YtdPhp\Service\YtDlpClient;
 
 final class Application
@@ -26,6 +28,8 @@ final class Application
         private readonly YtDlpClient $ytDlpClient,
         private readonly DownloaderService $downloaderService,
         private readonly PlaylistService $playlistService,
+        private readonly SingleVideoFlowService $singleVideoFlowService,
+        private readonly PlaylistFlowService $playlistFlowService,
     ) {}
 
     public static function createDefault(RuntimeBootstrap $bootstrap): self
@@ -36,6 +40,8 @@ final class Application
         $ytDlpClient = new YtDlpClient($logger);
         $downloaderService = new DownloaderService($ytDlpClient, $bootstrap, $logger, $prompter);
         $playlistService = new PlaylistService($ytDlpClient, $bootstrap, $downloaderService, $logger, $prompter);
+        $singleVideoFlowService = new SingleVideoFlowService($logger, $prompter, $ytDlpClient, $downloaderService);
+        $playlistFlowService = new PlaylistFlowService($logger, $playlistService);
         $doctorService = new DoctorService($bootstrap, $routingService);
 
         return new self(
@@ -47,6 +53,8 @@ final class Application
             $ytDlpClient,
             $downloaderService,
             $playlistService,
+            $singleVideoFlowService,
+            $playlistFlowService,
         );
     }
 
@@ -57,12 +65,12 @@ final class Application
         $application->addCommand(new YtdCommand(
             $this->bootstrap,
             $this->logger,
-            $this->prompter,
             $this->doctorService,
             $this->routingService,
             $this->ytDlpClient,
-            $this->downloaderService,
             $this->playlistService,
+            $this->singleVideoFlowService,
+            $this->playlistFlowService,
         ));
         $application->setDefaultCommand('ytd', true);
 

@@ -1,0 +1,73 @@
+<?php
+
+declare(strict_types=1);
+
+namespace YtdPhp\Service;
+
+use Symfony\Component\Console\Command\Command;
+use YtdPhp\Dto\RuntimeOptions;
+
+use function in_array;
+use function trim;
+
+final readonly class SingleVideoFlowService
+{
+    /** @var list<string> */
+    private const array SUCCESSFUL_DOWNLOAD_STATUSES = ['completed', 'skipped', 'cancelled'];
+
+    public function __construct(
+        private ConsoleLogger $logger,
+        private InputPrompter $prompter,
+        private YtDlpClient $ytDlpClient,
+        private DownloaderService $downloaderService,
+    ) {}
+
+    public function handle(string $videoUrl, RuntimeOptions $options): int
+    {
+        $formatCode = $options->manualMode
+            ? $this->chooseManualFormat($videoUrl, $options)
+            : $this->defaultFormatCode();
+
+        if ($formatCode === null) {
+            return Command::FAILURE;
+        }
+
+        $result = $this->downloaderService->downloadVideo(
+            $videoUrl,
+            $formatCode,
+            $options->currentProxy,
+            $options->insecure,
+            $options->outputFormat,
+            $options->dryRun,
+        );
+
+        return $this->isSuccessfulDownloadStatus($result->status)
+            ? Command::SUCCESS
+            : Command::FAILURE;
+    }
+
+    private function chooseManualFormat(string $videoUrl, RuntimeOptions $options): ?string
+    {
+        if (!$this->ytDlpClient->listFormats($videoUrl, $options->currentProxy, $options->insecure)) {
+            return null;
+        }
+
+        $choice = trim($this->prompter->ask("Введи код формата для загрузки (или нажми Enter, чтобы скачать 'best'): "));
+        $formatCode = $choice !== '' ? $choice : 'best';
+        $this->logger->info("Выбран формат: '" . $formatCode . "'");
+
+        return $formatCode;
+    }
+
+    private function defaultFormatCode(): string
+    {
+        $this->logger->info('⚡️ Автоматический режим: скачиваю лучшее качество...');
+
+        return 'best';
+    }
+
+    private function isSuccessfulDownloadStatus(string $status): bool
+    {
+        return in_array($status, self::SUCCESSFUL_DOWNLOAD_STATUSES, true);
+    }
+}

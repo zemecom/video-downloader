@@ -15,10 +15,10 @@ use YtdPhp\Exception\RoutingConfigException;
 use YtdPhp\Exception\UserFacingException;
 use YtdPhp\Service\ConsoleLogger;
 use YtdPhp\Service\DoctorService;
-use YtdPhp\Service\DownloaderService;
-use YtdPhp\Service\InputPrompter;
+use YtdPhp\Service\PlaylistFlowService;
 use YtdPhp\Service\PlaylistService;
 use YtdPhp\Service\RoutingService;
+use YtdPhp\Service\SingleVideoFlowService;
 use YtdPhp\Service\YtDlpClient;
 
 final class YtdCommand extends Command
@@ -28,12 +28,12 @@ final class YtdCommand extends Command
     public function __construct(
         private readonly RuntimeBootstrap $bootstrap,
         private readonly ConsoleLogger $logger,
-        private readonly InputPrompter $prompter,
         private readonly DoctorService $doctorService,
         private readonly RoutingService $routingService,
         private readonly YtDlpClient $ytDlpClient,
-        private readonly DownloaderService $downloaderService,
         private readonly PlaylistService $playlistService,
+        private readonly SingleVideoFlowService $singleVideoFlowService,
+        private readonly PlaylistFlowService $playlistFlowService,
     ) {
         parent::__construct(self::$defaultName);
     }
@@ -60,97 +60,21 @@ final class YtdCommand extends Command
     {
         $this->logger->setOutput($output);
 
-        if ((bool) $input->getOption('doctor')) {
-            return $this->doctorService->runDoctor($this->logger);
-        }
-
-        $videoUrl = (string) ($input->getArgument('url') ?? '');
-        if ($videoUrl === '') {
-            $this->logger->error('Не указана ссылка на видео.');
-            $this->logger->line($this->getDescription());
-
-            return Command::FAILURE;
-        }
-
         try {
+            if ((bool) $input->getOption('doctor')) {
+                return $this->doctorService->runDoctor($this->logger);
+            }
+
+            $videoUrl = $this->requireVideoUrl($input);
             $options = $this->buildRuntimeOptions($input, $videoUrl);
             $this->logRuntimeConfiguration($options);
             $this->ytDlpClient->checkBinary();
 
             if ($this->playlistService->shouldTreatAsPlaylist($videoUrl, $options)) {
-                if ($options->manualMode) {
-                    $this->logger->error('Ручной режим пока не поддерживается для плейлистов.');
-
-                    return Command::FAILURE;
-                }
-
-                $summary = $this->playlistService->fetchAndPreparePlaylist($videoUrl, $options);
-                if ($summary === null) {
-                    return Command::FAILURE;
-                }
-
-                $this->playlistService->printPlaylistSummary($summary);
-                if ($options->dryRun) {
-                    $this->playlistService->printPlaylistDryRun($summary);
-                    $this->playlistService->cleanupPlaylistSummary($summary);
-
-                    return $summary->preflightErrorCount === 0 ? Command::SUCCESS : Command::FAILURE;
-                }
-
-                if (!$this->playlistService->promptStorageConfirmation($summary)) {
-                    $this->playlistService->cleanupPlaylistSummary($summary);
-                    $this->logger->info('⏭️ Загрузка отменена.');
-
-                    return Command::FAILURE;
-                }
-
-                $overwritePolicy = $this->playlistService->promptOverwritePolicy($summary);
-                if ($overwritePolicy === PlaylistService::OVERWRITE_CANCEL) {
-                    $this->playlistService->cleanupPlaylistSummary($summary);
-                    $this->logger->info('⏭️ Загрузка отменена.');
-
-                    return Command::FAILURE;
-                }
-
-                return $this->playlistService->downloadPlaylist($summary, $options, $overwritePolicy)
-                    ? Command::SUCCESS
-                    : Command::FAILURE;
+                return $this->playlistFlowService->handle($videoUrl, $options);
             }
 
-            if ($options->manualMode) {
-                if (!$this->ytDlpClient->listFormats($videoUrl, $options->currentProxy, $options->insecure)) {
-                    return Command::FAILURE;
-                }
-                $choice = trim($this->prompter->ask("Введи код формата для загрузки (или нажми Enter, чтобы скачать 'best'): "));
-                $formatToDownload = $choice !== '' ? $choice : 'best';
-                $this->logger->info("Выбран формат: '" . $formatToDownload . "'");
-                $result = $this->downloaderService->downloadVideo(
-                    $videoUrl,
-                    $formatToDownload,
-                    $options->currentProxy,
-                    $options->insecure,
-                    $options->outputFormat,
-                    $options->dryRun,
-                );
-
-                return in_array($result->status, ['completed', 'skipped', 'cancelled'], true)
-                    ? Command::SUCCESS
-                    : Command::FAILURE;
-            }
-
-            $this->logger->info('⚡️ Автоматический режим: скачиваю лучшее качество...');
-            $result = $this->downloaderService->downloadVideo(
-                $videoUrl,
-                'best',
-                $options->currentProxy,
-                $options->insecure,
-                $options->outputFormat,
-                $options->dryRun,
-            );
-
-            return in_array($result->status, ['completed', 'skipped', 'cancelled'], true)
-                ? Command::SUCCESS
-                : Command::FAILURE;
+            return $this->singleVideoFlowService->handle($videoUrl, $options);
         } catch (RoutingConfigException|UserFacingException $error) {
             $this->logger->error($error->getMessage());
 
@@ -208,6 +132,19 @@ final class YtdCommand extends Command
         if ($options->insecure) {
             $this->logger->warning('⚠️ SSL проверка отключена');
         }
+    }
+
+    private function requireVideoUrl(InputInterface $input): string
+    {
+        $videoUrl = (string) ($input->getArgument('url') ?? '');
+        if ($videoUrl !== '') {
+            return $videoUrl;
+        }
+
+        $this->logger->error('Не указана ссылка на видео.');
+        $this->logger->line($this->getDescription());
+
+        throw new UserFacingException('URL не указан');
     }
 
     private function optionalString(mixed $value): ?string

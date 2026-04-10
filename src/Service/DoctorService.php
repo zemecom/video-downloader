@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace YtdPhp\Service;
 
+use Symfony\Component\Process\Process;
 use YtdPhp\Bootstrap\RuntimeBootstrap;
 use YtdPhp\Dto\DoctorResult;
 use YtdPhp\Exception\RoutingConfigException;
@@ -168,9 +169,16 @@ final readonly class DoctorService
 
     private function checkBinary(string $binary, string $installHint): DoctorResult
     {
-        $path = trim((string) shell_exec('command -v ' . escapeshellarg($binary) . ' 2>/dev/null'));
-        if ($path !== '') {
-            return new DoctorResult(self::STATUS_OK, $binary . ' найден', $path);
+        $process = new Process([$binary, '--version']);
+        $process->run();
+        if ($process->isSuccessful()) {
+            $details = trim($process->getOutput());
+
+            return new DoctorResult(
+                self::STATUS_OK,
+                $binary . ' найден',
+                $details !== '' ? $details : 'Команда отвечает на --version.',
+            );
         }
 
         return new DoctorResult(self::STATUS_ERROR, $binary . ' не найден', $installHint);

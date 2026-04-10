@@ -4,12 +4,16 @@ declare(strict_types=1);
 
 namespace YtdPhp\Bootstrap;
 
+use Symfony\Component\Dotenv\Dotenv;
+use Symfony\Component\Dotenv\Exception\FormatException;
+
 use function array_key_exists;
 use function array_values;
 use function basename;
 use function count;
 use function dirname;
 use function explode;
+use function file_get_contents;
 use function getenv;
 use function is_dir;
 use function is_file;
@@ -30,15 +34,6 @@ final class RuntimeBootstrap
     private const array RUNTIME_MARKERS = ['.env', self::LOCAL_PROXY_RULES_FILE, 'proxy_rules.example.yaml'];
 
     private const string INSTALL_PROJECT_DIRNAME = 'project';
-
-    /** @var list<string> */
-    private const array MULTI_SHORT_MAP = [
-        '-np',
-        '-dr',
-        '-nps',
-        '-cd',
-        '-dc',
-    ];
 
     /** @var array<string, string> */
     private const array MULTI_SHORT_REPLACEMENTS = [
@@ -120,7 +115,7 @@ final class RuntimeBootstrap
             return;
         }
 
-        foreach ($this->readKeyValueFile($envPath) as $key => $value) {
+        foreach ($this->readEnvFileValues($envPath) as $key => $value) {
             if (getenv($key) === false) {
                 $this->setEnvValue($key, $value);
             }
@@ -136,32 +131,18 @@ final class RuntimeBootstrap
 
     public function getProxyRulesPath(): string
     {
-        $envPath = getenv('PROXY_RULES_FILE');
-        if (is_string($envPath) && $envPath !== '') {
-            $expandedPath = $this->expandPath($envPath);
-            if ($this->isAbsolutePath($expandedPath)) {
-                return $this->normalizePath($expandedPath);
-            }
-
-            return $this->normalizePath($this->getProjectRoot() . DIRECTORY_SEPARATOR . $expandedPath);
-        }
-
-        return $this->normalizePath($this->getProjectRoot() . DIRECTORY_SEPARATOR . self::LOCAL_PROXY_RULES_FILE);
+        return $this->resolveRuntimePath(
+            'PROXY_RULES_FILE',
+            self::LOCAL_PROXY_RULES_FILE,
+        );
     }
 
     public function getErrorLogPath(): string
     {
-        $envPath = getenv('YTD_ERROR_LOG_FILE');
-        if (is_string($envPath) && $envPath !== '') {
-            $expandedPath = $this->expandPath($envPath);
-            if ($this->isAbsolutePath($expandedPath)) {
-                return $this->normalizePath($expandedPath);
-            }
-
-            return $this->normalizePath($this->getProjectRoot() . DIRECTORY_SEPARATOR . $expandedPath);
-        }
-
-        return $this->normalizePath($this->getProjectRoot() . DIRECTORY_SEPARATOR . 'logs' . DIRECTORY_SEPARATOR . 'errors.log');
+        return $this->resolveRuntimePath(
+            'YTD_ERROR_LOG_FILE',
+            'logs' . DIRECTORY_SEPARATOR . 'errors.log',
+        );
     }
 
     public function getDownloadBasePath(string $videoUrl): string
@@ -227,20 +208,30 @@ final class RuntimeBootstrap
      */
     public function readKeyValueFile(string $path): array
     {
+        return $this->readEnvFileValues($path);
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function readEnvFileValues(string $path): array
+    {
         $values = [];
-        $lines = @file($path, FILE_IGNORE_NEW_LINES);
-        if ($lines === false) {
+        $contents = @file_get_contents($path);
+        if (!is_string($contents) || $contents === '') {
             return $values;
         }
 
-        foreach ($lines as $line) {
-            $line = trim($line);
-            if ($line === '' || str_starts_with($line, '#') || !str_contains($line, '=')) {
-                continue;
-            }
+        try {
+            $parsed = (new Dotenv())->parse($contents, $path);
+        } catch (FormatException) {
+            return $values;
+        }
 
-            [$key, $value] = explode('=', $line, 2);
-            $values[trim($key)] = trim($value);
+        foreach ($parsed as $key => $value) {
+            if (is_string($value)) {
+                $values[$key] = $value;
+            }
         }
 
         return $values;
@@ -284,6 +275,21 @@ final class RuntimeBootstrap
         }
 
         return null;
+    }
+
+    private function resolveRuntimePath(string $envKey, string $defaultRelativePath): string
+    {
+        $configuredPath = getenv($envKey);
+        if (!is_string($configuredPath) || $configuredPath === '') {
+            return $this->normalizePath($this->getProjectRoot() . DIRECTORY_SEPARATOR . $defaultRelativePath);
+        }
+
+        $expandedPath = $this->expandPath($configuredPath);
+        if ($this->isAbsolutePath($expandedPath)) {
+            return $this->normalizePath($expandedPath);
+        }
+
+        return $this->normalizePath($this->getProjectRoot() . DIRECTORY_SEPARATOR . $expandedPath);
     }
 
     /**

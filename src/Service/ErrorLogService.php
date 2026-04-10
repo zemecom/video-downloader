@@ -4,14 +4,12 @@ declare(strict_types=1);
 
 namespace YtdPhp\Service;
 
+use Symfony\Component\Filesystem\Filesystem;
 use Throwable;
 use YtdPhp\Bootstrap\RuntimeBootstrap;
 
 use function date;
 use function dirname;
-use function file_put_contents;
-use function is_dir;
-use function mkdir;
 
 final readonly class ErrorLogService
 {
@@ -23,9 +21,8 @@ final readonly class ErrorLogService
     {
         $path = $this->bootstrap->getErrorLogPath();
         $directory = dirname($path);
-        if (!is_dir($directory)) {
-            mkdir($directory, 0777, true);
-        }
+        $filesystem = new Filesystem();
+        $filesystem->mkdir($directory);
 
         $payload = sprintf(
             "[%s] Необработанная ошибка: %s\n%s\n\n",
@@ -33,7 +30,7 @@ final readonly class ErrorLogService
             $error->getMessage(),
             (string) $error,
         );
-        file_put_contents($path, $payload, FILE_APPEND);
+        $filesystem->appendToFile($path, $payload);
 
         return $path;
     }

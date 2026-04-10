@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace YtdPhp\Service;
 
+use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Process\Process;
 use YtdPhp\Bootstrap\RuntimeBootstrap;
 use YtdPhp\Dto\DownloadResult;
@@ -340,9 +341,7 @@ final readonly class PlaylistService
             return false;
         }
 
-        if (!is_dir($summary->targetDir)) {
-            mkdir($summary->targetDir, 0777, true);
-        }
+        (new Filesystem())->mkdir($summary->targetDir);
 
         $workItems = $this->filterWorkItems($summary, $overwritePolicy);
         if ($workItems === []) {
@@ -615,10 +614,7 @@ final readonly class PlaylistService
     ): ?PlaylistSelectionSummary {
         $selectedMetadata = [];
         foreach ($selectedItems as $item) {
-            $metadata = $this->buildItemMetadata($playlist, $item, $options, $targetDir);
-            if ($metadata !== null) {
-                $selectedMetadata[] = $metadata;
-            }
+            $selectedMetadata[] = $this->buildItemMetadata($playlist, $item, $options, $targetDir);
         }
 
         $knownTotalSize = 0;
@@ -658,28 +654,25 @@ final readonly class PlaylistService
         PlaylistItem $item,
         RuntimeOptions $options,
         string $targetDir,
-    ): ?SelectedItemMetadata {
+    ): SelectedItemMetadata {
         $usedDirectItemProbe = $this->canProbeItemDirectly($item);
         $process = $this->probeItemProcess($item, $playlist, $options);
         if (!$process->isSuccessful()) {
             $detail = $this->ytDlpClient->getProcessErrorDetail($process, 'playlist_item_metadata_failed');
 
-            return new SelectedItemMetadata($item, '', '', false, null, null, false, $detail);
+            return $this->failedItemMetadata($item, $detail);
         }
 
         $metadata = $this->decodePlaylistPayload($process->getOutput());
         if ($metadata === null) {
-            return new SelectedItemMetadata($item, '', '', false, null, null, false, 'playlist_item_metadata_failed');
+            return $this->failedItemMetadata($item, 'playlist_item_metadata_failed');
         }
 
         $metadata['playlist_index'] ??= $item->playlistIndex;
-        $tempJson = tempnam(sys_get_temp_dir(), 'ytd_playlist_');
-        if ($tempJson === false) {
-            return null;
+        $tempJsonPath = $this->writePlaylistItemMetadataJson($metadata);
+        if ($tempJsonPath === null) {
+            return $this->failedItemMetadata($item, 'playlist_item_tempfile_failed');
         }
-        $tempJsonPath = $tempJson . '.json';
-        file_put_contents($tempJsonPath, json_encode($metadata, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
-        @unlink($tempJson);
 
         $expectedPath = $usedDirectItemProbe
             ? $this->fallbackExpectedPath($targetDir, $metadata, $item->playlistIndex, $options->outputFormat)
@@ -704,6 +697,36 @@ final readonly class PlaylistService
             $filesizeApprox,
             $filesize !== null || $filesizeApprox !== null,
         );
+    }
+
+    /**
+     * @param array<mixed> $metadata
+     */
+    private function writePlaylistItemMetadataJson(array $metadata): ?string
+    {
+        $tempJson = tempnam(sys_get_temp_dir(), 'ytd_playlist_');
+        if ($tempJson === false) {
+            return null;
+        }
+
+        $tempJsonPath = $tempJson . '.json';
+        @unlink($tempJson);
+
+        $encoded = json_encode($metadata, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+        if (!is_string($encoded) || file_put_contents($tempJsonPath, $encoded) === false) {
+            if (file_exists($tempJsonPath)) {
+                @unlink($tempJsonPath);
+            }
+
+            return null;
+        }
+
+        return $tempJsonPath;
+    }
+
+    private function failedItemMetadata(PlaylistItem $item, string $errorMessage): SelectedItemMetadata
+    {
+        return new SelectedItemMetadata($item, '', '', false, null, null, false, $errorMessage);
     }
 
     private function probeItemProcess(PlaylistItem $item, PlaylistInfo $playlist, RuntimeOptions $options): Process
