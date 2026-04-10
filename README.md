@@ -15,10 +15,18 @@ PHP-версия CLI-обёртки над `yt-dlp` с маршрутизаци�
 
 ```bash
 cd php
-composer install
+make install-deps
 cp .env.example .env
 cp proxy_rules.example.yaml proxy_rules.yaml
 ```
+
+Если хочешь добавить shell-alias для запуска из любого каталога:
+
+```bash
+make install
+```
+
+По умолчанию этот target добавляет alias `ytdphp`.
 
 ## Использование
 
@@ -51,6 +59,7 @@ php ytd.php https://youtu.be/example
 ## Make targets
 
 - `make install`
+- `make install-deps`
 - `make init`
 - `make doctor`
 - `make doctor-smoke`
