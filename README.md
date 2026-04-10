@@ -4,7 +4,7 @@ PHP-версия `YTD` - это CLI-обёртка вокруг `yt-dlp` для 
 
 Она полезна, когда тебе нужен предсказуемый локальный workflow: один CLI-вход для одиночных загрузок и плейлистов, явные правила маршрутизации в `proxy_rules.yaml`, проверка окружения через `doctor` и совместимые runtime-конфиги в `.env`.
 
-Каталог [../python](/Users/aleksandrzemlanuhin/Dev/PROJECTS/TOOLS/video-downloader/python) остаётся старой Python-реализацией. Каталог [./](/Users/aleksandrzemlanuhin/Dev/PROJECTS/TOOLS/video-downloader/php) внутри `php` — текущая основная реализация на PHP 8.5.
+Каталог [../python](/Users/aleksandrzemlanuhin/Dev/PROJECTS/TOOLS/video-downloader/python) остаётся старой Python-реализацией. Каталог [./](/Users/aleksandrzemlanuhin/Dev/PROJECTS/TOOLS/video-downloader/php) внутри `php` — текущая основная реализация на PHP 8.4+.
 
 ## Что делает проект
 
@@ -26,7 +26,7 @@ PHP-версия `YTD` - это CLI-обёртка вокруг `yt-dlp` для 
 
 Обязательно:
 
-- PHP 8.5+
+- PHP 8.4+
 - Composer
 - `yt-dlp`
 - `ffmpeg`
