@@ -54,7 +54,7 @@ doctor-smoke:
 	@tmpdir="$$(mktemp -d /tmp/ytd-php-doctor.XXXXXX)"; \
 	cp .env.example "$$tmpdir/.env"; \
 	cp proxy_rules.example.yaml "$$tmpdir/proxy_rules.yaml"; \
-	YTD_PROJECT_ROOT="$$tmpdir" $(PHP) bin/ytd --doctor; \
+	YTD_PROJECT_ROOT="$$tmpdir" YTD_DOCTOR_SKIP_BINARY_CHECKS=1 $(PHP) bin/ytd --doctor; \
 	rc="$$?"; \
 	rm -rf "$$tmpdir"; \
 	exit "$$rc"

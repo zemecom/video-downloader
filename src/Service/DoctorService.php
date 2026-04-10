@@ -24,6 +24,8 @@ final readonly class DoctorService
     public const string STATUS_WARN = 'warn';
     public const string STATUS_ERROR = 'error';
 
+    private const string SKIP_BINARY_CHECKS_ENV = 'YTD_DOCTOR_SKIP_BINARY_CHECKS';
+
     private const string EXAMPLE_PROXY_REMOTE = 'http://user:pass@example.com:3128';
     private const string EXAMPLE_PROXY_LOCAL = 'http://127.0.0.1:8881';
 
@@ -50,10 +52,23 @@ final readonly class DoctorService
         $envValues = $this->bootstrap->readKeyValueFile($envPath);
         $rulesPath = $this->bootstrap->getProxyRulesPath();
 
-        $results = [
-            $this->checkBinary('yt-dlp', 'Установи yt-dlp и убедись, что команда доступна в PATH.'),
-            $this->checkBinary('ffmpeg', 'Установи ffmpeg и убедись, что команда доступна в PATH.'),
-        ];
+        $results = $this->shouldSkipBinaryChecks()
+            ? [
+                new DoctorResult(
+                    self::STATUS_WARN,
+                    'Проверка yt-dlp пропущена',
+                    'Smoke-режим doctor пропускает внешние бинарники.',
+                ),
+                new DoctorResult(
+                    self::STATUS_WARN,
+                    'Проверка ffmpeg пропущена',
+                    'Smoke-режим doctor пропускает внешние бинарники.',
+                ),
+            ]
+            : [
+                $this->checkBinary('yt-dlp', 'Установи yt-dlp и убедись, что команда доступна в PATH.'),
+                $this->checkBinary('ffmpeg', 'Установи ffmpeg и убедись, что команда доступна в PATH.'),
+            ];
 
         $results[] = file_exists($envPath)
             ? new DoctorResult(self::STATUS_OK, '.env найден', $envPath)
@@ -191,5 +206,12 @@ final readonly class DoctorService
             self::STATUS_WARN => '⚠️',
             default => '❌',
         };
+    }
+
+    private function shouldSkipBinaryChecks(): bool
+    {
+        $value = getenv(self::SKIP_BINARY_CHECKS_ENV);
+
+        return is_string($value) && $value === '1';
     }
 }
