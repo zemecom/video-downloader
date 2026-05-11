@@ -67,7 +67,7 @@ test-integration:
 
 lint:
 	$(FIXER) fix --dry-run --diff --using-cache=no --config=.php-cs-fixer.dist.php --sequential
-	$(PHPSTAN) analyse --configuration=phpstan.neon --no-progress --debug
+	$(PHPSTAN) analyse --configuration=phpstan.neon --no-progress --debug --memory-limit=512M
 
 lint-fix:
 	$(FIXER) fix --using-cache=no --config=.php-cs-fixer.dist.php --sequential $(FIXER_TARGETS)

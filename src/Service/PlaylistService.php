@@ -850,8 +850,7 @@ final readonly class PlaylistService
         int $index,
         string $outputFormat,
         string $formatCode = 'best',
-    ): string
-    {
+    ): string {
         $title = trim((string) ($metadata['title'] ?? $metadata['fulltitle'] ?? 'video_' . $index));
         $safeTitle = $this->bootstrap->sanitizePathComponent($title, 'video_' . $index);
         $videoId = trim((string) ($metadata['id'] ?? ''));

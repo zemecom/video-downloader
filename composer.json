@@ -34,7 +34,7 @@
     "test-integration": "vendor/bin/phpunit --testsuite integration",
     "lint": [
       "vendor/bin/php-cs-fixer fix --dry-run --diff --using-cache=no --config=.php-cs-fixer.dist.php --sequential",
-      "vendor/bin/phpstan analyse --configuration=phpstan.neon --no-progress --debug"
+      "vendor/bin/phpstan analyse --configuration=phpstan.neon --no-progress --debug --memory-limit=512M"
     ],
     "check": [
       "@lint",
