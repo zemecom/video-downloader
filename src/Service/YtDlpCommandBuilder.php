@@ -125,6 +125,8 @@ final class YtDlpCommandBuilder
     {
         $command = [...$this->command, '-o', $outputTemplate];
         $command = $this->applyFormatArgs($command, $formatCode, $outputFormat);
+        $command[] = '--downloader-args';
+        $command[] = 'ffmpeg_i:-http_persistent 0';
         $command[] = '--progress';
         $command[] = '--concurrent-fragments';
         $command[] = '10';

@@ -11,6 +11,7 @@ final readonly class RuntimeOptions
         public ?string $currentProxy,
         public bool $insecure,
         public bool $manualMode,
+        public bool $audioOnly,
         public bool $dryRun,
         public bool $playlistShowSizes,
         public int $concurrentDownloads,

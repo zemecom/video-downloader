@@ -49,6 +49,7 @@ final class YtdCommand extends Command
             ->addOption('remote', 'r', InputOption::VALUE_NONE, 'Использовать удалённый прокси')
             ->addOption('insecure', 'i', InputOption::VALUE_NONE, 'Отключить проверку SSL сертификатов')
             ->addOption('manual', 'm', InputOption::VALUE_NONE, 'Ручной режим (выбор формата)')
+            ->addOption('audio', 'a', InputOption::VALUE_NONE, 'Скачать только аудио в лучшем формате (opus)')
             ->addOption('dry-run', null, InputOption::VALUE_NONE, 'Показать, что будет скачано, но не запускать загрузку')
             ->addOption('mp4', null, InputOption::VALUE_NONE, 'Сохранить в формате MP4 (вместо MKV)')
             ->addOption('no-playlist-sizes', null, InputOption::VALUE_NONE, 'Показать плейлист без предварительного подсчёта размеров')
@@ -99,6 +100,7 @@ final class YtdCommand extends Command
             $currentProxy,
             (bool) $input->getOption('insecure'),
             (bool) $input->getOption('manual'),
+            (bool) $input->getOption('audio'),
             (bool) $input->getOption('dry-run'),
             !(bool) $input->getOption('no-playlist-sizes'),
             max(1, (int) $input->getOption('concurrent-downloads')),

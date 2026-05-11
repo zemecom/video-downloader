@@ -15,7 +15,8 @@ use function filesize;
 use function floor;
 use function is_dir;
 use function is_file;
-use function json_encode;
+use function is_array;
+use function json_decode;
 use function log;
 use function mkdir;
 use function pathinfo;
@@ -33,6 +34,7 @@ final readonly class DownloaderService
         private RuntimeBootstrap $bootstrap,
         private ConsoleLogger $logger,
         private InputPrompter $prompter,
+        private AutomaticFormatResolver $automaticFormatResolver = new AutomaticFormatResolver(),
     ) {}
 
     public function formatSize(int $sizeBytes): string
@@ -81,11 +83,18 @@ final readonly class DownloaderService
         $tempJsonPath .= '.json';
         file_put_contents($tempJsonPath, $process->getOutput());
 
+        $metadata = json_decode($process->getOutput(), true);
+        if (!is_array($metadata)) {
+            $metadata = [];
+        }
+
+        $resolvedFormatCode = $this->automaticFormatResolver->resolve($formatCode, $metadata);
+
         try {
             $this->logger->info('🔍 Проверяю наличие файла...');
             $expectedFile = $this->ytDlpClient->getExpectedFilename(
                 null,
-                $formatCode,
+                $resolvedFormatCode,
                 $outputTemplate,
                 $proxy,
                 $insecure,
@@ -102,7 +111,7 @@ final readonly class DownloaderService
                     $this->logger->warning('⚠️ Файл уже существует: ' . $expectedFile);
                     $this->logger->info('↪️ В обычном режиме был бы показан вопрос о перезаписи.');
                 } else {
-                    $this->logger->info('⬇️ Будет скачано в формате: ' . $formatCode);
+                    $this->logger->info('⬇️ Будет скачано в формате: ' . $resolvedFormatCode);
                 }
 
                 return new DownloadResult('completed', 'dry_run');
@@ -123,7 +132,7 @@ final readonly class DownloaderService
             return $this->downloadFromInfoJson(
                 $tempJsonPath,
                 $outputTemplate,
-                $formatCode,
+                $resolvedFormatCode,
                 $proxy,
                 $insecure,
                 $outputFormat,
@@ -189,6 +198,7 @@ final readonly class DownloaderService
         string $outputPath,
         ?string $proxy,
         bool $insecure,
+        string $formatCode,
         string $outputFormat,
         bool $forceOverwrites,
     ): Process {
@@ -198,7 +208,7 @@ final readonly class DownloaderService
             $builder->addArg('--force-overwrites');
         }
 
-        $process = new Process($builder->buildForDownload('best', $outputPath, $outputFormat));
+        $process = new Process($builder->buildForDownload($formatCode, $outputPath, $outputFormat));
         $process->setTimeout(null);
 
         return $process;

@@ -369,6 +369,7 @@ final readonly class PlaylistService
                     $metadata->expectedPath,
                     $options->currentProxy,
                     $options->insecure,
+                    $this->requestedFormatCode($options),
                     $options->outputFormat,
                     $overwritePolicy === self::OVERWRITE_OVERWRITE_ALL,
                 );
@@ -655,6 +656,7 @@ final readonly class PlaylistService
         RuntimeOptions $options,
         string $targetDir,
     ): SelectedItemMetadata {
+        $requestedFormatCode = $this->requestedFormatCode($options);
         $usedDirectItemProbe = $this->canProbeItemDirectly($item);
         $process = $this->probeItemProcess($item, $playlist, $options);
         if (!$process->isSuccessful()) {
@@ -674,17 +676,45 @@ final readonly class PlaylistService
             return $this->failedItemMetadata($item, 'playlist_item_tempfile_failed');
         }
 
-        $expectedPath = $usedDirectItemProbe
-            ? $this->fallbackExpectedPath($targetDir, $metadata, $item->playlistIndex, $options->outputFormat)
-            : ($this->ytDlpClient->getExpectedFilename(
+        $expectedPath = $requestedFormatCode === 'bestaudio'
+            ? ($this->ytDlpClient->getExpectedFilename(
                 null,
-                'best',
+                $requestedFormatCode,
                 $this->playlistOutputTemplate($targetDir),
                 $options->currentProxy,
                 $options->insecure,
                 $tempJsonPath,
                 $options->outputFormat,
-            ) ?: $this->fallbackExpectedPath($targetDir, $metadata, $item->playlistIndex, $options->outputFormat));
+            ) ?: $this->fallbackExpectedPath(
+                $targetDir,
+                $metadata,
+                $item->playlistIndex,
+                $options->outputFormat,
+                $requestedFormatCode,
+            ))
+            : ($usedDirectItemProbe
+                ? $this->fallbackExpectedPath(
+                    $targetDir,
+                    $metadata,
+                    $item->playlistIndex,
+                    $options->outputFormat,
+                    $requestedFormatCode,
+                )
+                : ($this->ytDlpClient->getExpectedFilename(
+                    null,
+                    $requestedFormatCode,
+                    $this->playlistOutputTemplate($targetDir),
+                    $options->currentProxy,
+                    $options->insecure,
+                    $tempJsonPath,
+                    $options->outputFormat,
+                ) ?: $this->fallbackExpectedPath(
+                    $targetDir,
+                    $metadata,
+                    $item->playlistIndex,
+                    $options->outputFormat,
+                    $requestedFormatCode,
+                )));
 
         [$filesize, $filesizeApprox] = $this->estimateItemSize($metadata);
 
@@ -814,7 +844,13 @@ final readonly class PlaylistService
     /**
      * @param array<mixed> $metadata
      */
-    private function fallbackExpectedPath(string $targetDir, array $metadata, int $index, string $outputFormat): string
+    private function fallbackExpectedPath(
+        string $targetDir,
+        array $metadata,
+        int $index,
+        string $outputFormat,
+        string $formatCode = 'best',
+    ): string
     {
         $title = trim((string) ($metadata['title'] ?? $metadata['fulltitle'] ?? 'video_' . $index));
         $safeTitle = $this->bootstrap->sanitizePathComponent($title, 'video_' . $index);
@@ -822,9 +858,15 @@ final readonly class PlaylistService
         $safeVideoId = $videoId !== ''
             ? $this->bootstrap->sanitizePathComponent($videoId, 'item_' . $index)
             : 'item_' . $index;
-        $ext = trim((string) ($metadata['ext'] ?? $outputFormat)) ?: $outputFormat;
+        $defaultExtension = $formatCode === 'bestaudio' ? 'opus' : $outputFormat;
+        $ext = trim((string) ($metadata['ext'] ?? $defaultExtension)) ?: $defaultExtension;
 
         return sprintf('%s/%03d - %s [%s].%s', $targetDir, $index, $safeTitle, $safeVideoId, $ext);
+    }
+
+    private function requestedFormatCode(RuntimeOptions $options): string
+    {
+        return $options->audioOnly ? 'bestaudio' : 'best';
     }
 
     private function printPlaylistItems(PlaylistInfo $playlist, bool $showSizes): void

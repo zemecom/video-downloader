@@ -8,6 +8,7 @@ use Symfony\Component\Console\Command\Command;
 use YtdPhp\Dto\RuntimeOptions;
 
 use function in_array;
+use function sprintf;
 use function trim;
 
 final readonly class SingleVideoFlowService
@@ -26,7 +27,7 @@ final readonly class SingleVideoFlowService
     {
         $formatCode = $options->manualMode
             ? $this->chooseManualFormat($videoUrl, $options)
-            : $this->defaultFormatCode();
+            : $this->defaultFormatCode($options, true);
 
         if ($formatCode === null) {
             return Command::FAILURE;
@@ -52,18 +53,30 @@ final readonly class SingleVideoFlowService
             return null;
         }
 
-        $choice = trim($this->prompter->ask("Введи код формата для загрузки (или нажми Enter, чтобы скачать 'best'): "));
-        $formatCode = $choice !== '' ? $choice : 'best';
+        $defaultFormatCode = $this->defaultFormatCode($options, false);
+        $choice = trim($this->prompter->ask(
+            sprintf(
+                "Введи код формата для загрузки (или нажми Enter, чтобы скачать '%s'): ",
+                $defaultFormatCode,
+            ),
+        ));
+        $formatCode = $choice !== '' ? $choice : $defaultFormatCode;
         $this->logger->info("Выбран формат: '" . $formatCode . "'");
 
         return $formatCode;
     }
 
-    private function defaultFormatCode(): string
+    private function defaultFormatCode(RuntimeOptions $options, bool $emitLog): string
     {
-        $this->logger->info('⚡️ Автоматический режим: скачиваю лучшее качество...');
+        if ($emitLog) {
+            $this->logger->info(
+                $options->audioOnly
+                    ? '⚡️ Автоматический режим: скачиваю лучшее аудио...'
+                    : '⚡️ Автоматический режим: скачиваю лучшее качество...',
+            );
+        }
 
-        return 'best';
+        return $options->audioOnly ? 'bestaudio' : 'best';
     }
 
     private function isSuccessfulDownloadStatus(string $status): bool
