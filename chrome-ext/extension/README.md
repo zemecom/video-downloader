@@ -2,13 +2,19 @@
 
 Расширение Chrome на Manifest V3, которое отправляет URL текущей вкладки в локальный native host `dev.zemecom.ytd_downloader`.
 
+Если удобнее не помнить путь вручную, из корня `ytd` можно сначала выполнить:
+
+```bash
+make chrome-ext-paths
+```
+
 ## Как загрузить в Chrome
 
 1. Открой `chrome://extensions`.
 2. Включи `Developer mode`.
 3. Нажми `Load unpacked`.
 4. Выбери каталог:
-   - `/Users/aleksandrzemlanuhin/Dev/PROJECTS/TOOLS/video-downloader/ytd/chrome-ext/extension`
+   - `chrome-ext/extension`
 
 ## Разрешения
 

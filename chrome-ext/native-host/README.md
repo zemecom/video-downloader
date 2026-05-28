@@ -2,10 +2,23 @@
 
 Устанавливает пользовательский Google Chrome Native Messaging host на macOS для локального проекта `YTD`.
 
+Из корня `ytd` можно использовать готовые команды:
+
+```bash
+make chrome-ext-install
+make chrome-ext-uninstall
+```
+
+Если нужен override `Extension ID`:
+
+```bash
+make chrome-ext-install CHROME_EXT_ID=YOUR_EXTENSION_ID
+```
+
 ## Установка
 
 ```bash
-cd /Users/aleksandrzemlanuhin/Dev/PROJECTS/TOOLS/video-downloader/ytd/chrome-ext/native-host
+cd chrome-ext/native-host
 ./install-macos.sh
 ```
 

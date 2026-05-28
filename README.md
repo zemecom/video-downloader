@@ -4,8 +4,6 @@ PHP-версия `YTD` - это CLI-обёртка вокруг `yt-dlp` для 
 
 Она полезна, когда тебе нужен предсказуемый локальный workflow: один CLI-вход для одиночных загрузок и плейлистов, явные правила маршрутизации в `proxy_rules.yaml`, проверка окружения через `doctor` и совместимые runtime-конфиги в `.env`.
 
-Каталог [../python](/Users/aleksandrzemlanuhin/Dev/PROJECTS/TOOLS/video-downloader/python) остаётся старой Python-реализацией. Каталог [./](/Users/aleksandrzemlanuhin/Dev/PROJECTS/TOOLS/video-downloader/php) внутри `php` — текущая основная реализация на PHP 8.4+.
-
 ## Что делает проект
 
 - Скачивает одиночные видео в автоматическом и ручном режиме.
@@ -14,6 +12,7 @@ PHP-версия `YTD` - это CLI-обёртка вокруг `yt-dlp` для 
 - Поддерживает dry-run и опциональное отключение SSL-проверки.
 - Предупреждает перед перезаписью существующих файлов.
 - Пишет подробности необработанных ошибок в `logs/errors.log` внутри runtime-root.
+- Содержит Chrome-расширение в `chrome-ext/`, которое умеет запускать локальные загрузки через native host.
 
 ## Когда это полезно
 
@@ -43,7 +42,7 @@ PHP-версия `YTD` - это CLI-обёртка вокруг `yt-dlp` для 
 ### Вариант 1. Быстрая локальная установка через Makefile
 
 ```bash
-cd php
+cd ytd
 make install-deps
 make init
 ```
@@ -77,7 +76,7 @@ make install PHP_ALIAS_NAME=ytd
 Затем поставь PHP-зависимости проекта:
 
 ```bash
-cd php
+cd ytd
 composer install
 cp .env.example .env
 cp proxy_rules.example.yaml proxy_rules.yaml
@@ -136,6 +135,28 @@ php bin/ytd https://youtu.be/example
 
 ```bash
 ytdphp https://youtu.be/example
+```
+
+## Chrome Extension
+
+Расширение Chrome теперь живёт прямо внутри проекта:
+
+- `chrome-ext/` - общая папка расширения
+- `chrome-ext/extension/` - unpacked extension для Chrome
+- `chrome-ext/native-host/` - installer и wrapper для Native Messaging
+
+Быстрые команды:
+
+```bash
+make chrome-ext-paths
+make chrome-ext-install
+make chrome-ext-uninstall
+```
+
+Если нужно переопределить `Extension ID`:
+
+```bash
+make chrome-ext-install CHROME_EXT_ID=YOUR_EXTENSION_ID
 ```
 
 ## Конфигурация
@@ -294,6 +315,9 @@ php bin/ytd -dc
 - `make init` — создаёт runtime-конфиги из шаблонов.
 - `make doctor` — проверяет окружение и локальные конфиги.
 - `make doctor-smoke` — прогоняет `doctor` на шаблонных конфигах во временном runtime-root.
+- `make chrome-ext-paths` — показывает пути к unpacked extension и native host.
+- `make chrome-ext-install` — устанавливает native host для Chrome-расширения.
+- `make chrome-ext-uninstall` — удаляет manifest native host из профиля Chrome.
 - `make test` — запускает unit-тесты.
 - `make test-integration` — запускает integration-suite.
 - `make lint` — запускает PHP CS Fixer и PHPStan.

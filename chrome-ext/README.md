@@ -1,22 +1,38 @@
 # Chrome Extension + Native Host
 
-Расширение Chrome с запуском в один клик и native host для локального проекта-загрузчика `YTD` внутри `./ytd`.
+Расширение Chrome с запуском в один клик и native host для локального проекта-загрузчика `YTD` внутри родительского проекта `ytd`.
 
 ## Структура
 
 - `extension/` - распакованное расширение Chrome на Manifest V3
 - `native-host/` - установщик для macOS, шаблон manifest и wrapper для Chrome Native Messaging
 
+## Команды проекта
+
+Из корня `ytd` можно пользоваться готовыми target'ами:
+
+```bash
+make chrome-ext-paths
+make chrome-ext-install
+make chrome-ext-uninstall
+```
+
+Если нужен override `Extension ID`:
+
+```bash
+make chrome-ext-install CHROME_EXT_ID=YOUR_EXTENSION_ID
+```
+
 ## Быстрый старт
 
 1. Открой `chrome://extensions`.
 2. Включи `Developer mode`.
 3. Загрузи распакованное расширение из каталога:
-   - `/Users/aleksandrzemlanuhin/Dev/PROJECTS/TOOLS/video-downloader/ytd/chrome-ext/extension`
+   - `chrome-ext/extension`
 4. Установи native host:
 
 ```bash
-cd /Users/aleksandrzemlanuhin/Dev/PROJECTS/TOOLS/video-downloader/ytd/chrome-ext/native-host
+cd chrome-ext/native-host
 ./install-macos.sh
 ```
 
