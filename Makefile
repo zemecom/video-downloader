@@ -1,4 +1,4 @@
-.PHONY: help install install-deps alias init doctor doctor-smoke test test-integration lint lint-fix check check-entrypoint-local ci-current
+.PHONY: help install install-deps alias init doctor doctor-smoke test test-integration lint lint-fix check check-entrypoint-local ci-current chrome-ext-paths chrome-ext-install chrome-ext-uninstall
 
 PHP ?= php
 COMPOSER ?= composer
@@ -6,6 +6,12 @@ PHP_ALIAS_NAME ?= ytdphp
 FIXER ?= vendor/bin/php-cs-fixer
 PHPSTAN ?= vendor/bin/phpstan
 PHPUNIT ?= vendor/bin/phpunit
+CHROME_EXT_DIR ?= chrome-ext
+CHROME_EXT_EXTENSION_DIR ?= $(CHROME_EXT_DIR)/extension
+CHROME_EXT_NATIVE_HOST_DIR ?= $(CHROME_EXT_DIR)/native-host
+CHROME_EXT_INSTALLER ?= $(CHROME_EXT_NATIVE_HOST_DIR)/install-macos.sh
+CHROME_EXT_UNINSTALLER ?= $(CHROME_EXT_NATIVE_HOST_DIR)/uninstall-macos.sh
+CHROME_EXT_ID ?=
 
 help:
 	@echo "Available targets:"
@@ -18,6 +24,9 @@ help:
 	@echo "  make init          - create runtime config files from templates"
 	@echo "  make doctor        - run environment checks"
 	@echo "  make doctor-smoke  - run doctor against template configs in a temporary runtime root"
+	@echo "  make chrome-ext-paths - print Chrome extension and native host paths"
+	@echo "  make chrome-ext-install - install Chrome native host for the local extension"
+	@echo "  make chrome-ext-uninstall - uninstall Chrome native host manifest"
 	@echo ""
 	@echo "Checks:"
 	@echo "  make test          - run unit tests"
@@ -58,6 +67,30 @@ doctor-smoke:
 	rc="$$?"; \
 	rm -rf "$$tmpdir"; \
 	exit "$$rc"
+
+chrome-ext-paths:
+	@echo "Chrome extension directory:"
+	@echo "  $(PWD)/$(CHROME_EXT_EXTENSION_DIR)"
+	@echo "Native host directory:"
+	@echo "  $(PWD)/$(CHROME_EXT_NATIVE_HOST_DIR)"
+
+chrome-ext-install:
+	@if [ ! -x "$(CHROME_EXT_INSTALLER)" ]; then \
+		echo "Installer not found: $(CHROME_EXT_INSTALLER)" >&2; \
+		exit 1; \
+	fi
+	@if [ -n "$(CHROME_EXT_ID)" ]; then \
+		"$(CHROME_EXT_INSTALLER)" --extension-id="$(CHROME_EXT_ID)"; \
+	else \
+		"$(CHROME_EXT_INSTALLER)"; \
+	fi
+
+chrome-ext-uninstall:
+	@if [ ! -x "$(CHROME_EXT_UNINSTALLER)" ]; then \
+		echo "Uninstaller not found: $(CHROME_EXT_UNINSTALLER)" >&2; \
+		exit 1; \
+	fi
+	@"$(CHROME_EXT_UNINSTALLER)"
 
 test:
 	$(PHPUNIT) --testsuite unit
