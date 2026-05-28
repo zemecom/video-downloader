@@ -715,6 +715,7 @@ final readonly class PlaylistService
                     $options->outputFormat,
                     $requestedFormatCode,
                 )));
+        $expectedPath = $this->bootstrap->sanitizeOutputFilename($expectedPath);
 
         [$filesize, $filesizeApprox] = $this->estimateItemSize($metadata);
 

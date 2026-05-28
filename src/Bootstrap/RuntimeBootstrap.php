@@ -24,7 +24,9 @@ use function preg_replace;
 use function putenv;
 use function realpath;
 use function str_contains;
+use function strrpos;
 use function str_starts_with;
+use function substr;
 use function trim;
 
 final class RuntimeBootstrap
@@ -201,6 +203,24 @@ final class RuntimeBootstrap
         $normalized = trim((string) $normalized, " ._");
 
         return $normalized !== '' ? $normalized : $fallback;
+    }
+
+    public function sanitizeOutputFilename(string $path): string
+    {
+        $separatorOffset = max(
+            strrpos($path, '/'),
+            strrpos($path, '\\'),
+        );
+
+        $directory = $separatorOffset === false
+            ? ''
+            : substr($path, 0, $separatorOffset + 1);
+        $filename = $separatorOffset === false
+            ? $path
+            : substr($path, $separatorOffset + 1);
+        $filename = (string) preg_replace('/\\s+/u', '_', $filename);
+
+        return $directory . $filename;
     }
 
     /**

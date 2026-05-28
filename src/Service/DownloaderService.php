@@ -101,6 +101,9 @@ final readonly class DownloaderService
                 $tempJsonPath,
                 $outputFormat,
             );
+            if (is_string($expectedFile) && $expectedFile !== '') {
+                $expectedFile = $this->bootstrap->sanitizeOutputFilename($expectedFile);
+            }
 
             if ($dryRun) {
                 $this->logger->info('🧪 Режим dry-run: показываю результат preflight без загрузки.');
@@ -129,9 +132,11 @@ final readonly class DownloaderService
                 $forceOverwrites = true;
             }
 
+            $downloadTarget = $expectedFile ?? $outputTemplate;
+
             return $this->downloadFromInfoJson(
                 $tempJsonPath,
-                $outputTemplate,
+                $downloadTarget,
                 $resolvedFormatCode,
                 $proxy,
                 $insecure,

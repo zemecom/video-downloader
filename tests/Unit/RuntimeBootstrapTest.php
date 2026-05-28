@@ -97,4 +97,14 @@ ENV,
             putenv('DOWNLOAD_DIR_GENERAL');
         }
     }
+
+    public function testSanitizeOutputFilenameReplacesWhitespaceOnlyInFileName(): void
+    {
+        $bootstrap = new RuntimeBootstrap('/tmp/project');
+
+        self::assertSame(
+            '/tmp/My Dir/My_Cool_Video_[abc_123].mkv',
+            $bootstrap->sanitizeOutputFilename('/tmp/My Dir/My Cool Video [abc 123].mkv'),
+        );
+    }
 }
