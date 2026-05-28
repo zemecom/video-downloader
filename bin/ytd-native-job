@@ -1,0 +1,42 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use YtdPhp\Bootstrap\RuntimeBootstrap;
+use YtdPhp\Service\NativeHostJobRunnerService;
+use YtdPhp\Service\NativeHostRecentDownloadsStore;
+use YtdPhp\Service\NativeHostJobStateStore;
+use YtdPhp\Service\NativeHostProgressParserService;
+
+require dirname(__DIR__) . '/vendor/autoload.php';
+
+$options = getopt('', ['job-id:', 'url:', 'mode:']);
+$jobId = $options['job-id'] ?? null;
+$url = $options['url'] ?? null;
+$mode = $options['mode'] ?? 'video';
+
+if (!is_string($jobId) || $jobId === '' || !is_string($url) || $url === '') {
+    fwrite(STDERR, "Missing --job-id or --url for ytd-native-job.\n");
+
+    exit(1);
+}
+
+if (!is_string($mode) || !in_array($mode, ['video', 'audio'], true)) {
+    fwrite(STDERR, "Unsupported --mode for ytd-native-job.\n");
+
+    exit(1);
+}
+
+$bootstrap = new RuntimeBootstrap(dirname(__DIR__));
+$bootstrap->ensureProjectRoot();
+$bootstrap->initializeEnvironment();
+
+$runner = new NativeHostJobRunnerService(
+    $bootstrap,
+    new NativeHostJobStateStore($bootstrap),
+    new NativeHostProgressParserService(),
+    new NativeHostRecentDownloadsStore($bootstrap),
+);
+
+exit($runner->run($jobId, $url, $mode));

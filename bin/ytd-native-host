@@ -1,0 +1,41 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use YtdPhp\Bootstrap\RuntimeBootstrap;
+use YtdPhp\Dto\NativeHostResponse;
+use YtdPhp\Exception\NativeHostException;
+use YtdPhp\Service\NativeHostHandlerService;
+use YtdPhp\Service\NativeHostJobManagerService;
+use YtdPhp\Service\NativeHostRecentDownloadsStore;
+use YtdPhp\Service\NativeHostJobStateStore;
+use YtdPhp\Service\NativeHostLogService;
+use YtdPhp\Service\NativeMessagingProtocolService;
+
+require dirname(__DIR__) . '/vendor/autoload.php';
+
+$bootstrap = new RuntimeBootstrap(dirname(__DIR__));
+$bootstrap->ensureProjectRoot();
+$bootstrap->initializeEnvironment();
+
+$protocol = new NativeMessagingProtocolService();
+$logger = new NativeHostLogService($bootstrap);
+$store = new NativeHostJobStateStore($bootstrap);
+$manager = new NativeHostJobManagerService($bootstrap, $store, recentDownloads: new NativeHostRecentDownloadsStore($bootstrap));
+$handler = new NativeHostHandlerService($manager);
+
+try {
+    $payload = $protocol->readFromStream(STDIN);
+    $response = $handler->handle($payload);
+} catch (NativeHostException $exception) {
+    $logger->append('Native host request error: ' . $exception->getMessage());
+    $response = NativeHostResponse::error($exception->getResponseCode(), $exception->getMessage());
+} catch (Throwable $exception) {
+    $logger->appendException($exception);
+    $response = NativeHostResponse::error('unexpected_error', 'Unexpected native host error.');
+}
+
+$protocol->writeToStream(STDOUT, $response->toPayload());
+
+exit(0);

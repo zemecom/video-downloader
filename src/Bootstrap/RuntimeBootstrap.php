@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace YtdPhp\Bootstrap;
 
+use Normalizer;
 use Symfony\Component\Dotenv\Dotenv;
 use Symfony\Component\Dotenv\Exception\FormatException;
 
@@ -147,6 +148,30 @@ final class RuntimeBootstrap
         );
     }
 
+    public function getNativeHostLogPath(): string
+    {
+        return $this->resolveRuntimePath(
+            'YTD_NATIVE_HOST_LOG_FILE',
+            'logs' . DIRECTORY_SEPARATOR . 'native-host.log',
+        );
+    }
+
+    public function getNativeHostJobsDirectoryPath(): string
+    {
+        return $this->resolveRuntimePath(
+            'YTD_NATIVE_HOST_JOBS_DIR',
+            'logs' . DIRECTORY_SEPARATOR . 'native-host-jobs',
+        );
+    }
+
+    public function getNativeHostRecentDownloadsPath(): string
+    {
+        return $this->resolveRuntimePath(
+            'YTD_NATIVE_HOST_RECENT_DOWNLOADS_FILE',
+            'logs' . DIRECTORY_SEPARATOR . 'native-host-recent-downloads.json',
+        );
+    }
+
     public function getDownloadBasePath(string $videoUrl): string
     {
         $envPath = $this->isYoutubeUrl($videoUrl)
@@ -218,6 +243,10 @@ final class RuntimeBootstrap
         $filename = $separatorOffset === false
             ? $path
             : substr($path, $separatorOffset + 1);
+
+        if (class_exists(Normalizer::class)) {
+            $filename = Normalizer::normalize($filename, Normalizer::FORM_C) ?: $filename;
+        }
         $filename = (string) preg_replace('/\\s+/u', '_', $filename);
 
         return $directory . $filename;

@@ -185,6 +185,7 @@ final readonly class DoctorService
     private function checkBinary(string $binary, string $installHint): DoctorResult
     {
         $process = new Process([$binary, '--version']);
+        $process->setEnv(YtDlpClient::buildProcessEnv());
         $process->run();
         if ($process->isSuccessful()) {
             $details = trim($process->getOutput());

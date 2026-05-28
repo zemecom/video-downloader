@@ -215,6 +215,7 @@ final readonly class DownloaderService
 
         $process = new Process($builder->buildForDownload($formatCode, $outputPath, $outputFormat));
         $process->setTimeout(null);
+        $process->setEnv(YtDlpClient::buildProcessEnv());
 
         return $process;
     }

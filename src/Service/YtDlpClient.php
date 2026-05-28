@@ -8,15 +8,62 @@ use Symfony\Component\Process\Exception\ProcessFailedException;
 use Symfony\Component\Process\Process;
 use YtdPhp\Exception\UserFacingException;
 
+use function array_filter;
+use function array_merge;
+use function array_values;
+use function explode;
 use function file_exists;
 use function file_get_contents;
+use function getenv;
+use function implode;
 use function is_array;
 use function is_string;
 use function json_decode;
+use function sprintf;
 use function trim;
+use function uniqid;
 
 final readonly class YtDlpClient
 {
+    /**
+     * @return array<string, string>
+     */
+    public static function buildProcessEnv(): array
+    {
+        return [
+            'PATH' => self::buildAugmentedPath(),
+        ];
+    }
+
+    public static function buildAugmentedPath(): string
+    {
+        $existingPath = getenv('PATH');
+        $home = getenv('HOME');
+
+        $segments = is_string($existingPath) && $existingPath !== ''
+            ? explode(PATH_SEPARATOR, $existingPath)
+            : [];
+
+        $preferred = array_filter([
+            is_string($home) && $home !== '' ? $home . '/.local/bin' : null,
+            '/opt/homebrew/bin',
+            '/usr/local/bin',
+            '/usr/bin',
+            '/bin',
+        ]);
+
+        $ordered = [];
+        foreach (array_merge($preferred, $segments) as $segment) {
+            if (!is_string($segment) || $segment === '' || isset($ordered[$segment])) {
+                continue;
+            }
+
+            $ordered[$segment] = true;
+        }
+
+        return implode(PATH_SEPARATOR, array_keys($ordered));
+    }
+
     public function __construct(
         private ConsoleLogger $logger,
     ) {}
@@ -24,6 +71,7 @@ final readonly class YtDlpClient
     public function checkBinary(): void
     {
         $process = new Process(['yt-dlp', '--version']);
+        $process->setEnv(self::buildProcessEnv());
         $process->run();
         if ($process->isSuccessful()) {
             return;
@@ -44,6 +92,7 @@ final readonly class YtDlpClient
     public function runJson(array $command): array
     {
         $process = new Process($command);
+        $process->setEnv(self::buildProcessEnv());
         $process->mustRun();
         $output = trim($process->getOutput());
         if ($output === '') {
@@ -65,6 +114,7 @@ final readonly class YtDlpClient
     {
         $process = new Process($command);
         $process->setTimeout(null);
+        $process->setEnv(self::buildProcessEnv());
         $process->run(function (string $type, string $buffer) use ($passthrough): void {
             if ($passthrough) {
                 $this->logger->raw($buffer);
@@ -81,6 +131,7 @@ final readonly class YtDlpClient
     {
         $process = new Process($command);
         $process->setTimeout(null);
+        $process->setEnv(self::buildProcessEnv());
         $process->run();
 
         return $process;
@@ -133,6 +184,7 @@ final readonly class YtDlpClient
         }
 
         $process = new Process($command);
+        $process->setEnv(self::buildProcessEnv());
         $process->run();
         if (!$process->isSuccessful()) {
             return null;

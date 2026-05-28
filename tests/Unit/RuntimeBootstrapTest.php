@@ -69,6 +69,34 @@ final class RuntimeBootstrapTest extends TestCase
         }
     }
 
+    public function testNativeHostLogPathResolvesRelativePathFromProjectRoot(): void
+    {
+        $projectRoot = sys_get_temp_dir() . '/ytd_php_native_host_log_' . uniqid();
+        mkdir($projectRoot, 0777, true);
+        putenv('YTD_PROJECT_ROOT=' . $projectRoot);
+
+        try {
+            $bootstrap = new RuntimeBootstrap($projectRoot);
+            self::assertStringEndsWith('/logs/native-host.log', $bootstrap->getNativeHostLogPath());
+        } finally {
+            putenv('YTD_PROJECT_ROOT');
+        }
+    }
+
+    public function testNativeHostJobsDirectoryResolvesRelativePathFromProjectRoot(): void
+    {
+        $projectRoot = sys_get_temp_dir() . '/ytd_php_native_host_jobs_' . uniqid();
+        mkdir($projectRoot, 0777, true);
+        putenv('YTD_PROJECT_ROOT=' . $projectRoot);
+
+        try {
+            $bootstrap = new RuntimeBootstrap($projectRoot);
+            self::assertStringEndsWith('/logs/native-host-jobs', $bootstrap->getNativeHostJobsDirectoryPath());
+        } finally {
+            putenv('YTD_PROJECT_ROOT');
+        }
+    }
+
     public function testLoadEnvFileParsesQuotedValuesAndComments(): void
     {
         $projectRoot = sys_get_temp_dir() . '/ytd_php_env_' . uniqid();
@@ -105,6 +133,16 @@ ENV,
         self::assertSame(
             '/tmp/My Dir/My_Cool_Video_[abc_123].mkv',
             $bootstrap->sanitizeOutputFilename('/tmp/My Dir/My Cool Video [abc 123].mkv'),
+        );
+    }
+
+    public function testSanitizeOutputFilenamePreservesPunctuationAndReplacesOnlyUnicodeWhitespace(): void
+    {
+        $bootstrap = new RuntimeBootstrap('/tmp/project');
+
+        self::assertSame(
+            '/tmp/Абстрактный：_Тестовый_сюжет_до_ноября_или_еще_2-3_года？.opus',
+            $bootstrap->sanitizeOutputFilename("/tmp/Абстрактныи\u{0306}：\u{00A0}Тестовыи\u{0306}\u{202F}сюжет_до_ноября_или_еще_2-3_года？.opus"),
         );
     }
 }
