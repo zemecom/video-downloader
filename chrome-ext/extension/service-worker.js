@@ -108,7 +108,9 @@ async function startDownload(message) {
 
   if (!response.ok) {
     const code = response.errorCode || 'unexpected_error';
-    const messageText = response.errorMessage || MESSAGES[code] || MESSAGES.unexpected_error;
+    const messageText = code === 'unexpected_error'
+      ? (response.errorMessage || MESSAGES.unexpected_error)
+      : (MESSAGES[code] || response.errorMessage || MESSAGES.unexpected_error);
     notify(code, messageText);
     await sendOverlayMessage(tabId, {
       type: 'ytd-overlay-update',

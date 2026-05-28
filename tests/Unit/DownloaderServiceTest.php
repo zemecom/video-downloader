@@ -13,6 +13,7 @@ use YtdPhp\Service\YtDlpClient;
 
 use function chmod;
 use function file_exists;
+use function file_get_contents;
 use function file_put_contents;
 use function getcwd;
 use function getenv;
@@ -53,6 +54,11 @@ final class DownloaderServiceTest extends TestCase
             self::assertSame('completed', $result->status);
             self::assertFileExists($downloadDir . '/My_Cool_Video.mkv');
             self::assertFalse(file_exists($downloadDir . '/My Cool Video.mkv'));
+            self::assertFileExists($root . '/last-info-json.txt');
+
+            $infoJsonPath = trim((string) file_get_contents($root . '/last-info-json.txt'));
+            self::assertNotSame('', $infoJsonPath);
+            self::assertFalse(file_exists($infoJsonPath));
         } finally {
             if ($previousPath === false) {
                 putenv('PATH');
@@ -89,6 +95,7 @@ $metadata = [
 
 foreach ($args as $index => $arg) {
     if ($arg === '--load-info-json' && isset($args[$index + 1]) && is_file($args[$index + 1])) {
+        file_put_contents(dirname(__DIR__) . '/last-info-json.txt', $args[$index + 1]);
         $loaded = json_decode((string) file_get_contents($args[$index + 1]), true);
         if (is_array($loaded)) {
             $metadata = array_replace($metadata, $loaded);

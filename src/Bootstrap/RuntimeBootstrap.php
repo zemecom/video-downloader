@@ -190,7 +190,15 @@ final class RuntimeBootstrap
 
     public function isYoutubeUrl(string $videoUrl): bool
     {
-        return str_contains($videoUrl, 'youtube.com') || str_contains($videoUrl, 'youtu.be');
+        $hostname = strtolower((string) (parse_url($videoUrl, PHP_URL_HOST) ?? ''));
+        if ($hostname === '') {
+            $hostname = strtolower((string) (parse_url('//' . ltrim($videoUrl, '/'), PHP_URL_HOST) ?? ''));
+        }
+
+        return $hostname === 'youtube.com'
+            || $hostname === 'youtu.be'
+            || str_ends_with($hostname, '.youtube.com')
+            || str_ends_with($hostname, '.youtu.be');
     }
 
     public function looksLikePlaylistUrl(string $videoUrl): bool

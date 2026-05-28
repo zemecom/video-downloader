@@ -6,6 +6,7 @@
   globalThis.__YTD_OVERLAY_BOOTSTRAPPED__ = true;
 
   let pollTimer = null;
+  let pollGeneration = 0;
   let autoHideTimer = null;
   let jobId = null;
 
@@ -228,11 +229,25 @@
       return;
     }
 
-    pollTimer = setInterval(async () => {
+    const generation = ++pollGeneration;
+    scheduleNextPoll(generation);
+  }
+
+  function scheduleNextPoll(generation, delayMs = 1000) {
+    pollTimer = setTimeout(async () => {
+      pollTimer = null;
+      if (generation !== pollGeneration || !jobId) {
+        return;
+      }
+
       const response = await sendRuntimeMessage({
         type: 'ytd:get-job-status',
         jobId,
       });
+
+      if (generation !== pollGeneration) {
+        return;
+      }
 
       if (!response) {
         renderState({
@@ -249,7 +264,10 @@
         renderState(response.payload);
         if (isTerminalStatus(response.payload.status)) {
           stopPolling();
+          return;
         }
+
+        scheduleNextPoll(generation);
         return;
       }
 
@@ -260,12 +278,14 @@
         canCancel: false,
       });
       stopPolling();
-    }, 1000);
+    }, delayMs);
   }
 
   function stopPolling() {
+    pollGeneration += 1;
+
     if (pollTimer !== null) {
-      clearInterval(pollTimer);
+      clearTimeout(pollTimer);
       pollTimer = null;
     }
   }

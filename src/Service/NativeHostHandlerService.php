@@ -35,7 +35,7 @@ final readonly class NativeHostHandlerService
         } catch (NativeHostException $exception) {
             return NativeHostResponse::error($exception->getResponseCode(), $exception->getMessage());
         } catch (Throwable) {
-            return NativeHostResponse::error('spawn_failed', 'Failed to start download process.');
+            return NativeHostResponse::error('unexpected_error', 'Unexpected native host error.');
         }
     }
 }

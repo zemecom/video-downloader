@@ -126,6 +126,16 @@ ENV,
         }
     }
 
+    public function testIsYoutubeUrlMatchesYoutubeHostsOnly(): void
+    {
+        $bootstrap = new RuntimeBootstrap('/tmp/project');
+
+        self::assertTrue($bootstrap->isYoutubeUrl('https://m.youtube.com/watch?v=abc123'));
+        self::assertTrue($bootstrap->isYoutubeUrl('youtu.be/abc123'));
+        self::assertFalse($bootstrap->isYoutubeUrl('https://notyoutube.com/watch?v=abc123'));
+        self::assertFalse($bootstrap->isYoutubeUrl('https://example.com/youtu.be/abc123'));
+    }
+
     public function testSanitizeOutputFilenameReplacesWhitespaceOnlyInFileName(): void
     {
         $bootstrap = new RuntimeBootstrap('/tmp/project');

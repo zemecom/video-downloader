@@ -79,8 +79,6 @@ final readonly class DownloaderService
         if ($tempJsonPath === false) {
             return new DownloadResult('failed', 'tempfile_failed');
         }
-
-        $tempJsonPath .= '.json';
         file_put_contents($tempJsonPath, $process->getOutput());
 
         $metadata = json_decode($process->getOutput(), true);

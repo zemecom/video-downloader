@@ -85,6 +85,38 @@ final class NativeHostJobManagerServiceTest extends TestCase
         }
     }
 
+    public function testStartDownloadMarksJobAsFailedWhenWorkerStartFails(): void
+    {
+        $root = sys_get_temp_dir() . '/ytd_native_jobs_failed_' . uniqid();
+        mkdir($root, 0777, true);
+        putenv('YTD_PROJECT_ROOT=' . $root);
+
+        try {
+            $bootstrap = new RuntimeBootstrap($root);
+            $store = new NativeHostJobStateStore($bootstrap);
+            $manager = new NativeHostJobManagerService(
+                $bootstrap,
+                $store,
+                static function (): void {
+                    throw new \RuntimeException('process_start_failed');
+                },
+                static function (): void {},
+            );
+
+            $payload = $manager->startDownload('https://example.com/watch?v=42')->toPayload();
+            $saved = $store->read((string) $payload['jobId']);
+
+            self::assertFalse($payload['ok']);
+            self::assertSame('spawn_failed', $payload['code']);
+            self::assertSame('failed', $payload['status']);
+            self::assertSame('failed', $saved['status']);
+            self::assertSame('Не удалось запустить загрузку.', $saved['progressText']);
+            self::assertFalse($saved['canCancel']);
+        } finally {
+            putenv('YTD_PROJECT_ROOT');
+        }
+    }
+
     public function testGetJobStatusReturnsStoredStatePayload(): void
     {
         $root = sys_get_temp_dir() . '/ytd_native_status_' . uniqid();

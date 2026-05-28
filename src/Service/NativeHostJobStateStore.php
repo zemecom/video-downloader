@@ -4,20 +4,30 @@ declare(strict_types=1);
 
 namespace YtdPhp\Service;
 
+use Closure;
 use JsonException;
 use Symfony\Component\Filesystem\Filesystem;
 use YtdPhp\Bootstrap\RuntimeBootstrap;
 
 use function dirname;
+use function fclose;
 use function file_exists;
 use function file_get_contents;
+use function file_put_contents;
+use function flock;
+use function fopen;
 use function is_array;
+use function is_resource;
 use function json_decode;
 use function json_encode;
 use function rename;
 use function sprintf;
+use function unlink;
 use function uniqid;
 
+use const LOCK_EX;
+use const LOCK_SH;
+use const LOCK_UN;
 use const JSON_PRETTY_PRINT;
 use const JSON_THROW_ON_ERROR;
 use const JSON_UNESCAPED_SLASHES;
@@ -44,9 +54,16 @@ final readonly class NativeHostJobStateStore
             return;
         }
 
-        $tempPath = sprintf('%s.%s.tmp', $path, uniqid());
-        file_put_contents($tempPath, $encoded);
-        rename($tempPath, $path);
+        $this->withStateLock($jobId, LOCK_EX, function () use ($path, $encoded): void {
+            $tempPath = sprintf('%s.%s.tmp', $path, uniqid());
+            if (file_put_contents($tempPath, $encoded) === false) {
+                return;
+            }
+
+            if (!rename($tempPath, $path) && file_exists($tempPath)) {
+                unlink($tempPath);
+            }
+        });
     }
 
     /**
@@ -55,17 +72,20 @@ final readonly class NativeHostJobStateStore
     public function read(string $jobId): ?array
     {
         $path = $this->statePath($jobId);
-        if (!file_exists($path)) {
-            return null;
-        }
 
-        try {
-            $decoded = json_decode((string) file_get_contents($path), true, 512, JSON_THROW_ON_ERROR);
-        } catch (JsonException) {
-            return null;
-        }
+        return $this->withStateLock($jobId, LOCK_SH, function () use ($path): ?array {
+            if (!file_exists($path)) {
+                return null;
+            }
 
-        return is_array($decoded) ? $decoded : null;
+            try {
+                $decoded = json_decode((string) file_get_contents($path), true, 512, JSON_THROW_ON_ERROR);
+            } catch (JsonException) {
+                return null;
+            }
+
+            return is_array($decoded) ? $decoded : null;
+        });
     }
 
     public function requestCancel(string $jobId): void
@@ -92,5 +112,37 @@ final readonly class NativeHostJobStateStore
     public function cancelPath(string $jobId): string
     {
         return $this->bootstrap->getNativeHostJobsDirectoryPath() . DIRECTORY_SEPARATOR . $jobId . '.cancel';
+    }
+
+    private function lockPath(string $jobId): string
+    {
+        return $this->bootstrap->getNativeHostJobsDirectoryPath() . DIRECTORY_SEPARATOR . $jobId . '.lock';
+    }
+
+    /**
+     * @template T
+     * @param Closure(): T $callback
+     * @return T
+     */
+    private function withStateLock(string $jobId, int $operation, Closure $callback): mixed
+    {
+        $lockPath = $this->lockPath($jobId);
+        (new Filesystem())->mkdir(dirname($lockPath));
+
+        $handle = fopen($lockPath, 'c+');
+        if (!is_resource($handle)) {
+            return $callback();
+        }
+
+        try {
+            if (!flock($handle, $operation)) {
+                return $callback();
+            }
+
+            return $callback();
+        } finally {
+            flock($handle, LOCK_UN);
+            fclose($handle);
+        }
     }
 }

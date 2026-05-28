@@ -7,6 +7,7 @@ namespace YtdPhp\Service;
 use Closure;
 use DateTimeImmutable;
 use RuntimeException;
+use Throwable;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Process\Process;
 use YtdPhp\Bootstrap\RuntimeBootstrap;
@@ -67,7 +68,22 @@ final class NativeHostJobManagerService
         $state = $this->baseState($jobId, $url, $mode);
         $this->store->write($jobId, $state);
 
-        ($this->starter)($jobId, $url, $mode, $this->bootstrap->getNativeHostLogPath());
+        try {
+            ($this->starter)($jobId, $url, $mode, $this->bootstrap->getNativeHostLogPath());
+        } catch (Throwable) {
+            $state['status'] = 'failed';
+            $state['progressText'] = 'Не удалось запустить загрузку.';
+            $state['canCancel'] = false;
+            $state['updatedAt'] = $this->now();
+            $this->store->write($jobId, $state);
+
+            return NativeHostResponse::error(
+                'spawn_failed',
+                'Failed to start download process.',
+                $url,
+                $this->stateDetails($state),
+            );
+        }
 
         return NativeHostResponse::accepted($url, $this->stateDetails($state));
     }
