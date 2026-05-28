@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="ru">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>YTD</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+
+<body>
+  <main class="popup">
+    <div class="eyebrow">YTD</div>
+
+    <div class="actions">
+      <button class="action" type="button" data-mode="video">
+        <span class="action-title">Видео + аудио</span>
+      </button>
+
+      <button class="action" type="button" data-mode="audio">
+        <span class="action-title">Только аудио</span>
+      </button>
+    </div>
+
+    <section class="recent">
+      <div class="recent-header">Недавние</div>
+      <div class="recent-list"></div>
+      <p class="recent-empty">Пока пусто</p>
+    </section>
+
+    <p class="status" role="status" aria-live="polite"></p>
+  </main>
+
+  <script src="popup.js"></script>
+</body>
+
+</html>
