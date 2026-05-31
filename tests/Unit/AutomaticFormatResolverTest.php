@@ -121,4 +121,73 @@ final class AutomaticFormatResolverTest extends TestCase
 
         self::assertSame('301', $resolved);
     }
+
+    public function testResolveRejectsAv1RequestedDownloadAndFallsBackToNonAv1MuxedFormat(): void
+    {
+        $resolver = new AutomaticFormatResolver();
+
+        $resolved = $resolver->resolve('best', [
+            'is_live' => true,
+            'live_status' => 'is_live',
+            'requested_downloads' => [
+                ['format_id' => '401', 'vcodec' => 'av01.0.08M.08'],
+            ],
+            'formats' => [
+                [
+                    'format_id' => '401',
+                    'protocol' => 'm3u8_native',
+                    'acodec' => 'mp4a.40.2',
+                    'vcodec' => 'av01.0.08M.08',
+                    'height' => 1080,
+                    'fps' => 60,
+                    'tbr' => 3500,
+                ],
+                [
+                    'format_id' => '301',
+                    'protocol' => 'm3u8_native',
+                    'acodec' => 'mp4a.40.2',
+                    'vcodec' => 'avc1.64002A',
+                    'height' => 1080,
+                    'fps' => 60,
+                    'tbr' => 3362,
+                ],
+            ],
+        ]);
+
+        self::assertSame('301', $resolved);
+    }
+
+    public function testResolveSkipsAv1FormatsWhenPickingFallbackMuxedFormat(): void
+    {
+        $resolver = new AutomaticFormatResolver();
+
+        $resolved = $resolver->resolve('best', [
+            'is_live' => false,
+            'was_live' => true,
+            'live_status' => 'was_live',
+            'requested_downloads' => null,
+            'formats' => [
+                [
+                    'format_id' => '401',
+                    'protocol' => 'm3u8_native',
+                    'acodec' => 'mp4a.40.2',
+                    'vcodec' => 'av01.0.08M.08',
+                    'height' => 1080,
+                    'fps' => 60,
+                    'tbr' => 3500,
+                ],
+                [
+                    'format_id' => '301',
+                    'protocol' => 'm3u8_native',
+                    'acodec' => 'mp4a.40.2',
+                    'vcodec' => 'avc1.64002A',
+                    'height' => 1080,
+                    'fps' => 60,
+                    'tbr' => 3362,
+                ],
+            ],
+        ]);
+
+        self::assertSame('301', $resolved);
+    }
 }

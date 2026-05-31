@@ -46,6 +46,13 @@ final class NativeHostJobManagerService
      */
     private readonly Closure $revealer;
 
+    private readonly NativeHostPreviewRegistryService $previewRegistry;
+
+    /**
+     * @var Closure(): int
+     */
+    private readonly Closure $previewPortResolver;
+
     public function __construct(
         private readonly RuntimeBootstrap $bootstrap,
         private readonly NativeHostJobStateStore $store,
@@ -54,12 +61,16 @@ final class NativeHostJobManagerService
         ?NativeHostRecentDownloadsStore $recentDownloads = null,
         ?Closure $opener = null,
         ?Closure $revealer = null,
+        ?NativeHostPreviewRegistryService $previewRegistry = null,
+        ?Closure $previewPortResolver = null,
     ) {
         $this->recentDownloads = $recentDownloads ?? new NativeHostRecentDownloadsStore($bootstrap);
         $this->starter = $starter ?? $this->makeDefaultStarter();
         $this->signalSender = $signalSender ?? $this->makeDefaultSignalSender();
         $this->opener = $opener ?? $this->makeDefaultOpener();
         $this->revealer = $revealer ?? $this->makeDefaultRevealer();
+        $this->previewRegistry = $previewRegistry ?? new NativeHostPreviewRegistryService($bootstrap);
+        $this->previewPortResolver = $previewPortResolver ?? $this->makeDefaultPreviewPortResolver();
     }
 
     public function startDownload(string $url, string $mode = NativeHostRequest::MODE_VIDEO): NativeHostResponse
@@ -147,6 +158,35 @@ final class NativeHostJobManagerService
         ]);
     }
 
+    public function previewRecentDownload(string $entryId): NativeHostResponse
+    {
+        $entry = $this->resolveRecentDownload($entryId);
+        if ($entry === null) {
+            return NativeHostResponse::error('file_not_found', 'Downloaded file not found.', null, [
+                'entryId' => $entryId,
+            ]);
+        }
+
+        if (($entry['mode'] ?? NativeHostRequest::MODE_VIDEO) !== NativeHostRequest::MODE_VIDEO) {
+            return NativeHostResponse::error('unsupported_media', 'Preview is only available for video downloads.', null, [
+                'entryId' => $entryId,
+            ]);
+        }
+
+        $port = ($this->previewPortResolver)();
+        $preview = $this->previewRegistry->register(
+            'recent-' . $entryId . '-' . uniqid(),
+            (string) $entry['path'],
+            $port,
+        );
+
+        return NativeHostResponse::success('recent_download_preview_ready', 'Downloaded video preview is ready.', null, [
+            ...$preview,
+            'entryId' => $entryId,
+            'recentDownloadId' => $entryId,
+        ]);
+    }
+
     public function revealRecentDownload(string $entryId): NativeHostResponse
     {
         $entry = $this->resolveRecentDownload($entryId);
@@ -159,6 +199,27 @@ final class NativeHostJobManagerService
         ($this->revealer)((string) $entry['path']);
 
         return NativeHostResponse::success('recent_download_revealed', 'Downloaded file revealed.', null, [
+            'entryId' => $entryId,
+        ]);
+    }
+
+    public function deleteRecentDownload(string $entryId): NativeHostResponse
+    {
+        $entry = $this->recentDownloads->find($entryId);
+        if (!is_array($entry)) {
+            return NativeHostResponse::error('file_not_found', 'Downloaded file not found.', null, [
+                'entryId' => $entryId,
+            ]);
+        }
+
+        $path = $entry['path'] ?? null;
+        if (is_string($path) && $path !== '' && file_exists($path)) {
+            (new Filesystem())->remove($path);
+        }
+
+        $this->recentDownloads->remove($entryId);
+
+        return NativeHostResponse::success('recent_download_deleted', 'Downloaded file deleted.', null, [
             'entryId' => $entryId,
         ]);
     }
@@ -198,6 +259,9 @@ final class NativeHostJobManagerService
             'progressPercent' => $state['progressPercent'] ?? null,
             'progressText' => $state['progressText'] ?? 'Подготавливаю загрузку...',
             'canCancel' => $state['canCancel'] ?? false,
+            'previewReady' => $state['previewReady'] ?? false,
+            'previewUrl' => $state['previewUrl'] ?? null,
+            'recentDownloadId' => $state['recentDownloadId'] ?? null,
         ];
     }
 
@@ -302,5 +366,18 @@ final class NativeHostJobManagerService
                 throw new RuntimeException('Failed to reveal downloaded file.');
             }
         };
+    }
+
+    /**
+     * @return Closure(): int
+     */
+    private function makeDefaultPreviewPortResolver(): Closure
+    {
+        $coordinator = new NativeHostPreviewServerCoordinator(
+            $this->bootstrap,
+            new NativeHostPreviewServerStateStore($this->bootstrap),
+        );
+
+        return static fn(): int => $coordinator->ensureRunning();
     }
 }

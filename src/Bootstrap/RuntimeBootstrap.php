@@ -172,6 +172,30 @@ final class RuntimeBootstrap
         );
     }
 
+    public function getNativeHostPreviewRegistryPath(): string
+    {
+        return $this->resolveRuntimePath(
+            'YTD_NATIVE_HOST_PREVIEW_REGISTRY_FILE',
+            'logs' . DIRECTORY_SEPARATOR . 'native-host-preview-registry.json',
+        );
+    }
+
+    public function getNativeHostPreviewServerStatePath(): string
+    {
+        return $this->resolveRuntimePath(
+            'YTD_NATIVE_HOST_PREVIEW_SERVER_STATE_FILE',
+            'logs' . DIRECTORY_SEPARATOR . 'native-host-preview-server.json',
+        );
+    }
+
+    public function getNativeHostPreviewServerLogPath(): string
+    {
+        return $this->resolveRuntimePath(
+            'YTD_NATIVE_HOST_PREVIEW_SERVER_LOG_FILE',
+            'logs' . DIRECTORY_SEPARATOR . 'native-host-preview-server.log',
+        );
+    }
+
     public function getDownloadBasePath(string $videoUrl): string
     {
         $envPath = $this->isYoutubeUrl($videoUrl)

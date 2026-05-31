@@ -46,9 +46,24 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return true;
   }
 
+  if (message?.type === 'ytd:preview-recent-download') {
+    previewRecentDownload(message).then(sendResponse);
+
+    return true;
+  }
+
   if (message?.type === 'ytd:reveal-recent-download') {
     callNativeHost({
       action: 'reveal_recent_download',
+      entryId: message.entryId,
+    }).then(sendResponse);
+
+    return true;
+  }
+
+  if (message?.type === 'ytd:delete-recent-download') {
+    callNativeHost({
+      action: 'delete_recent_download',
       entryId: message.entryId,
     }).then(sendResponse);
 
@@ -130,6 +145,57 @@ async function startDownload(message) {
   await sendOverlayMessage(tabId, {
     type: 'ytd-overlay-bind-job',
     ...response.payload,
+  });
+
+  return {
+    ok: true,
+    payload: response.payload,
+  };
+}
+
+async function previewRecentDownload(message) {
+  const tabId = Number.isInteger(message?.tabId) ? message.tabId : null;
+  const url = typeof message?.url === 'string' ? message.url : '';
+  const entryId = typeof message?.entryId === 'string' ? message.entryId : '';
+
+  if (!Number.isInteger(tabId) || !isSupportedTabUrl(url)) {
+    return {
+      ok: false,
+      errorCode: 'unsupported_page',
+      errorMessage: MESSAGES.unsupported_page,
+    };
+  }
+
+  if (entryId === '') {
+    return {
+      ok: false,
+      errorCode: 'unexpected_error',
+      errorMessage: 'Не удалось определить файл для воспроизведения.',
+    };
+  }
+
+  const response = await callNativeHost({
+    action: 'preview_recent_download',
+    entryId,
+  });
+
+  if (!response.ok) {
+    return response;
+  }
+
+  if (typeof response.payload?.previewUrl !== 'string' || response.payload.previewUrl === '') {
+    return {
+      ok: false,
+      errorCode: 'unexpected_error',
+      errorMessage: 'Native host не подготовил ссылку для воспроизведения.',
+    };
+  }
+
+  await ensureOverlay(tabId);
+  await sendOverlayMessage(tabId, {
+    type: 'ytd-overlay-open-preview',
+    previewUrl: response.payload.previewUrl,
+    recentDownloadId: response.payload?.recentDownloadId ?? entryId,
   });
 
   return {

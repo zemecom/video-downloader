@@ -10,6 +10,8 @@ use function is_float;
 use function is_int;
 use function str_contains;
 use function is_string;
+use function strtolower;
+use function str_starts_with;
 
 final class AutomaticFormatResolver
 {
@@ -23,17 +25,17 @@ final class AutomaticFormatResolver
         }
 
         $requestedDownloads = $metadata['requested_downloads'] ?? null;
-        if (!is_array($requestedDownloads) || count($requestedDownloads) !== 1 || !is_array($requestedDownloads[0])) {
-            $fallbackFormatId = $this->resolveBestMuxedFormatId($metadata['formats'] ?? null);
-
-            return $fallbackFormatId ?? $formatCode;
+        $recommendedFormatId = $this->resolvePreferredRequestedDownloadFormatId(
+            $requestedDownloads,
+            $metadata['formats'] ?? null,
+        );
+        if ($recommendedFormatId !== null) {
+            return $recommendedFormatId;
         }
 
-        $recommendedFormatId = $requestedDownloads[0]['format_id'] ?? null;
+        $fallbackFormatId = $this->resolveBestMuxedFormatId($metadata['formats'] ?? null);
 
-        return is_string($recommendedFormatId) && $recommendedFormatId !== ''
-            ? $recommendedFormatId
-            : $formatCode;
+        return $fallbackFormatId ?? $formatCode;
     }
 
     /**
@@ -66,7 +68,7 @@ final class AutomaticFormatResolver
         $bestMuxedScore = -1;
 
         foreach ($formats as $format) {
-            if (!is_array($format) || !$this->isMuxedFormat($format)) {
+            if (!is_array($format) || !$this->isMuxedFormat($format) || $this->isAv1Format($format)) {
                 continue;
             }
 
@@ -90,6 +92,32 @@ final class AutomaticFormatResolver
         return $bestHlsFormatId ?? $bestMuxedFormatId;
     }
 
+    private function resolvePreferredRequestedDownloadFormatId(mixed $requestedDownloads, mixed $formats): ?string
+    {
+        if (!is_array($requestedDownloads) || count($requestedDownloads) !== 1 || !is_array($requestedDownloads[0])) {
+            return null;
+        }
+
+        $recommendedDownload = $requestedDownloads[0];
+        $recommendedFormatId = $recommendedDownload['format_id'] ?? null;
+        if (!is_string($recommendedFormatId) || $recommendedFormatId === '') {
+            return null;
+        }
+
+        $knownFormat = $this->findFormatById($recommendedFormatId, $formats);
+        if ($knownFormat !== null) {
+            return $this->isAv1Format($knownFormat)
+                ? null
+                : $recommendedFormatId;
+        }
+
+        if ($this->hasKnownVideoCodec($recommendedDownload) && $this->isAv1Format($recommendedDownload)) {
+            return null;
+        }
+
+        return $recommendedFormatId;
+    }
+
     /**
      * @param array<mixed> $format
      */
@@ -104,6 +132,53 @@ final class AutomaticFormatResolver
             && is_string($videoCodec)
             && $videoCodec !== ''
             && $videoCodec !== 'none';
+    }
+
+    /**
+     * @param array<mixed> $format
+     */
+    private function hasKnownVideoCodec(array $format): bool
+    {
+        $videoCodec = $format['vcodec'] ?? null;
+
+        return is_string($videoCodec)
+            && $videoCodec !== ''
+            && $videoCodec !== 'none';
+    }
+
+    /**
+     * @param array<mixed> $format
+     */
+    private function isAv1Format(array $format): bool
+    {
+        $videoCodec = $format['vcodec'] ?? null;
+
+        return is_string($videoCodec)
+            && $videoCodec !== ''
+            && str_starts_with(strtolower($videoCodec), 'av01');
+    }
+
+    /**
+     * @param array<mixed> $formats
+     * @return array<mixed>|null
+     */
+    private function findFormatById(string $formatId, mixed $formats): ?array
+    {
+        if (!is_array($formats)) {
+            return null;
+        }
+
+        foreach ($formats as $format) {
+            if (!is_array($format)) {
+                continue;
+            }
+
+            if (($format['format_id'] ?? null) === $formatId) {
+                return $format;
+            }
+        }
+
+        return null;
     }
 
     /**

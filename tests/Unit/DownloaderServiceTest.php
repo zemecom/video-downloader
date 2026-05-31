@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace YtdPhp\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Console\Output\BufferedOutput;
 use YtdPhp\Bootstrap\RuntimeBootstrap;
 use YtdPhp\Service\ConsoleLogger;
 use YtdPhp\Service\DownloaderService;
@@ -59,6 +60,57 @@ final class DownloaderServiceTest extends TestCase
             $infoJsonPath = trim((string) file_get_contents($root . '/last-info-json.txt'));
             self::assertNotSame('', $infoJsonPath);
             self::assertFalse(file_exists($infoJsonPath));
+        } finally {
+            if ($previousPath === false) {
+                putenv('PATH');
+            } else {
+                putenv('PATH=' . $previousPath);
+            }
+
+            if ($previousDownloadDir === false) {
+                putenv('DOWNLOAD_DIR_GENERAL');
+            } else {
+                putenv('DOWNLOAD_DIR_GENERAL=' . $previousDownloadDir);
+            }
+        }
+    }
+
+    public function testDownloadVideoLogsExistingOutputPathWhenOverwriteIsDeclined(): void
+    {
+        $root = sys_get_temp_dir() . '/ytd_php_downloader_skip_' . uniqid();
+        $binDir = $root . '/bin';
+        $downloadDir = $root . '/downloads';
+        mkdir($binDir, 0777, true);
+        mkdir($downloadDir, 0777, true);
+
+        $scriptPath = $binDir . '/yt-dlp';
+        file_put_contents($scriptPath, $this->fakeYtDlpScript());
+        chmod($scriptPath, 0777);
+
+        $existingFile = $downloadDir . '/My_Cool_Video.mkv';
+        file_put_contents($existingFile, 'video-bytes');
+
+        $previousPath = getenv('PATH');
+        $previousDownloadDir = getenv('DOWNLOAD_DIR_GENERAL');
+
+        putenv('PATH=' . $binDir . PATH_SEPARATOR . ($previousPath !== false ? $previousPath : ''));
+        putenv('DOWNLOAD_DIR_GENERAL=' . $downloadDir);
+
+        try {
+            $bootstrap = new RuntimeBootstrap(getcwd() ?: null);
+            $output = new BufferedOutput();
+            $logger = new ConsoleLogger($output);
+            $prompter = new InputPrompter();
+            $prompter->setReader(static fn(): string => '');
+            $client = new YtDlpClient($logger);
+            $service = new DownloaderService($client, $bootstrap, $logger, $prompter);
+
+            $result = $service->downloadVideo('https://example.com/video', 'best');
+            $logs = $output->fetch();
+
+            self::assertSame('skipped', $result->status);
+            self::assertStringContainsString('📄 Файл: ' . $existingFile, $logs);
+            self::assertStringContainsString('📂 Каталог: ' . $downloadDir, $logs);
         } finally {
             if ($previousPath === false) {
                 putenv('PATH');

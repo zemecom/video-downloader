@@ -74,6 +74,17 @@ function renderRecentDownloads(items) {
     const actions = document.createElement('div');
     actions.className = 'recent-actions';
 
+    if (item?.mode === 'video') {
+      const playButton = document.createElement('button');
+      playButton.type = 'button';
+      playButton.className = 'recent-button';
+      playButton.textContent = 'Воспроизвести';
+      playButton.addEventListener('click', () => {
+        playRecentVideo(item?.id, title.textContent);
+      });
+      actions.appendChild(playButton);
+    }
+
     const openButton = document.createElement('button');
     openButton.type = 'button';
     openButton.className = 'recent-button';
@@ -92,12 +103,54 @@ function renderRecentDownloads(items) {
     });
     actions.appendChild(revealButton);
 
+    const deleteButton = document.createElement('button');
+    deleteButton.type = 'button';
+    deleteButton.className = 'recent-button recent-button-danger';
+    deleteButton.textContent = 'Удалить';
+    deleteButton.addEventListener('click', async () => {
+      const shouldDelete = globalThis.confirm(`Удалить ${title.textContent}?`);
+      if (!shouldDelete) {
+        return;
+      }
+
+      await runRecentAction('ytd:delete-recent-download', item?.id, `Удаляю ${title.textContent}...`, true);
+    });
+    actions.appendChild(deleteButton);
+
     row.appendChild(actions);
     recentListNode.appendChild(row);
   });
 }
 
-async function runRecentAction(type, entryId, pendingMessage) {
+async function playRecentVideo(entryId, title) {
+  if (typeof entryId !== 'string' || entryId === '') {
+    setStatus('Файл из списка больше недоступен.');
+    return;
+  }
+
+  const [tab] = await chrome.tabs.query({
+    active: true,
+    currentWindow: true,
+  });
+
+  setStatus(`Открываю ${title}...`);
+  const response = await sendMessage({
+    type: 'ytd:preview-recent-download',
+    entryId,
+    tabId: tab?.id,
+    url: tab?.url,
+  });
+
+  if (!response?.ok) {
+    setStatus(response?.errorMessage || 'Не удалось открыть просмотр.');
+    await loadRecentDownloads();
+    return;
+  }
+
+  window.close();
+}
+
+async function runRecentAction(type, entryId, pendingMessage, reloadOnSuccess = false) {
   if (typeof entryId !== 'string' || entryId === '') {
     setStatus('Файл из списка больше недоступен.');
     return;
@@ -116,6 +169,9 @@ async function runRecentAction(type, entryId, pendingMessage) {
   }
 
   setStatus('');
+  if (reloadOnSuccess) {
+    await loadRecentDownloads();
+  }
 }
 
 function setBusyState(isBusy) {

@@ -123,6 +123,7 @@ final readonly class DownloaderService
                 $this->logger->warning('⚠️ Файл уже существует: ' . $expectedFile);
                 $choice = strtolower(trim($this->prompter->ask('🔄 Перезаписать? [y/N]: ')));
                 if ($choice !== 'y') {
+                    $this->logExistingOutputTarget($expectedFile);
                     $this->logger->info('⏭️ Пропускаю загрузку по выбору пользователя.');
 
                     return new DownloadResult('skipped', 'user_declined_overwrite');
@@ -174,6 +175,7 @@ final readonly class DownloaderService
         if (is_string($expectedFile) && $expectedFile !== '' && file_exists($expectedFile) && !$forceOverwrites) {
             if ($emitLogs) {
                 $this->logger->warning('⚠️ Файл уже существует: ' . $expectedFile);
+                $this->logExistingOutputTarget($expectedFile);
             }
 
             return new DownloadResult('skipped', 'file_exists');
@@ -282,5 +284,12 @@ final readonly class DownloaderService
     private function logOutputDirectory(string $expectedFile): void
     {
         $this->logger->info('📂 Каталог: ' . dirname($expectedFile));
+    }
+
+    private function logExistingOutputTarget(string $expectedFile): void
+    {
+        $size = filesize($expectedFile);
+        $this->logOutputPath($expectedFile, $size !== false ? $size : null);
+        $this->logOutputDirectory($expectedFile);
     }
 }

@@ -7,9 +7,11 @@ namespace YtdPhp\Tests\Unit;
 use PHPUnit\Framework\TestCase;
 use YtdPhp\Bootstrap\RuntimeBootstrap;
 use YtdPhp\Service\NativeHostJobManagerService;
+use YtdPhp\Service\NativeHostPreviewRegistryService;
 use YtdPhp\Service\NativeHostRecentDownloadsStore;
 use YtdPhp\Service\NativeHostJobStateStore;
 
+use function file_put_contents;
 use function mkdir;
 use function touch;
 use function sys_get_temp_dir;
@@ -147,6 +149,47 @@ final class NativeHostJobManagerServiceTest extends TestCase
             self::assertSame('job_status', $payload['code']);
             self::assertSame('downloading', $payload['status']);
             self::assertSame(48.5, $payload['progressPercent']);
+            self::assertFalse($payload['previewReady']);
+        } finally {
+            putenv('YTD_PROJECT_ROOT');
+        }
+    }
+
+    public function testGetJobStatusIncludesPreviewDetailsForCompletedVideoJob(): void
+    {
+        $root = sys_get_temp_dir() . '/ytd_native_status_preview_' . uniqid();
+        mkdir($root, 0777, true);
+        putenv('YTD_PROJECT_ROOT=' . $root);
+
+        try {
+            $store = new NativeHostJobStateStore(new RuntimeBootstrap($root));
+            $store->write('job-preview', [
+                'jobId' => 'job-preview',
+                'url' => 'https://example.com/video',
+                'mode' => 'video',
+                'status' => 'completed',
+                'progressPercent' => 100.0,
+                'progressText' => 'Загрузка завершена.',
+                'canCancel' => false,
+                'previewReady' => true,
+                'previewUrl' => 'http://127.0.0.1:38123/preview/job-preview?token=abc123',
+                'recentDownloadId' => 'download-123',
+            ]);
+
+            $manager = new NativeHostJobManagerService(
+                new RuntimeBootstrap($root),
+                $store,
+                static function (): void {},
+                static function (): void {},
+            );
+
+            $payload = $manager->getJobStatus('job-preview')->toPayload();
+
+            self::assertTrue($payload['ok']);
+            self::assertSame('completed', $payload['status']);
+            self::assertTrue($payload['previewReady']);
+            self::assertSame('http://127.0.0.1:38123/preview/job-preview?token=abc123', $payload['previewUrl']);
+            self::assertSame('download-123', $payload['recentDownloadId']);
         } finally {
             putenv('YTD_PROJECT_ROOT');
         }
@@ -251,6 +294,73 @@ final class NativeHostJobManagerServiceTest extends TestCase
 
             self::assertTrue($payload['ok']);
             self::assertSame([$filePath], $openedPaths);
+        } finally {
+            putenv('YTD_PROJECT_ROOT');
+        }
+    }
+
+    public function testPreviewRecentDownloadReturnsLoopbackPreviewForVideoEntry(): void
+    {
+        $root = sys_get_temp_dir() . '/ytd_native_recent_preview_' . uniqid();
+        mkdir($root, 0777, true);
+        putenv('YTD_PROJECT_ROOT=' . $root);
+
+        try {
+            $bootstrap = new RuntimeBootstrap($root);
+            $recentDownloads = new NativeHostRecentDownloadsStore($bootstrap);
+            $filePath = $root . '/downloaded-video.mp4';
+            file_put_contents($filePath, 'preview');
+            $entry = $recentDownloads->append($filePath, 'https://example.com/1', 'video');
+
+            $manager = new NativeHostJobManagerService(
+                $bootstrap,
+                new NativeHostJobStateStore($bootstrap),
+                recentDownloads: $recentDownloads,
+                opener: static function (): void {},
+                revealer: static function (): void {},
+                previewRegistry: new NativeHostPreviewRegistryService($bootstrap),
+                previewPortResolver: static fn(): int => 38123,
+            );
+
+            $payload = $manager->previewRecentDownload((string) $entry['id'])->toPayload();
+
+            self::assertTrue($payload['ok']);
+            self::assertTrue($payload['previewReady']);
+            self::assertSame($entry['id'], $payload['recentDownloadId']);
+            self::assertMatchesRegularExpression(
+                '#^http://127\.0\.0\.1:38123/preview/recent-' . preg_quote((string) $entry['id'], '#') . '-[a-f0-9]+\?token=[a-f0-9]+$#',
+                (string) $payload['previewUrl'],
+            );
+        } finally {
+            putenv('YTD_PROJECT_ROOT');
+        }
+    }
+
+    public function testDeleteRecentDownloadRemovesFileAndHistoryEntry(): void
+    {
+        $root = sys_get_temp_dir() . '/ytd_native_recent_delete_' . uniqid();
+        mkdir($root, 0777, true);
+        putenv('YTD_PROJECT_ROOT=' . $root);
+
+        try {
+            $bootstrap = new RuntimeBootstrap($root);
+            $recentDownloads = new NativeHostRecentDownloadsStore($bootstrap);
+            $filePath = $root . '/delete-me-video.mp4';
+            file_put_contents($filePath, 'preview');
+            $entry = $recentDownloads->append($filePath, 'https://example.com/1', 'video');
+
+            $manager = new NativeHostJobManagerService(
+                $bootstrap,
+                new NativeHostJobStateStore($bootstrap),
+                recentDownloads: $recentDownloads,
+            );
+
+            $payload = $manager->deleteRecentDownload((string) $entry['id'])->toPayload();
+
+            self::assertTrue($payload['ok']);
+            self::assertSame('recent_download_deleted', $payload['code']);
+            self::assertFileDoesNotExist($filePath);
+            self::assertSame([], $recentDownloads->list());
         } finally {
             putenv('YTD_PROJECT_ROOT');
         }

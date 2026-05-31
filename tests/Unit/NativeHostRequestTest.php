@@ -66,6 +66,28 @@ final class NativeHostRequestTest extends TestCase
         self::assertSame('download-123', $request->entryId);
     }
 
+    public function testFromPayloadAcceptsPreviewRecentDownloadActionWithEntryId(): void
+    {
+        $request = NativeHostRequest::fromPayload([
+            'action' => 'preview_recent_download',
+            'entryId' => 'download-123',
+        ]);
+
+        self::assertSame('preview_recent_download', $request->action);
+        self::assertSame('download-123', $request->entryId);
+    }
+
+    public function testFromPayloadAcceptsDeleteRecentDownloadActionWithEntryId(): void
+    {
+        $request = NativeHostRequest::fromPayload([
+            'action' => 'delete_recent_download',
+            'entryId' => 'download-123',
+        ]);
+
+        self::assertSame('delete_recent_download', $request->action);
+        self::assertSame('download-123', $request->entryId);
+    }
+
     public function testFromPayloadRejectsCancelActionWithoutJobId(): void
     {
         $this->expectException(NativeHostException::class);

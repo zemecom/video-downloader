@@ -23,8 +23,10 @@ final readonly class NativeHostRequest
     public const string GET_JOB_STATUS = 'get_job_status';
     public const string CANCEL_DOWNLOAD = 'cancel_download';
     public const string LIST_RECENT_DOWNLOADS = 'list_recent_downloads';
+    public const string PREVIEW_RECENT_DOWNLOAD = 'preview_recent_download';
     public const string OPEN_RECENT_DOWNLOAD = 'open_recent_download';
     public const string REVEAL_RECENT_DOWNLOAD = 'reveal_recent_download';
+    public const string DELETE_RECENT_DOWNLOAD = 'delete_recent_download';
 
     public function __construct(
         public string $action,
@@ -57,7 +59,7 @@ final readonly class NativeHostRequest
             self::START_DOWNLOAD => new self($action, self::validateUrl($url), null, self::validateMode($mode)),
             self::GET_JOB_STATUS, self::CANCEL_DOWNLOAD => new self($action, null, self::validateJobId($jobId), null),
             self::LIST_RECENT_DOWNLOADS => new self($action),
-            self::OPEN_RECENT_DOWNLOAD, self::REVEAL_RECENT_DOWNLOAD => new self($action, null, null, null, self::validateEntryId($entryId)),
+            self::PREVIEW_RECENT_DOWNLOAD, self::OPEN_RECENT_DOWNLOAD, self::REVEAL_RECENT_DOWNLOAD, self::DELETE_RECENT_DOWNLOAD => new self($action, null, null, null, self::validateEntryId($entryId)),
             default => throw new NativeHostException('invalid_payload', 'Invalid native host payload.'),
         };
     }

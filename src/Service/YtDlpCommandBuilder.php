@@ -6,6 +6,8 @@ namespace YtdPhp\Service;
 
 final class YtDlpCommandBuilder
 {
+    private const BEST_NON_AV1_FORMAT = 'bestvideo[vcodec!^=av01]+bestaudio/best[vcodec!^=av01]';
+
     /** @var list<string> */
     private array $command;
 
@@ -143,7 +145,7 @@ final class YtDlpCommandBuilder
     {
         return match ($formatCode) {
             'bestaudio' => [...$command, '-f', 'bestaudio/best', '--extract-audio', '--audio-format', 'opus'],
-            'best' => [...$command, '-f', 'bestvideo+bestaudio/best', '--merge-output-format', $outputFormat],
+            'best' => [...$command, '-f', self::BEST_NON_AV1_FORMAT, '--merge-output-format', $outputFormat],
             default => [...$command, '-f', $formatCode, '--merge-output-format', $outputFormat],
         };
     }

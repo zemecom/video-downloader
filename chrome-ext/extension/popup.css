@@ -11,7 +11,7 @@
 
 body {
   margin: 0;
-  min-width: 240px;
+  min-width: 280px;
   background: transparent;
   color: #f7f4ee;
 }
@@ -133,6 +133,7 @@ body {
   margin-top: 6px;
   display: flex;
   gap: 5px;
+  flex-wrap: wrap;
 }
 
 .recent-button {
@@ -149,6 +150,17 @@ body {
 .recent-button:hover {
   border-color: var(--ytd-border-strong);
   background: rgba(125, 220, 255, 0.14);
+}
+
+.recent-button-danger {
+  border-color: rgba(255, 127, 127, 0.24);
+  background: rgba(255, 127, 127, 0.1);
+  color: #ffdede;
+}
+
+.recent-button-danger:hover {
+  border-color: rgba(255, 160, 160, 0.42);
+  background: rgba(255, 127, 127, 0.16);
 }
 
 .recent-empty {

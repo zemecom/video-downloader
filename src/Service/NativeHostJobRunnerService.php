@@ -27,12 +27,24 @@ use function stream_set_blocking;
 
 final readonly class NativeHostJobRunnerService
 {
+    private NativeHostPreviewRegistryService $previewRegistry;
+
+    private NativeHostPreviewServerCoordinator $previewServerCoordinator;
+
     public function __construct(
         private RuntimeBootstrap $bootstrap,
         private NativeHostJobStateStore $store,
         private NativeHostProgressParserService $parser,
         private NativeHostRecentDownloadsStore $recentDownloads,
-    ) {}
+        ?NativeHostPreviewRegistryService $previewRegistry = null,
+        ?NativeHostPreviewServerCoordinator $previewServerCoordinator = null,
+    ) {
+        $this->previewRegistry = $previewRegistry ?? new NativeHostPreviewRegistryService($bootstrap);
+        $this->previewServerCoordinator = $previewServerCoordinator ?? new NativeHostPreviewServerCoordinator(
+            $bootstrap,
+            new NativeHostPreviewServerStateStore($bootstrap),
+        );
+    }
 
     public function run(string $jobId, string $url, string $mode = 'video'): int
     {
@@ -61,6 +73,8 @@ final readonly class NativeHostJobRunnerService
 
         if ($mode === 'audio') {
             $command[] = '--audio';
+        } else {
+            $command[] = '--mp4';
         }
 
         $command[] = $url;
@@ -187,6 +201,18 @@ final readonly class NativeHostJobRunnerService
                     (string) ($state['mode'] ?? 'video'),
                 );
                 $state['recentDownloadId'] = $entry['id'] ?? null;
+
+                if (($state['mode'] ?? 'video') === 'video') {
+                    try {
+                        $port = $this->previewServerCoordinator->ensureRunning();
+                        $preview = $this->previewRegistry->register($jobId, $outputPath, $port);
+                        $state['previewReady'] = $preview['previewReady'] ?? false;
+                        $state['previewUrl'] = $preview['previewUrl'] ?? null;
+                    } catch (\Throwable) {
+                        $state['previewReady'] = false;
+                        unset($state['previewUrl']);
+                    }
+                }
             }
             $state['status'] = 'completed';
             $state['progressPercent'] = 100.0;

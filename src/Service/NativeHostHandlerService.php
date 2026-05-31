@@ -28,8 +28,10 @@ final readonly class NativeHostHandlerService
                 NativeHostRequest::GET_JOB_STATUS => $this->manager->getJobStatus((string) $request->jobId),
                 NativeHostRequest::CANCEL_DOWNLOAD => $this->manager->cancelDownload((string) $request->jobId),
                 NativeHostRequest::LIST_RECENT_DOWNLOADS => $this->manager->listRecentDownloads(),
+                NativeHostRequest::PREVIEW_RECENT_DOWNLOAD => $this->manager->previewRecentDownload((string) $request->entryId),
                 NativeHostRequest::OPEN_RECENT_DOWNLOAD => $this->manager->openRecentDownload((string) $request->entryId),
                 NativeHostRequest::REVEAL_RECENT_DOWNLOAD => $this->manager->revealRecentDownload((string) $request->entryId),
+                NativeHostRequest::DELETE_RECENT_DOWNLOAD => $this->manager->deleteRecentDownload((string) $request->entryId),
                 default => NativeHostResponse::error('invalid_payload', 'Invalid native host payload.'),
             };
         } catch (NativeHostException $exception) {
