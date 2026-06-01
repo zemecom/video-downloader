@@ -372,6 +372,7 @@ final readonly class PlaylistService
                     $this->requestedFormatCode($options),
                     $options->outputFormat,
                     $overwritePolicy === self::OVERWRITE_OVERWRITE_ALL,
+                    $metadata->playlistItem->url !== '' ? $metadata->playlistItem->url : $summary->playlist->sourceUrl,
                 );
                 $process->start();
                 $running[] = ['position' => $position, 'item' => $metadata, 'process' => $process];

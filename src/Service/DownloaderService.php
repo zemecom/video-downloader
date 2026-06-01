@@ -143,6 +143,7 @@ final readonly class DownloaderService
                 $forceOverwrites,
                 $expectedFile,
                 true,
+                $videoUrl,
             );
         } finally {
             if (file_exists($tempJsonPath)) {
@@ -161,6 +162,7 @@ final readonly class DownloaderService
         bool $forceOverwrites = false,
         ?string $expectedFile = null,
         bool $emitLogs = true,
+        ?string $sourceUrl = null,
     ): DownloadResult {
         $expectedFile ??= $this->ytDlpClient->getExpectedFilename(
             null,
@@ -181,7 +183,7 @@ final readonly class DownloaderService
             return new DownloadResult('skipped', 'file_exists');
         }
 
-        $builder = new YtDlpCommandBuilder();
+        $builder = new YtDlpCommandBuilder($sourceUrl);
         $builder->setProxy($proxy)->setInsecure($insecure)->loadInfoJson($infoJsonPath);
         if ($forceOverwrites) {
             $builder->addArg('--force-overwrites');
@@ -206,8 +208,9 @@ final readonly class DownloaderService
         string $formatCode,
         string $outputFormat,
         bool $forceOverwrites,
+        ?string $sourceUrl = null,
     ): Process {
-        $builder = new YtDlpCommandBuilder();
+        $builder = new YtDlpCommandBuilder($sourceUrl);
         $builder->setProxy($proxy)->setInsecure($insecure)->loadInfoJson($infoJsonPath);
         if ($forceOverwrites) {
             $builder->addArg('--force-overwrites');

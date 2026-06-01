@@ -25,6 +25,15 @@ final class YtDlpCommandBuilderTest extends TestCase
         $builder = new YtDlpCommandBuilder();
         $command = $builder->buildForDownload('best', '/tmp/video.%(ext)s', 'mp4');
 
+        self::assertSame('bestvideo+bestaudio/best', $command[array_search('-f', $command, true) + 1]);
+        self::assertContains('mp4', $command);
+    }
+
+    public function testBuildForDownloadUsesNonAv1BestQualityForYoutubeUrls(): void
+    {
+        $builder = new YtDlpCommandBuilder('https://www.youtube.com/watch?v=123');
+        $command = $builder->buildForDownload('best', '/tmp/video.%(ext)s', 'mp4');
+
         self::assertSame('bestvideo[vcodec!^=av01]+bestaudio/best[vcodec!^=av01]', $command[array_search('-f', $command, true) + 1]);
         self::assertContains('mp4', $command);
     }

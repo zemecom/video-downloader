@@ -4,8 +4,14 @@ declare(strict_types=1);
 
 namespace YtdPhp\Service;
 
+use function ltrim;
+use function parse_url;
+use function str_ends_with;
+use function strtolower;
+
 final class YtDlpCommandBuilder
 {
+    private const BEST_FORMAT = 'bestvideo+bestaudio/best';
     private const BEST_NON_AV1_FORMAT = 'bestvideo[vcodec!^=av01]+bestaudio/best[vcodec!^=av01]';
 
     /** @var list<string> */
@@ -145,8 +151,32 @@ final class YtDlpCommandBuilder
     {
         return match ($formatCode) {
             'bestaudio' => [...$command, '-f', 'bestaudio/best', '--extract-audio', '--audio-format', 'opus'],
-            'best' => [...$command, '-f', self::BEST_NON_AV1_FORMAT, '--merge-output-format', $outputFormat],
+            'best' => [...$command, '-f', $this->bestFormatSelector(), '--merge-output-format', $outputFormat],
             default => [...$command, '-f', $formatCode, '--merge-output-format', $outputFormat],
         };
+    }
+
+    private function bestFormatSelector(): string
+    {
+        return $this->isYoutubeUrl($this->url)
+            ? self::BEST_NON_AV1_FORMAT
+            : self::BEST_FORMAT;
+    }
+
+    private function isYoutubeUrl(?string $videoUrl): bool
+    {
+        if (!is_string($videoUrl) || $videoUrl === '') {
+            return false;
+        }
+
+        $hostname = strtolower((string) (parse_url($videoUrl, PHP_URL_HOST) ?? ''));
+        if ($hostname === '') {
+            $hostname = strtolower((string) (parse_url('//' . ltrim($videoUrl, '/'), PHP_URL_HOST) ?? ''));
+        }
+
+        return $hostname === 'youtube.com'
+            || $hostname === 'youtu.be'
+            || str_ends_with($hostname, '.youtube.com')
+            || str_ends_with($hostname, '.youtu.be');
     }
 }
