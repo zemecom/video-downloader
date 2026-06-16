@@ -9,6 +9,7 @@ use RuntimeException;
 use Symfony\Component\Process\Process;
 use YtdPhp\Bootstrap\RuntimeBootstrap;
 
+use function array_merge;
 use function fclose;
 use function feof;
 use function fgets;
@@ -88,7 +89,7 @@ final readonly class NativeHostJobRunnerService
             ],
             $pipes,
             $this->bootstrap->getPackageRoot(),
-            YtDlpClient::buildProcessEnv(),
+            array_merge(YtDlpClient::buildProcessEnv(), ['YTD_PROGRESS_NEWLINE' => '1']),
         );
 
         if (!is_resource($process)) {

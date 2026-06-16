@@ -27,6 +27,11 @@ final class YtDlpCommandBuilderTest extends TestCase
 
         self::assertSame('bestvideo+bestaudio/best', $command[array_search('-f', $command, true) + 1]);
         self::assertContains('mp4', $command);
+        self::assertNotContains('--newline', $command);
+        self::assertContains('--concurrent-fragments', $command);
+        self::assertContains('20', $command);
+        self::assertContains('--progress-delta', $command);
+        self::assertContains('0.5', $command);
     }
 
     public function testBuildForDownloadUsesNonAv1BestQualityForYoutubeUrls(): void
@@ -56,5 +61,13 @@ final class YtDlpCommandBuilderTest extends TestCase
         self::assertContains('--extract-audio', $command);
         self::assertContains('--audio-format', $command);
         self::assertContains('opus', $command);
+    }
+
+    public function testBuildForDownloadCanEnableLineBufferedProgressExplicitly(): void
+    {
+        $builder = new YtDlpCommandBuilder();
+        $command = $builder->buildForDownload('best', '/tmp/video.%(ext)s', 'mp4', true);
+
+        self::assertContains('--newline', $command);
     }
 }

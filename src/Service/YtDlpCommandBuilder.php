@@ -129,16 +129,24 @@ final class YtDlpCommandBuilder
     /**
      * @return list<string>
      */
-    public function buildForDownload(string $formatCode, string $outputTemplate, string $outputFormat = 'mkv'): array
-    {
+    public function buildForDownload(
+        string $formatCode,
+        string $outputTemplate,
+        string $outputFormat = 'mkv',
+        bool $lineBufferedProgress = false,
+    ): array {
         $command = [...$this->command, '-o', $outputTemplate];
         $command = $this->applyFormatArgs($command, $formatCode, $outputFormat);
         $command[] = '--downloader-args';
         $command[] = 'ffmpeg_i:-http_persistent 0';
         $command[] = '--progress';
-        $command[] = '--newline';
+        $command[] = '--progress-delta';
+        $command[] = '0.5';
+        if ($lineBufferedProgress) {
+            $command[] = '--newline';
+        }
         $command[] = '--concurrent-fragments';
-        $command[] = '10';
+        $command[] = '20';
 
         return $command;
     }

@@ -18,6 +18,7 @@ use function file_get_contents;
 use function file_put_contents;
 use function getcwd;
 use function getenv;
+use function json_decode;
 use function mkdir;
 use function sprintf;
 use function str_replace;
@@ -126,6 +127,60 @@ final class DownloaderServiceTest extends TestCase
         }
     }
 
+    public function testDownloadVideoEnablesLineBufferedProgressWhenRequestedByEnvironment(): void
+    {
+        $root = sys_get_temp_dir() . '/ytd_php_downloader_progress_' . uniqid();
+        $binDir = $root . '/bin';
+        $downloadDir = $root . '/downloads';
+        mkdir($binDir, 0777, true);
+        mkdir($downloadDir, 0777, true);
+
+        $scriptPath = $binDir . '/yt-dlp';
+        file_put_contents($scriptPath, $this->fakeYtDlpScript());
+        chmod($scriptPath, 0777);
+
+        $previousPath = getenv('PATH');
+        $previousDownloadDir = getenv('DOWNLOAD_DIR_GENERAL');
+        $previousProgressNewline = getenv('YTD_PROGRESS_NEWLINE');
+
+        putenv('PATH=' . $binDir . PATH_SEPARATOR . ($previousPath !== false ? $previousPath : ''));
+        putenv('DOWNLOAD_DIR_GENERAL=' . $downloadDir);
+        putenv('YTD_PROGRESS_NEWLINE=1');
+
+        try {
+            $bootstrap = new RuntimeBootstrap(getcwd() ?: null);
+            $logger = new ConsoleLogger();
+            $prompter = new InputPrompter();
+            $client = new YtDlpClient($logger);
+            $service = new DownloaderService($client, $bootstrap, $logger, $prompter);
+
+            $result = $service->downloadVideo('https://example.com/video', 'best');
+            $lastDownloadArgs = json_decode((string) file_get_contents($root . '/last-download-args.json'), true);
+
+            self::assertSame('completed', $result->status);
+            self::assertIsArray($lastDownloadArgs);
+            self::assertContains('--newline', $lastDownloadArgs);
+        } finally {
+            if ($previousPath === false) {
+                putenv('PATH');
+            } else {
+                putenv('PATH=' . $previousPath);
+            }
+
+            if ($previousDownloadDir === false) {
+                putenv('DOWNLOAD_DIR_GENERAL');
+            } else {
+                putenv('DOWNLOAD_DIR_GENERAL=' . $previousDownloadDir);
+            }
+
+            if ($previousProgressNewline === false) {
+                putenv('YTD_PROGRESS_NEWLINE');
+            } else {
+                putenv('YTD_PROGRESS_NEWLINE=' . $previousProgressNewline);
+            }
+        }
+    }
+
     private function fakeYtDlpScript(): string
     {
         return <<<'PHP'
@@ -194,6 +249,8 @@ if (!is_string($outputPath) || $outputPath === '') {
 
     exit(1);
 }
+
+file_put_contents(dirname(__DIR__) . '/last-download-args.json', json_encode($args, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
 
 $resolvedPath = $resolveOutputPath($outputPath);
 $directory = dirname($resolvedPath);

@@ -13,6 +13,7 @@ use function file_exists;
 use function file_put_contents;
 use function filesize;
 use function floor;
+use function getenv;
 use function is_dir;
 use function is_file;
 use function is_array;
@@ -189,7 +190,12 @@ final readonly class DownloaderService
             $builder->addArg('--force-overwrites');
         }
 
-        $command = $builder->buildForDownload($formatCode, $outputTemplate, $outputFormat);
+        $command = $builder->buildForDownload(
+            $formatCode,
+            $outputTemplate,
+            $outputFormat,
+            $this->shouldUseLineBufferedProgress(),
+        );
         if ($emitLogs) {
             $this->logger->info('🚀 Начинаю загрузку...');
         }
@@ -216,7 +222,12 @@ final readonly class DownloaderService
             $builder->addArg('--force-overwrites');
         }
 
-        $process = new Process($builder->buildForDownload($formatCode, $outputPath, $outputFormat));
+        $process = new Process($builder->buildForDownload(
+            $formatCode,
+            $outputPath,
+            $outputFormat,
+            $this->shouldUseLineBufferedProgress(),
+        ));
         $process->setTimeout(null);
         $process->setEnv(YtDlpClient::buildProcessEnv());
 
@@ -271,6 +282,13 @@ final readonly class DownloaderService
         }
 
         return $removedCount;
+    }
+
+    private function shouldUseLineBufferedProgress(): bool
+    {
+        $flag = getenv('YTD_PROGRESS_NEWLINE');
+
+        return $flag !== false && $flag !== '';
     }
 
     private function logOutputPath(string $expectedFile, ?int $sizeBytes = null): void
