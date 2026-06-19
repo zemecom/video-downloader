@@ -28,7 +28,7 @@ final class NativeHostProgressParserService
             ];
         }
 
-        if (preg_match('/^(?:📄\s*)?Файл:\s+(.+?)(?:\s+\([^()]*\))?$/u', $normalized, $matches) === 1) {
+        if (preg_match('/(?:📄\s*)?Файл:\s+(.+?)(?:\s+\([^()]*\))?$/u', $normalized, $matches) === 1) {
             return [
                 'status' => 'starting',
                 'progressPercent' => null,

@@ -8,9 +8,14 @@ use PHPUnit\Framework\TestCase;
 use YtdPhp\Bootstrap\RuntimeBootstrap;
 use YtdPhp\Service\NativeHostRecentDownloadsStore;
 
+use function dirname;
+use function file_get_contents;
+use function file_put_contents;
 use function mkdir;
 use function sys_get_temp_dir;
+use function touch;
 use function uniqid;
+use const JSON_THROW_ON_ERROR;
 
 final class NativeHostRecentDownloadsStoreTest extends TestCase
 {
@@ -23,8 +28,12 @@ final class NativeHostRecentDownloadsStoreTest extends TestCase
 
         try {
             $store = new NativeHostRecentDownloadsStore(new RuntimeBootstrap($root));
-            $first = $store->append('/tmp/video-one.mkv', 'https://example.com/1', 'video');
-            $second = $store->append('/tmp/audio-two.opus', 'https://example.com/2', 'audio');
+            $firstPath = $root . '/video-one.mkv';
+            $secondPath = $root . '/audio-two.opus';
+            touch($firstPath);
+            touch($secondPath);
+            $first = $store->append($firstPath, 'https://example.com/1', 'video');
+            $second = $store->append($secondPath, 'https://example.com/2', 'audio');
             $items = $store->list();
 
             self::assertCount(2, $items);
@@ -68,7 +77,9 @@ final class NativeHostRecentDownloadsStoreTest extends TestCase
             $store = new NativeHostRecentDownloadsStore(new RuntimeBootstrap($root));
 
             for ($index = 1; $index <= 21; ++$index) {
-                $store->append('/tmp/video-' . $index . '.mkv', 'https://example.com/' . $index, 'video');
+                $path = $root . '/video-' . $index . '.mkv';
+                touch($path);
+                $store->append($path, 'https://example.com/' . $index, 'video');
             }
 
             $items = $store->list();
@@ -76,6 +87,54 @@ final class NativeHostRecentDownloadsStoreTest extends TestCase
             self::assertCount(20, $items);
             self::assertSame('video-21.mkv', $items[0]['name']);
             self::assertSame('video-2.mkv', $items[19]['name']);
+        } finally {
+            putenv('YTD_PROJECT_ROOT');
+        }
+    }
+
+    public function testListPrunesMissingFilesAndPersistsCleanedHistory(): void
+    {
+        $root = sys_get_temp_dir() . '/ytd_recent_downloads_prune_' . uniqid();
+        mkdir($root . '/downloads', 0777, true);
+
+        putenv('YTD_PROJECT_ROOT=' . $root);
+
+        try {
+            $bootstrap = new RuntimeBootstrap($root);
+            $store = new NativeHostRecentDownloadsStore($bootstrap);
+            $existingPath = $root . '/downloads/existing-video.mp4';
+            mkdir(dirname($bootstrap->getNativeHostRecentDownloadsPath()), 0777, true);
+            touch($existingPath);
+
+            file_put_contents(
+                $bootstrap->getNativeHostRecentDownloadsPath(),
+                json_encode([
+                    [
+                        'id' => 'download-missing',
+                        'name' => 'missing-video.mp4',
+                        'path' => $root . '/downloads/missing-video.mp4',
+                        'url' => 'https://example.com/missing',
+                        'mode' => 'video',
+                        'createdAt' => '2026-06-16T00:00:00+00:00',
+                    ],
+                    [
+                        'id' => 'download-existing',
+                        'name' => 'existing-video.mp4',
+                        'path' => $existingPath,
+                        'url' => 'https://example.com/existing',
+                        'mode' => 'video',
+                        'createdAt' => '2026-06-16T00:00:01+00:00',
+                    ],
+                ], JSON_THROW_ON_ERROR),
+            );
+
+            $items = $store->list();
+            $persisted = json_decode((string) file_get_contents($bootstrap->getNativeHostRecentDownloadsPath()), true, 512, JSON_THROW_ON_ERROR);
+
+            self::assertCount(1, $items);
+            self::assertSame('download-existing', $items[0]['id']);
+            self::assertCount(1, $persisted);
+            self::assertSame('download-existing', $persisted[0]['id']);
         } finally {
             putenv('YTD_PROJECT_ROOT');
         }

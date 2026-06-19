@@ -61,7 +61,7 @@ final readonly class NativeHostRecentDownloadsStore
         ];
 
         $this->withExclusiveLock(function () use ($entry): void {
-            $items = $this->readAll();
+            $items = $this->filterExistingItems($this->readAll());
             array_unshift($items, $entry);
             $this->writeAll(array_slice($items, 0, self::MAX_ITEMS));
         });
@@ -74,7 +74,18 @@ final readonly class NativeHostRecentDownloadsStore
      */
     public function list(): array
     {
-        return $this->readAll();
+        $items = [];
+
+        $this->withExclusiveLock(function () use (&$items): void {
+            $stored = $this->readAll();
+            $items = $this->filterExistingItems($stored);
+
+            if ($items !== $stored) {
+                $this->writeAll($items);
+            }
+        });
+
+        return $items;
     }
 
     /**
@@ -95,7 +106,7 @@ final readonly class NativeHostRecentDownloadsStore
     {
         $this->withExclusiveLock(function () use ($entryId): void {
             $items = array_values(array_filter(
-                $this->readAll(),
+                $this->filterExistingItems($this->readAll()),
                 static fn(array $item): bool => ($item['id'] ?? null) !== $entryId,
             ));
 
@@ -144,6 +155,22 @@ final readonly class NativeHostRecentDownloadsStore
         }
 
         return is_array($decoded) ? array_values(array_filter($decoded, 'is_array')) : [];
+    }
+
+    /**
+     * @param list<array<string, mixed>> $items
+     * @return list<array<string, mixed>>
+     */
+    private function filterExistingItems(array $items): array
+    {
+        return array_values(array_filter(
+            $items,
+            static function (array $item): bool {
+                $path = $item['path'] ?? null;
+
+                return is_string($path) && $path !== '' && file_exists($path);
+            },
+        ));
     }
 
     private function withExclusiveLock(Closure $callback): void

@@ -246,7 +246,9 @@ final class NativeHostJobManagerServiceTest extends TestCase
         try {
             $bootstrap = new RuntimeBootstrap($root);
             $recentDownloads = new NativeHostRecentDownloadsStore($bootstrap);
-            $recentDownloads->append('/tmp/video-one.mkv', 'https://example.com/1', 'video');
+            $filePath = $root . '/video-one.mkv';
+            touch($filePath);
+            $recentDownloads->append($filePath, 'https://example.com/1', 'video');
 
             $manager = new NativeHostJobManagerService(
                 $bootstrap,
@@ -366,7 +368,7 @@ final class NativeHostJobManagerServiceTest extends TestCase
         }
     }
 
-    public function testRevealRecentDownloadKeepsMissingFileEntryInHistory(): void
+    public function testRevealRecentDownloadPrunesMissingFileEntryFromHistory(): void
     {
         $root = sys_get_temp_dir() . '/ytd_native_recent_reveal_' . uniqid();
         mkdir($root, 0777, true);
@@ -389,14 +391,13 @@ final class NativeHostJobManagerServiceTest extends TestCase
 
             self::assertFalse($payload['ok']);
             self::assertSame('file_not_found', $payload['code']);
-            self::assertCount(1, $recentDownloads->list());
-            self::assertSame($entry['id'], $recentDownloads->list()[0]['id']);
+            self::assertSame([], $recentDownloads->list());
         } finally {
             putenv('YTD_PROJECT_ROOT');
         }
     }
 
-    public function testOpenRecentDownloadKeepsMissingFileEntryInHistory(): void
+    public function testOpenRecentDownloadPrunesMissingFileEntryFromHistory(): void
     {
         $root = sys_get_temp_dir() . '/ytd_native_recent_open_missing_' . uniqid();
         mkdir($root, 0777, true);
@@ -419,8 +420,7 @@ final class NativeHostJobManagerServiceTest extends TestCase
 
             self::assertFalse($payload['ok']);
             self::assertSame('file_not_found', $payload['code']);
-            self::assertCount(1, $recentDownloads->list());
-            self::assertSame($entry['id'], $recentDownloads->list()[0]['id']);
+            self::assertSame([], $recentDownloads->list());
         } finally {
             putenv('YTD_PROJECT_ROOT');
         }

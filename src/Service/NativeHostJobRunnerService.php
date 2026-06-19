@@ -179,6 +179,10 @@ final readonly class NativeHostJobRunnerService
             }
         }
 
+        foreach ([1, 2] as $index) {
+            $state = $this->consumeParsedOutput($jobId, $state, $buffers[$index] ?? '');
+        }
+
         $exitCode = proc_close($process);
         $state = $this->store->read($jobId) ?? $state;
 
@@ -243,6 +247,36 @@ final readonly class NativeHostJobRunnerService
         $state['updatedAt'] = $this->now();
         $this->store->write($jobId, $state);
         $this->store->clearCancelRequest($jobId);
+    }
+
+    /**
+     * @param array<string, mixed> $state
+     * @return array<string, mixed>
+     */
+    private function consumeParsedOutput(string $jobId, array $state, string $buffer): array
+    {
+        if ($buffer === '') {
+            return $state;
+        }
+
+        foreach (preg_split("/\r\n|\n|\r/", $buffer) ?: [] as $line) {
+            $parsed = $this->parser->parse($line);
+            if ($parsed === null) {
+                continue;
+            }
+
+            $state['status'] = $parsed['status'];
+            $state['progressPercent'] = $parsed['progressPercent'];
+            $state['progressText'] = $parsed['progressText'];
+            if (is_string($parsed['outputPath'] ?? null) && $parsed['outputPath'] !== '') {
+                $state['outputPath'] = $parsed['outputPath'];
+            }
+            $state['canCancel'] = !in_array($state['status'], ['completed', 'failed', 'cancelled'], true);
+            $state['updatedAt'] = $this->now();
+            $this->store->write($jobId, $state);
+        }
+
+        return $state;
     }
 
     private function now(): string

@@ -40,4 +40,14 @@ final class NativeHostProgressParserServiceTest extends TestCase
         self::assertSame('starting', $parsed['status']);
         self::assertSame('/tmp/My Video.mkv', $parsed['outputPath']);
     }
+
+    public function testParseOutputFileLineExtractsPathAfterPromptPrefix(): void
+    {
+        $parser = new NativeHostProgressParserService();
+
+        $parsed = $parser->parse("🔄 Перезаписать? [y/N]: 📄 Файл: /tmp/My Video.mkv (11B)\n");
+
+        self::assertSame('starting', $parsed['status']);
+        self::assertSame('/tmp/My Video.mkv', $parsed['outputPath']);
+    }
 }
