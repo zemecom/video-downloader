@@ -52,6 +52,12 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return true;
   }
 
+  if (message?.type === 'ytd:open-preview-page') {
+    openPreviewPage(message).then(sendResponse);
+
+    return true;
+  }
+
   if (message?.type === 'ytd:reveal-recent-download') {
     callNativeHost({
       action: 'reveal_recent_download',
@@ -154,17 +160,7 @@ async function startDownload(message) {
 }
 
 async function previewRecentDownload(message) {
-  const tabId = Number.isInteger(message?.tabId) ? message.tabId : null;
-  const url = typeof message?.url === 'string' ? message.url : '';
   const entryId = typeof message?.entryId === 'string' ? message.entryId : '';
-
-  if (!Number.isInteger(tabId) || !isSupportedTabUrl(url)) {
-    return {
-      ok: false,
-      errorCode: 'unsupported_page',
-      errorMessage: MESSAGES.unsupported_page,
-    };
-  }
 
   if (entryId === '') {
     return {
@@ -191,17 +187,54 @@ async function previewRecentDownload(message) {
     };
   }
 
-  await ensureOverlay(tabId);
-  await sendOverlayMessage(tabId, {
-    type: 'ytd-overlay-open-preview',
+  return openPreviewPage({
     previewUrl: response.payload.previewUrl,
     recentDownloadId: response.payload?.recentDownloadId ?? entryId,
+  });
+}
+
+async function openPreviewPage(message) {
+  const previewUrl = typeof message?.previewUrl === 'string' ? message.previewUrl : '';
+  const recentDownloadId = typeof message?.recentDownloadId === 'string' ? message.recentDownloadId : '';
+  if (previewUrl === '') {
+    return {
+      ok: false,
+      errorCode: 'unexpected_error',
+      errorMessage: 'Native host не подготовил ссылку для воспроизведения.',
+    };
+  }
+
+  const previewId = createPreviewId();
+  await chrome.storage.session.set({
+    [`preview:${previewId}`]: {
+      previewUrl,
+      recentDownloadId,
+      createdAt: Date.now(),
+    },
+  });
+
+  await chrome.tabs.create({
+    url: chrome.runtime.getURL(`preview.html?id=${encodeURIComponent(previewId)}`),
+    active: true,
   });
 
   return {
     ok: true,
-    payload: response.payload,
+    payload: {
+      previewId,
+    },
   };
+}
+
+function createPreviewId() {
+  if (typeof globalThis.crypto?.randomUUID === 'function') {
+    return globalThis.crypto.randomUUID();
+  }
+
+  const bytes = new Uint8Array(16);
+  globalThis.crypto.getRandomValues(bytes);
+
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
 function isSupportedTabUrl(url) {

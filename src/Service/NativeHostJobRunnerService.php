@@ -186,19 +186,13 @@ final readonly class NativeHostJobRunnerService
         $exitCode = proc_close($process);
         $state = $this->store->read($jobId) ?? $state;
 
-        if ($this->store->cancelRequested($jobId) || ($state['status'] ?? null) === 'cancelling') {
-            $state['status'] = 'cancelled';
-            $state['progressText'] = 'Загрузка отменена.';
-            $state['canCancel'] = false;
-            $state['updatedAt'] = $this->now();
-            $this->store->write($jobId, $state);
-            $this->store->clearCancelRequest($jobId);
+        $outputPath = is_string($state['outputPath'] ?? null)
+            ? (string) $state['outputPath']
+            : null;
+        $hasOutputFile = is_string($outputPath) && $outputPath !== '' && file_exists($outputPath);
+        $cancelRequested = $this->store->cancelRequested($jobId) || ($state['status'] ?? null) === 'cancelling';
 
-            return 0;
-        }
-
-        if ($exitCode === 0) {
-            $outputPath = $state['outputPath'] ?? null;
+        if ($exitCode === 0 && ($hasOutputFile || !$cancelRequested)) {
             if (is_string($outputPath) && $outputPath !== '' && file_exists($outputPath)) {
                 $entry = $this->recentDownloads->append(
                     $outputPath,
@@ -222,6 +216,17 @@ final readonly class NativeHostJobRunnerService
             $state['status'] = 'completed';
             $state['progressPercent'] = 100.0;
             $state['progressText'] = 'Загрузка завершена.';
+            $state['canCancel'] = false;
+            $state['updatedAt'] = $this->now();
+            $this->store->write($jobId, $state);
+            $this->store->clearCancelRequest($jobId);
+
+            return 0;
+        }
+
+        if ($cancelRequested) {
+            $state['status'] = 'cancelled';
+            $state['progressText'] = 'Загрузка отменена.';
             $state['canCancel'] = false;
             $state['updatedAt'] = $this->now();
             $this->store->write($jobId, $state);

@@ -9,8 +9,12 @@
     "activeTab",
     "nativeMessaging",
     "notifications",
-    "scripting"
+    "scripting",
+    "storage"
   ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; media-src 'self' http://127.0.0.1:*; connect-src 'self' http://127.0.0.1:*"
+  },
   "background": {
     "service_worker": "service-worker.js"
   },

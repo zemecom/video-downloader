@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace YtdPhp\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Process\Process;
 use YtdPhp\Bootstrap\RuntimeBootstrap;
 use YtdPhp\Service\NativeHostJobRunnerService;
 use YtdPhp\Service\NativeHostJobStateStore;
@@ -12,13 +13,16 @@ use YtdPhp\Service\NativeHostProgressParserService;
 use YtdPhp\Service\NativeHostRecentDownloadsStore;
 
 use function chmod;
+use function dirname;
 use function file_get_contents;
 use function file_put_contents;
 use function json_decode;
 use function mkdir;
 use function realpath;
+use function sprintf;
 use function sys_get_temp_dir;
 use function uniqid;
+use function usleep;
 
 final class NativeHostJobRunnerServiceTest extends TestCase
 {
@@ -93,6 +97,68 @@ PHP);
             self::assertIsString($state['recentDownloadId'] ?? null);
             self::assertCount(1, $recentDownloads);
             self::assertSame(realpath($root . '/downloads/final-output.opus'), realpath((string) ($recentDownloads[0]['path'] ?? '')));
+        } finally {
+            putenv('YTD_PROJECT_ROOT');
+        }
+    }
+
+    public function testRunKeepsCompletedStateWhenCancellationArrivesAfterOutputIsReady(): void
+    {
+        $root = sys_get_temp_dir() . '/ytd_native_runner_late_cancel_' . uniqid();
+        mkdir($root . '/bin', 0777, true);
+        mkdir($root . '/downloads', 0777, true);
+        putenv('YTD_PROJECT_ROOT=' . $root);
+
+        try {
+            file_put_contents($root . '/bin/ytd', <<<'PHP'
+#!/usr/bin/env php
+<?php
+$path = __DIR__ . '/../downloads/late-cancel.mp4';
+usleep(150000);
+touch($path);
+fwrite(STDOUT, "📄 Файл: {$path} (7B)\n");
+usleep(300000);
+PHP);
+            chmod($root . '/bin/ytd', 0777);
+
+            $runnerScript = sprintf(
+                <<<'PHP'
+require %s;
+putenv(%s);
+$root = %s;
+$bootstrap = new \YtdPhp\Bootstrap\RuntimeBootstrap($root);
+$runner = new \YtdPhp\Service\NativeHostJobRunnerService(
+    $bootstrap,
+    new \YtdPhp\Service\NativeHostJobStateStore($bootstrap),
+    new \YtdPhp\Service\NativeHostProgressParserService(),
+    new \YtdPhp\Service\NativeHostRecentDownloadsStore($bootstrap),
+);
+exit($runner->run('job-late-cancel', 'https://example.com/watch?v=late-cancel', 'video'));
+PHP,
+                var_export(dirname(__DIR__, 2) . '/vendor/autoload.php', true),
+                var_export('YTD_PROJECT_ROOT=' . $root, true),
+                var_export($root, true),
+            );
+
+            $process = new Process([PHP_BINARY, '-r', $runnerScript]);
+            $process->start();
+
+            usleep(250000);
+            $bootstrap = new RuntimeBootstrap($root);
+            $store = new NativeHostJobStateStore($bootstrap);
+            $store->requestCancel('job-late-cancel');
+
+            $process->wait();
+            $state = $store->read('job-late-cancel');
+            $recentDownloads = (new NativeHostRecentDownloadsStore($bootstrap))->list();
+
+            self::assertSame(0, $process->getExitCode());
+            self::assertSame('completed', $state['status'] ?? null);
+            self::assertSame('Загрузка завершена.', $state['progressText'] ?? null);
+            self::assertFalse($store->cancelRequested('job-late-cancel'));
+            self::assertIsString($state['recentDownloadId'] ?? null);
+            self::assertCount(1, $recentDownloads);
+            self::assertSame(realpath($root . '/downloads/late-cancel.mp4'), realpath((string) ($recentDownloads[0]['path'] ?? '')));
         } finally {
             putenv('YTD_PROJECT_ROOT');
         }

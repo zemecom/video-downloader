@@ -6,21 +6,34 @@ namespace YtdPhp\Service;
 
 use Throwable;
 
+use function array_keys;
 use function explode;
 use function fclose;
-use function fgets;
+use function feof;
+use function fopen;
 use function fwrite;
 use function getmypid;
 use function is_array;
+use function is_int;
 use function is_resource;
-use function stream_get_meta_data;
+use function is_string;
+use function max;
+use function min;
+use function preg_split;
+use function sprintf;
 use function stream_get_contents;
+use function stream_select;
+use function stream_set_blocking;
 use function stream_socket_accept;
 use function stream_socket_get_name;
 use function stream_socket_server;
 use function strlen;
+use function str_contains;
 use function strrpos;
+use function strtoupper;
+use function substr;
 use function trim;
+use function fseek;
 
 final readonly class NativeHostPreviewServerService
 {
@@ -36,22 +49,94 @@ final readonly class NativeHostPreviewServerService
             throw new \RuntimeException($error !== '' ? $error : 'Failed to bind preview server.');
         }
 
+        stream_set_blocking($server, false);
         $address = (string) stream_socket_get_name($server, false);
         $separator = strrpos($address, ':');
         $port = $separator === false ? 0 : (int) substr($address, $separator + 1);
         $this->stateStore->write((int) getmypid(), $port);
 
+        /** @var array<int, array{
+         *   socket: resource,
+         *   requestBuffer: string,
+         *   responseReady: bool,
+         *   pendingWrite: string,
+         *   pendingWriteFromFile: bool,
+         *   fileHandle: resource|null,
+         *   remainingBytes: int,
+         *   done: bool
+         * }> $clients
+         */
+        $clients = [];
+
         try {
-            while (($client = @stream_socket_accept($server, -1)) !== false) {
-                try {
-                    $this->handleClient($client);
-                } catch (Throwable) {
-                    // Best-effort server for local previews: drop malformed requests.
-                } finally {
-                    fclose($client);
+            while (true) {
+                $read = [$server];
+                $write = [];
+
+                foreach ($clients as $clientState) {
+                    if (!$clientState['responseReady']) {
+                        $read[] = $clientState['socket'];
+                    }
+
+                    if ($clientState['responseReady'] && ($clientState['pendingWrite'] !== '' || $clientState['fileHandle'] !== null)) {
+                        $write[] = $clientState['socket'];
+                    }
+                }
+
+                $except = null;
+                $readyRead = $read;
+                $readyWrite = $write;
+                $selected = @stream_select($readyRead, $readyWrite, $except, null);
+                if ($selected === false) {
+                    continue;
+                }
+
+                foreach ($readyRead as $stream) {
+                    if ($stream === $server) {
+                        $this->acceptClients($server, $clients);
+
+                        continue;
+                    }
+
+                    $clientId = (int) $stream;
+                    if (!isset($clients[$clientId])) {
+                        continue;
+                    }
+
+                    try {
+                        $this->readClient($clients[$clientId]);
+                    } catch (Throwable) {
+                        $clients[$clientId]['done'] = true;
+                    }
+                }
+
+                foreach ($readyWrite as $stream) {
+                    $clientId = (int) $stream;
+                    if (!isset($clients[$clientId])) {
+                        continue;
+                    }
+
+                    try {
+                        $this->writeClient($clients[$clientId]);
+                    } catch (Throwable) {
+                        $clients[$clientId]['done'] = true;
+                    }
+                }
+
+                foreach (array_keys($clients) as $clientId) {
+                    if (!($clients[$clientId]['done'] ?? false)) {
+                        continue;
+                    }
+
+                    $this->closeClient($clients[$clientId]);
+                    unset($clients[$clientId]);
                 }
             }
         } finally {
+            foreach ($clients as $clientState) {
+                $this->closeClient($clientState);
+            }
+
             fclose($server);
             $this->stateStore->clear();
         }
@@ -60,24 +145,208 @@ final readonly class NativeHostPreviewServerService
     }
 
     /**
-     * @param resource $client
+     * @param resource $server
+     * @param array<int, array{
+     *   socket: resource,
+     *   requestBuffer: string,
+     *   responseReady: bool,
+     *   pendingWrite: string,
+     *   pendingWriteFromFile: bool,
+     *   fileHandle: resource|null,
+     *   remainingBytes: int,
+     *   done: bool
+     * }> $clients
      */
-    private function handleClient($client): void
+    private function acceptClients($server, array &$clients): void
     {
-        $requestLine = fgets($client);
-        if (!is_string($requestLine) || trim($requestLine) === '') {
+        while (($client = @stream_socket_accept($server, 0)) !== false) {
+            stream_set_blocking($client, false);
+            $clients[(int) $client] = [
+                'socket' => $client,
+                'requestBuffer' => '',
+                'responseReady' => false,
+                'pendingWrite' => '',
+                'pendingWriteFromFile' => false,
+                'fileHandle' => null,
+                'remainingBytes' => 0,
+                'done' => false,
+            ];
+        }
+    }
+
+    /**
+     * @param array{
+     *   socket: resource,
+     *   requestBuffer: string,
+     *   responseReady: bool,
+     *   pendingWrite: string,
+     *   pendingWriteFromFile: bool,
+     *   fileHandle: resource|null,
+     *   remainingBytes: int,
+     *   done: bool
+     * } $clientState
+     */
+    private function readClient(array &$clientState): void
+    {
+        if ($clientState['responseReady']) {
             return;
         }
 
-        $parts = explode(' ', trim($requestLine), 3);
+        $chunk = stream_get_contents($clientState['socket']);
+        if (!is_string($chunk) || $chunk === '') {
+            if (feof($clientState['socket'])) {
+                $clientState['done'] = true;
+            }
+
+            return;
+        }
+
+        $clientState['requestBuffer'] .= $chunk;
+        if (!str_contains($clientState['requestBuffer'], "\r\n\r\n") && !str_contains($clientState['requestBuffer'], "\n\n")) {
+            return;
+        }
+
+        $request = $this->parseRequest($clientState['requestBuffer']);
+        $response = $this->responder->respond($request['method'], $request['target'], $request['headers'], false);
+
+        $clientState['responseReady'] = true;
+        $clientState['pendingWrite'] = $this->formatResponseHead($response);
+
+        if (strtoupper($request['method']) !== 'GET' || !is_string($response['filePath'] ?? null)) {
+            if (is_string($response['body'] ?? null) && $response['body'] !== '') {
+                $clientState['pendingWrite'] .= $response['body'];
+            }
+
+            return;
+        }
+
+        $fileHandle = fopen((string) $response['filePath'], 'rb');
+        if (!is_resource($fileHandle)) {
+            $clientState['done'] = true;
+
+            return;
+        }
+
+        fseek($fileHandle, (int) ($response['rangeStart'] ?? 0));
+        $clientState['fileHandle'] = $fileHandle;
+        $clientState['remainingBytes'] = (int) ($response['rangeLength'] ?? 0);
+    }
+
+    /**
+     * @param array{
+     *   socket: resource,
+     *   requestBuffer: string,
+     *   responseReady: bool,
+     *   pendingWrite: string,
+     *   pendingWriteFromFile: bool,
+     *   fileHandle: resource|null,
+     *   remainingBytes: int,
+     *   done: bool
+     * } $clientState
+     */
+    private function writeClient(array &$clientState): void
+    {
+        if (!$clientState['responseReady']) {
+            return;
+        }
+
+        if ($clientState['pendingWrite'] === '' && is_resource($clientState['fileHandle']) && $clientState['remainingBytes'] > 0) {
+            $chunk = stream_get_contents($clientState['fileHandle'], min(8192, $clientState['remainingBytes']));
+            if (!is_string($chunk) || $chunk === '') {
+                fclose($clientState['fileHandle']);
+                $clientState['fileHandle'] = null;
+                $clientState['remainingBytes'] = 0;
+            } else {
+                $clientState['pendingWrite'] = $chunk;
+                $clientState['pendingWriteFromFile'] = true;
+            }
+        }
+
+        if ($clientState['pendingWrite'] === '') {
+            if ($clientState['fileHandle'] === null || $clientState['remainingBytes'] <= 0) {
+                $clientState['done'] = true;
+            }
+
+            return;
+        }
+
+        $written = fwrite($clientState['socket'], $clientState['pendingWrite']);
+        if (!is_int($written) || $written < 0) {
+            $clientState['done'] = true;
+
+            return;
+        }
+
+        if ($written === 0) {
+            if (feof($clientState['socket'])) {
+                $clientState['done'] = true;
+            }
+
+            return;
+        }
+
+        $clientState['pendingWrite'] = substr($clientState['pendingWrite'], $written);
+        if ($clientState['pendingWriteFromFile']) {
+            $clientState['remainingBytes'] = max(0, $clientState['remainingBytes'] - $written);
+
+            if ($clientState['pendingWrite'] === '') {
+                $clientState['pendingWriteFromFile'] = false;
+                if ($clientState['remainingBytes'] <= 0 && is_resource($clientState['fileHandle'])) {
+                    fclose($clientState['fileHandle']);
+                    $clientState['fileHandle'] = null;
+                }
+            }
+        }
+
+        if ($clientState['pendingWrite'] === '' && $clientState['fileHandle'] === null && $clientState['remainingBytes'] <= 0) {
+            $clientState['done'] = true;
+        }
+    }
+
+    /**
+     * @param array{
+     *   socket: resource,
+     *   requestBuffer: string,
+     *   responseReady: bool,
+     *   pendingWrite: string,
+     *   pendingWriteFromFile: bool,
+     *   fileHandle: resource|null,
+     *   remainingBytes: int,
+     *   done: bool
+     * } $clientState
+     */
+    private function closeClient(array $clientState): void
+    {
+        if (is_resource($clientState['fileHandle'])) {
+            fclose($clientState['fileHandle']);
+        }
+
+        if (is_resource($clientState['socket'])) {
+            fclose($clientState['socket']);
+        }
+    }
+
+    /**
+     * @return array{method:string,target:string,headers:array<string,string>}
+     */
+    private function parseRequest(string $buffer): array
+    {
+        $headerBlock = explode("\r\n\r\n", $buffer, 2)[0];
+        if ($headerBlock === $buffer) {
+            $headerBlock = explode("\n\n", $buffer, 2)[0];
+        }
+
+        $lines = preg_split("/\r\n|\n|\r/", $headerBlock) ?: [];
+        $requestLine = trim((string) array_shift($lines));
+        $parts = explode(' ', $requestLine, 3);
         $method = $parts[0] ?? 'GET';
         $target = $parts[1] ?? '/';
         $headers = [];
 
-        while (($line = fgets($client)) !== false) {
+        foreach ($lines as $line) {
             $trimmed = trim($line);
             if ($trimmed === '') {
-                break;
+                continue;
             }
 
             $headerParts = explode(':', $trimmed, 2);
@@ -88,72 +357,28 @@ final readonly class NativeHostPreviewServerService
             $headers[strtolower(trim($headerParts[0]))] = trim($headerParts[1]);
         }
 
-        $response = $this->responder->respond($method, $target, $headers, false);
-        $this->writeResponse($client, $method, $response);
+        return [
+            'method' => $method,
+            'target' => $target,
+            'headers' => $headers,
+        ];
     }
 
     /**
-     * @param resource $client
      * @param array<string, mixed> $response
      */
-    private function writeResponse($client, string $method, array $response): void
+    private function formatResponseHead(array $response): string
     {
         $status = (int) ($response['status'] ?? 500);
         $headers = is_array($response['headers'] ?? null) ? $response['headers'] : [];
-        fwrite($client, sprintf("HTTP/1.1 %d %s\r\n", $status, $this->reasonPhrase($status)));
-        fwrite($client, "Connection: close\r\n");
+        $head = sprintf("HTTP/1.1 %d %s\r\n", $status, $this->reasonPhrase($status));
+        $head .= "Connection: close\r\n";
 
         foreach ($headers as $name => $value) {
-            fwrite($client, $name . ': ' . $value . "\r\n");
+            $head .= $name . ': ' . $value . "\r\n";
         }
 
-        fwrite($client, "\r\n");
-
-        if (strtoupper($method) !== 'GET' || !is_string($response['filePath'] ?? null)) {
-            if (is_string($response['body'] ?? null) && $response['body'] !== '') {
-                fwrite($client, $response['body']);
-            }
-
-            return;
-        }
-
-        $this->streamFile(
-            $client,
-            (string) $response['filePath'],
-            (int) ($response['rangeStart'] ?? 0),
-            (int) ($response['rangeLength'] ?? 0),
-        );
-    }
-
-    /**
-     * @param resource $client
-     */
-    private function streamFile($client, string $path, int $offset, int $length): void
-    {
-        if ($length <= 0) {
-            return;
-        }
-
-        $handle = fopen($path, 'rb');
-        if (!is_resource($handle)) {
-            return;
-        }
-
-        try {
-            fseek($handle, $offset);
-            $remaining = $length;
-            while ($remaining > 0 && !feof($handle)) {
-                $chunk = stream_get_contents($handle, min(8192, $remaining));
-                if (!is_string($chunk) || $chunk === '') {
-                    break;
-                }
-
-                $remaining -= strlen($chunk);
-                fwrite($client, $chunk);
-            }
-        } finally {
-            fclose($handle);
-        }
+        return $head . "\r\n";
     }
 
     private function reasonPhrase(int $status): string

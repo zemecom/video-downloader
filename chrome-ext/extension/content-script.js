@@ -9,12 +9,10 @@
   let pollGeneration = 0;
   let autoHideTimer = null;
   let jobId = null;
-  let previewUrl = null;
-  let recentDownloadId = null;
 
   const host = document.createElement('div');
   host.id = '__ytd-download-overlay__';
-  const shadowRoot = host.attachShadow({ mode: 'open' });
+  const shadowRoot = host.attachShadow({ mode: 'closed' });
   document.documentElement.appendChild(host);
 
   shadowRoot.innerHTML = `
@@ -47,23 +45,20 @@
         display: block;
       }
 
-      .header,
-      .preview-header {
+      .header {
         display: flex;
         align-items: center;
         justify-content: space-between;
         gap: 12px;
       }
 
-      .title,
-      .preview-title {
+      .title {
         font-size: 15px;
         font-weight: 700;
         letter-spacing: 0.01em;
       }
 
-      .close,
-      .preview-close {
+      .close {
         border: 0;
         background: transparent;
         color: rgba(194, 234, 255, 0.78);
@@ -112,8 +107,7 @@
         color: rgba(194, 234, 255, 0.68);
       }
 
-      .actions,
-      .preview-actions {
+      .actions {
         margin-top: 14px;
         display: flex;
         justify-content: flex-end;
@@ -144,69 +138,6 @@
         cursor: default;
       }
 
-      .preview-modal {
-        position: fixed;
-        inset: 0;
-        display: none;
-        align-items: center;
-        justify-content: center;
-        padding: 0;
-        box-sizing: border-box;
-        z-index: 2147483647;
-        font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      }
-
-      .preview-modal[data-visible="true"] {
-        display: flex;
-      }
-
-      .preview-backdrop {
-        position: absolute;
-        inset: 0;
-        background: rgba(2, 8, 20, 0.82);
-        backdrop-filter: blur(6px);
-      }
-
-      .preview-dialog {
-        position: relative;
-        width: 100vw;
-        max-width: 100vw;
-        max-height: 100vh;
-        border-radius: 0;
-        background: linear-gradient(180deg, rgba(15, 24, 42, 0.98), rgba(8, 12, 22, 0.99));
-        border: 0;
-        box-shadow: 0 20px 60px rgba(2, 8, 20, 0.5);
-        color: #f7f4ee;
-        padding: 20px 24px 24px;
-        box-sizing: border-box;
-      }
-
-      .preview-player-shell {
-        margin-top: 14px;
-        background: #000;
-        border-radius: 16px;
-        overflow: hidden;
-      }
-
-      .preview-player {
-        display: block;
-        width: 100%;
-        max-height: calc(100vh - 160px);
-        background: #000;
-      }
-
-      .preview-status {
-        margin-top: 12px;
-        min-height: 20px;
-        font-size: 13px;
-        line-height: 1.4;
-        color: rgba(225, 240, 255, 0.78);
-      }
-
-      .button-hidden {
-        display: none;
-      }
-
       @keyframes ytd-overlay-slide {
         0% { transform: translateX(-105%); }
         100% { transform: translateX(255%); }
@@ -230,24 +161,6 @@
         <button class="button button-primary cancel-action" type="button">Отменить</button>
       </div>
     </section>
-    <section class="preview-modal" data-visible="false">
-      <div class="preview-backdrop"></div>
-      <div class="preview-dialog" role="dialog" aria-modal="true" aria-label="Просмотр скачанного видео">
-        <div class="preview-header">
-          <div class="preview-title">YTD: просмотр видео</div>
-          <button class="preview-close" type="button" aria-label="Закрыть">×</button>
-        </div>
-        <div class="preview-player-shell">
-          <video class="preview-player" controls playsinline preload="metadata"></video>
-        </div>
-        <div class="preview-status"></div>
-        <div class="preview-actions">
-          <button class="button button-primary preview-play" type="button">Смотреть</button>
-          <button class="button button-secondary preview-open" type="button">Открыть файл</button>
-          <button class="button button-secondary preview-hide" type="button">Закрыть</button>
-        </div>
-      </div>
-    </section>
   `;
 
   const overlay = shadowRoot.querySelector('.overlay');
@@ -257,63 +170,12 @@
   const percentNode = shadowRoot.querySelector('.percent');
   const closeButtons = shadowRoot.querySelectorAll('.close, .close-action');
   const cancelButton = shadowRoot.querySelector('.cancel-action');
-  const previewModal = shadowRoot.querySelector('.preview-modal');
-  const previewBackdrop = shadowRoot.querySelector('.preview-backdrop');
-  const previewVideo = shadowRoot.querySelector('.preview-player');
-  const previewStatusNode = shadowRoot.querySelector('.preview-status');
-  const previewPlayButton = shadowRoot.querySelector('.preview-play');
-  const previewOpenButton = shadowRoot.querySelector('.preview-open');
-  const previewCloseButtons = shadowRoot.querySelectorAll('.preview-close, .preview-hide');
 
   closeButtons.forEach((button) => {
     button.addEventListener('click', () => {
       stopAutoHide();
       overlay.dataset.visible = 'false';
     });
-  });
-
-  previewBackdrop.addEventListener('click', () => {
-    hidePreview();
-  });
-
-  previewCloseButtons.forEach((button) => {
-    button.addEventListener('click', () => {
-      hidePreview();
-    });
-  });
-
-  previewPlayButton.addEventListener('click', async () => {
-    await attemptPreviewPlayback(true);
-  });
-
-  previewOpenButton.addEventListener('click', async () => {
-    if (typeof recentDownloadId !== 'string' || recentDownloadId === '') {
-      previewStatusNode.textContent = 'Файл больше недоступен в списке recent downloads.';
-      return;
-    }
-
-    previewStatusNode.textContent = 'Открываю файл...';
-    const response = await sendRuntimeMessage({
-      type: 'ytd:open-recent-download',
-      entryId: recentDownloadId,
-    });
-
-    if (response?.ok) {
-      previewStatusNode.textContent = '';
-      return;
-    }
-
-    previewStatusNode.textContent = response?.errorMessage || 'Не удалось открыть файл.';
-  });
-
-  previewVideo.addEventListener('play', () => {
-    previewPlayButton.classList.add('button-hidden');
-    previewStatusNode.textContent = '';
-  });
-
-  previewVideo.addEventListener('error', () => {
-    previewPlayButton.classList.add('button-hidden');
-    previewStatusNode.textContent = 'Браузер не смог воспроизвести файл. Можно открыть его отдельным приложением.';
   });
 
   cancelButton.addEventListener('click', async () => {
@@ -341,7 +203,6 @@
 
   chrome.runtime.onMessage.addListener((message) => {
     if (message?.type === 'ytd-overlay-show') {
-      hidePreview();
       overlay.dataset.visible = 'true';
       renderState(message);
       return;
@@ -354,7 +215,6 @@
     }
 
     if (message?.type === 'ytd-overlay-bind-job') {
-      hidePreview();
       overlay.dataset.visible = 'true';
       jobId = typeof message.jobId === 'string' ? message.jobId : null;
       renderState(message);
@@ -363,10 +223,7 @@
     }
 
     if (message?.type === 'ytd-overlay-open-preview') {
-      recentDownloadId = typeof message.recentDownloadId === 'string' && message.recentDownloadId !== ''
-        ? message.recentDownloadId
-        : null;
-      showPreview(typeof message.previewUrl === 'string' ? message.previewUrl : null);
+      void requestPreviewPage(message.previewUrl, message.recentDownloadId);
     }
   });
 
@@ -461,12 +318,12 @@
     const nextPreviewUrl = typeof payload?.previewUrl === 'string' && payload.previewUrl !== '' ? payload.previewUrl : null;
     const previewReady = payload?.previewReady === true && nextPreviewUrl !== null;
 
-    recentDownloadId = typeof payload?.recentDownloadId === 'string' && payload.recentDownloadId !== ''
+    const recentDownloadId = typeof payload?.recentDownloadId === 'string' && payload.recentDownloadId !== ''
       ? payload.recentDownloadId
       : null;
 
     if (status === 'completed' && previewReady) {
-      showPreview(nextPreviewUrl);
+      void requestPreviewPage(nextPreviewUrl, recentDownloadId);
       return;
     }
 
@@ -497,69 +354,14 @@
     }
   }
 
-  function showPreview(nextPreviewUrl) {
-    if (typeof nextPreviewUrl !== 'string' || nextPreviewUrl === '') {
-      return;
-    }
-
+  async function requestPreviewPage(nextPreviewUrl, nextRecentDownloadId) {
     stopAutoHide();
     overlay.dataset.visible = 'false';
-    previewModal.dataset.visible = 'true';
-    previewOpenButton.disabled = typeof recentDownloadId !== 'string' || recentDownloadId === '';
-
-    if (previewUrl !== nextPreviewUrl) {
-      previewUrl = nextPreviewUrl;
-      previewVideo.src = nextPreviewUrl;
-      previewVideo.load();
-    }
-
-    previewStatusNode.textContent = 'Открываю видео...';
-    previewPlayButton.classList.add('button-hidden');
-    previewVideo.muted = false;
-    void attemptPreviewPlayback(false);
-  }
-
-  function hidePreview() {
-    previewModal.dataset.visible = 'false';
-    previewVideo.pause();
-    previewVideo.removeAttribute('src');
-    previewVideo.load();
-    previewPlayButton.classList.add('button-hidden');
-    previewStatusNode.textContent = '';
-    previewUrl = null;
-  }
-
-  async function attemptPreviewPlayback(fromUserGesture) {
-    if (typeof previewUrl !== 'string' || previewUrl === '') {
-      return;
-    }
-
-    previewPlayButton.classList.add('button-hidden');
-    previewStatusNode.textContent = fromUserGesture ? 'Запускаю видео...' : 'Открываю видео...';
-
-    try {
-      await previewVideo.play();
-      if (previewVideo.muted) {
-        previewStatusNode.textContent = 'Видео запущено без звука. Звук можно включить в плеере.';
-      }
-    } catch (_error) {
-      if (!fromUserGesture) {
-        try {
-          previewVideo.muted = true;
-          await previewVideo.play();
-          previewStatusNode.textContent = 'Видео запущено без звука. Звук можно включить в плеере.';
-          return;
-        } catch (_mutedError) {
-          previewVideo.muted = false;
-        }
-      }
-
-      previewPlayButton.classList.remove('button-hidden');
-      previewVideo.muted = false;
-      previewStatusNode.textContent = fromUserGesture
-        ? 'Браузер не смог начать воспроизведение.'
-        : 'Нажми "Смотреть", если браузер заблокировал автозапуск.';
-    }
+    await sendRuntimeMessage({
+      type: 'ytd:open-preview-page',
+      previewUrl: nextPreviewUrl,
+      recentDownloadId: nextRecentDownloadId,
+    });
   }
 
   function statusLabel(status) {
