@@ -15,6 +15,7 @@ use function mkdir;
 use function sys_get_temp_dir;
 use function touch;
 use function uniqid;
+
 use const JSON_THROW_ON_ERROR;
 
 final class NativeHostRecentDownloadsStoreTest extends TestCase
