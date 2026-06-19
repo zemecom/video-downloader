@@ -13,6 +13,10 @@ final class YtDlpCommandBuilder
 {
     private const BEST_FORMAT = 'bestvideo+bestaudio/best';
     private const BEST_NON_AV1_FORMAT = 'bestvideo[vcodec!^=av01]+bestaudio/best[vcodec!^=av01]';
+    private const MEDIUM_FORMAT = 'bestvideo[height<=720]+bestaudio/best[height<=720]/bestvideo+bestaudio/best';
+    private const MEDIUM_NON_AV1_FORMAT = 'bestvideo[vcodec!^=av01][height<=720]+bestaudio/best[vcodec!^=av01][height<=720]/bestvideo[vcodec!^=av01]+bestaudio/best[vcodec!^=av01]/bestvideo[height<=720]+bestaudio/best[height<=720]/bestvideo+bestaudio/best';
+    private const LOW_FORMAT = 'bestvideo[height<=480]+bestaudio/best[height<=480]/bestvideo+bestaudio/best';
+    private const LOW_NON_AV1_FORMAT = 'bestvideo[vcodec!^=av01][height<=480]+bestaudio/best[vcodec!^=av01][height<=480]/bestvideo[vcodec!^=av01]+bestaudio/best[vcodec!^=av01]/bestvideo[height<=480]+bestaudio/best[height<=480]/bestvideo+bestaudio/best';
 
     /** @var list<string> */
     private array $command;
@@ -134,6 +138,8 @@ final class YtDlpCommandBuilder
         string $outputTemplate,
         string $outputFormat = 'mkv',
         bool $lineBufferedProgress = false,
+        int $concurrentFragments = 20,
+        string $progressDelta = '0.5',
     ): array {
         $command = [...$this->command, '-o', $outputTemplate];
         $command = $this->applyFormatArgs($command, $formatCode, $outputFormat);
@@ -141,12 +147,12 @@ final class YtDlpCommandBuilder
         $command[] = 'ffmpeg_i:-http_persistent 0';
         $command[] = '--progress';
         $command[] = '--progress-delta';
-        $command[] = '0.5';
+        $command[] = $progressDelta;
         if ($lineBufferedProgress) {
             $command[] = '--newline';
         }
         $command[] = '--concurrent-fragments';
-        $command[] = '20';
+        $command[] = (string) max(1, $concurrentFragments);
 
         return $command;
     }
@@ -160,6 +166,8 @@ final class YtDlpCommandBuilder
         return match ($formatCode) {
             'bestaudio' => [...$command, '-f', 'bestaudio/best', '--extract-audio', '--audio-format', 'opus'],
             'best' => [...$command, '-f', $this->bestFormatSelector(), '--merge-output-format', $outputFormat],
+            'medium' => [...$command, '-f', $this->mediumFormatSelector(), '--merge-output-format', $outputFormat],
+            'low' => [...$command, '-f', $this->lowFormatSelector(), '--merge-output-format', $outputFormat],
             default => [...$command, '-f', $formatCode, '--merge-output-format', $outputFormat],
         };
     }
@@ -169,6 +177,20 @@ final class YtDlpCommandBuilder
         return $this->isYoutubeUrl($this->url)
             ? self::BEST_NON_AV1_FORMAT
             : self::BEST_FORMAT;
+    }
+
+    private function mediumFormatSelector(): string
+    {
+        return $this->isYoutubeUrl($this->url)
+            ? self::MEDIUM_NON_AV1_FORMAT
+            : self::MEDIUM_FORMAT;
+    }
+
+    private function lowFormatSelector(): string
+    {
+        return $this->isYoutubeUrl($this->url)
+            ? self::LOW_NON_AV1_FORMAT
+            : self::LOW_FORMAT;
     }
 
     private function isYoutubeUrl(?string $videoUrl): bool

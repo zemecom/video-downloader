@@ -14,9 +14,81 @@ final class RuntimeBootstrapTest extends TestCase
         $bootstrap = new RuntimeBootstrap('/tmp/project');
 
         self::assertSame(
-            ['bin/ytd', '--doctor', '--dry-run', '--no-proxy', '--no-playlist-sizes', '--concurrent-downloads', '3'],
-            $bootstrap->normalizeArgv(['bin/ytd', '-dc', '-dr', '-np', '-nps', '-cd', '3']),
+            ['bin/ytd', '--doctor', '--dry-run', '--no-proxy', '--no-playlist-sizes', '--concurrent-downloads', '3', '--concurrent-fragments', '12'],
+            $bootstrap->normalizeArgv(['bin/ytd', '-dc', '-dr', '-np', '-nps', '-cd', '3', '-cf', '12']),
         );
+    }
+
+    public function testConcurrentFragmentsUsesEnvValueAndClampsToAtLeastOne(): void
+    {
+        putenv('CONCURRENT_FRAGMENTS=0');
+
+        try {
+            $bootstrap = new RuntimeBootstrap('/tmp/project');
+            self::assertSame(1, $bootstrap->getConcurrentFragments());
+        } finally {
+            putenv('CONCURRENT_FRAGMENTS');
+        }
+
+        putenv('CONCURRENT_FRAGMENTS=14');
+
+        try {
+            $bootstrap = new RuntimeBootstrap('/tmp/project');
+            self::assertSame(14, $bootstrap->getConcurrentFragments());
+        } finally {
+            putenv('CONCURRENT_FRAGMENTS');
+        }
+    }
+
+    public function testConcurrentDownloadsUsesEnvValueAndClampsToAtLeastOne(): void
+    {
+        putenv('CONCURRENT_DOWNLOADS=0');
+
+        try {
+            $bootstrap = new RuntimeBootstrap('/tmp/project');
+            self::assertSame(1, $bootstrap->getConcurrentDownloads());
+        } finally {
+            putenv('CONCURRENT_DOWNLOADS');
+        }
+
+        putenv('CONCURRENT_DOWNLOADS=6');
+
+        try {
+            $bootstrap = new RuntimeBootstrap('/tmp/project');
+            self::assertSame(6, $bootstrap->getConcurrentDownloads());
+        } finally {
+            putenv('CONCURRENT_DOWNLOADS');
+        }
+    }
+
+    public function testProgressSettingsReadFromEnvironment(): void
+    {
+        putenv('YTD_PROGRESS_DELTA=1.25');
+        putenv('YTD_PROGRESS_NEWLINE=yes');
+
+        try {
+            $bootstrap = new RuntimeBootstrap('/tmp/project');
+            self::assertSame('1.25', $bootstrap->getProgressDelta());
+            self::assertTrue($bootstrap->shouldUseProgressNewline());
+        } finally {
+            putenv('YTD_PROGRESS_DELTA');
+            putenv('YTD_PROGRESS_NEWLINE');
+        }
+    }
+
+    public function testProgressSettingsFallBackToDefaultsForInvalidValues(): void
+    {
+        putenv('YTD_PROGRESS_DELTA=abc');
+        putenv('YTD_PROGRESS_NEWLINE=0');
+
+        try {
+            $bootstrap = new RuntimeBootstrap('/tmp/project');
+            self::assertSame('0.5', $bootstrap->getProgressDelta());
+            self::assertFalse($bootstrap->shouldUseProgressNewline());
+        } finally {
+            putenv('YTD_PROGRESS_DELTA');
+            putenv('YTD_PROGRESS_NEWLINE');
+        }
     }
 
     public function testProxyRulesPathResolvesRelativePathFromProjectRoot(): void

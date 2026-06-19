@@ -90,7 +90,7 @@ final readonly class PlaylistService
             return null;
         }
 
-        $targetDir = $this->buildPlaylistTargetDir($videoUrl, $playlist->title, $playlist->id);
+        $targetDir = $this->buildPlaylistTargetDir($videoUrl, $playlist->title, $playlist->id, $options->downloadDir);
 
         return $this->collectSelectedItemsMetadata(
             $playlist,
@@ -369,10 +369,13 @@ final readonly class PlaylistService
                     $metadata->expectedPath,
                     $options->currentProxy,
                     $options->insecure,
-                    $this->requestedFormatCode($options),
+                    $metadata->resolvedFormatCode,
                     $options->outputFormat,
                     $overwritePolicy === self::OVERWRITE_OVERWRITE_ALL,
                     $metadata->playlistItem->url !== '' ? $metadata->playlistItem->url : $summary->playlist->sourceUrl,
+                    $options->concurrentFragments,
+                    $options->progressNewline,
+                    $options->progressDelta,
                 );
                 $process->start();
                 $running[] = ['position' => $position, 'item' => $metadata, 'process' => $process];
@@ -672,15 +675,17 @@ final readonly class PlaylistService
         }
 
         $metadata['playlist_index'] ??= $item->playlistIndex;
+        $sourceUrl = $item->url !== '' ? $item->url : $playlist->sourceUrl;
+        $resolvedFormatCode = $this->downloader->resolveRequestedFormatCode($requestedFormatCode, $metadata, $sourceUrl);
         $tempJsonPath = $this->writePlaylistItemMetadataJson($metadata);
         if ($tempJsonPath === null) {
             return $this->failedItemMetadata($item, 'playlist_item_tempfile_failed');
         }
 
-        $expectedPath = $requestedFormatCode === 'bestaudio'
+        $expectedPath = $resolvedFormatCode === 'bestaudio'
             ? ($this->ytDlpClient->getExpectedFilename(
                 null,
-                $requestedFormatCode,
+                $resolvedFormatCode,
                 $this->playlistOutputTemplate($targetDir),
                 $options->currentProxy,
                 $options->insecure,
@@ -691,7 +696,7 @@ final readonly class PlaylistService
                 $metadata,
                 $item->playlistIndex,
                 $options->outputFormat,
-                $requestedFormatCode,
+                $resolvedFormatCode,
             ))
             : ($usedDirectItemProbe
                 ? $this->fallbackExpectedPath(
@@ -699,11 +704,11 @@ final readonly class PlaylistService
                     $metadata,
                     $item->playlistIndex,
                     $options->outputFormat,
-                    $requestedFormatCode,
+                    $resolvedFormatCode,
                 )
                 : ($this->ytDlpClient->getExpectedFilename(
                     null,
-                    $requestedFormatCode,
+                    $resolvedFormatCode,
                     $this->playlistOutputTemplate($targetDir),
                     $options->currentProxy,
                     $options->insecure,
@@ -714,7 +719,7 @@ final readonly class PlaylistService
                     $metadata,
                     $item->playlistIndex,
                     $options->outputFormat,
-                    $requestedFormatCode,
+                    $resolvedFormatCode,
                 )));
         $expectedPath = $this->bootstrap->sanitizeOutputFilename($expectedPath);
 
@@ -724,6 +729,7 @@ final readonly class PlaylistService
             $item,
             $tempJsonPath,
             $expectedPath,
+            $resolvedFormatCode,
             file_exists($expectedPath),
             $filesize,
             $filesizeApprox,
@@ -758,7 +764,7 @@ final readonly class PlaylistService
 
     private function failedItemMetadata(PlaylistItem $item, string $errorMessage): SelectedItemMetadata
     {
-        return new SelectedItemMetadata($item, '', '', false, null, null, false, $errorMessage);
+        return new SelectedItemMetadata($item, '', '', 'best', false, null, null, false, $errorMessage);
     }
 
     private function probeItemProcess(PlaylistItem $item, PlaylistInfo $playlist, RuntimeOptions $options): Process
@@ -781,9 +787,9 @@ final readonly class PlaylistService
         return str_starts_with($item->url, 'http://') || str_starts_with($item->url, 'https://');
     }
 
-    private function buildPlaylistTargetDir(string $sourceUrl, string $playlistTitle, string $playlistId): string
+    private function buildPlaylistTargetDir(string $sourceUrl, string $playlistTitle, string $playlistId, ?string $downloadDir = null): string
     {
-        $baseDir = $this->bootstrap->getDownloadBasePath($sourceUrl);
+        $baseDir = $this->bootstrap->getDownloadBasePath($sourceUrl, $downloadDir);
         $rawName = trim($playlistTitle) !== '' ? trim($playlistTitle) : ($playlistId !== '' ? 'playlist_' . $playlistId : 'playlist');
         $safeName = $this->bootstrap->sanitizePathComponent($rawName, 'playlist_' . ($playlistId !== '' ? $playlistId : 'items'));
 
@@ -867,7 +873,7 @@ final readonly class PlaylistService
 
     private function requestedFormatCode(RuntimeOptions $options): string
     {
-        return $options->audioOnly ? 'bestaudio' : 'best';
+        return $options->audioOnly ? 'bestaudio' : $options->qualityPreset;
     }
 
     private function printPlaylistItems(PlaylistInfo $playlist, bool $showSizes): void

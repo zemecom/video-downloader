@@ -181,6 +181,83 @@ final class DownloaderServiceTest extends TestCase
         }
     }
 
+    public function testDownloadVideoAllowsManualDirectoryAndProgressOverrides(): void
+    {
+        $root = sys_get_temp_dir() . '/ytd_php_downloader_manual_' . uniqid();
+        $binDir = $root . '/bin';
+        $downloadDir = $root . '/downloads-default';
+        $customDir = $root . '/downloads-custom';
+        mkdir($binDir, 0777, true);
+        mkdir($downloadDir, 0777, true);
+
+        $scriptPath = $binDir . '/yt-dlp';
+        file_put_contents($scriptPath, $this->fakeYtDlpScript());
+        chmod($scriptPath, 0777);
+
+        $previousPath = getenv('PATH');
+        $previousDownloadDir = getenv('DOWNLOAD_DIR_GENERAL');
+        $previousProgressNewline = getenv('YTD_PROGRESS_NEWLINE');
+        $previousProgressDelta = getenv('YTD_PROGRESS_DELTA');
+
+        putenv('PATH=' . $binDir . PATH_SEPARATOR . ($previousPath !== false ? $previousPath : ''));
+        putenv('DOWNLOAD_DIR_GENERAL=' . $downloadDir);
+        putenv('YTD_PROGRESS_NEWLINE');
+        putenv('YTD_PROGRESS_DELTA');
+
+        try {
+            $bootstrap = new RuntimeBootstrap(getcwd() ?: null);
+            $logger = new ConsoleLogger();
+            $prompter = new InputPrompter();
+            $client = new YtDlpClient($logger);
+            $service = new DownloaderService($client, $bootstrap, $logger, $prompter);
+
+            $result = $service->downloadVideo(
+                'https://example.com/video',
+                'best',
+                null,
+                false,
+                'mkv',
+                false,
+                11,
+                $customDir,
+                true,
+                '1.75',
+            );
+            $lastDownloadArgs = json_decode((string) file_get_contents($root . '/last-download-args.json'), true);
+
+            self::assertSame('completed', $result->status);
+            self::assertFileExists($customDir . '/My_Cool_Video.mkv');
+            self::assertIsArray($lastDownloadArgs);
+            self::assertContains('--newline', $lastDownloadArgs);
+            self::assertSame('11', $lastDownloadArgs[array_search('--concurrent-fragments', $lastDownloadArgs, true) + 1]);
+            self::assertSame('1.75', $lastDownloadArgs[array_search('--progress-delta', $lastDownloadArgs, true) + 1]);
+        } finally {
+            if ($previousPath === false) {
+                putenv('PATH');
+            } else {
+                putenv('PATH=' . $previousPath);
+            }
+
+            if ($previousDownloadDir === false) {
+                putenv('DOWNLOAD_DIR_GENERAL');
+            } else {
+                putenv('DOWNLOAD_DIR_GENERAL=' . $previousDownloadDir);
+            }
+
+            if ($previousProgressNewline === false) {
+                putenv('YTD_PROGRESS_NEWLINE');
+            } else {
+                putenv('YTD_PROGRESS_NEWLINE=' . $previousProgressNewline);
+            }
+
+            if ($previousProgressDelta === false) {
+                putenv('YTD_PROGRESS_DELTA');
+            } else {
+                putenv('YTD_PROGRESS_DELTA=' . $previousProgressDelta);
+            }
+        }
+    }
+
     private function fakeYtDlpScript(): string
     {
         return <<<'PHP'

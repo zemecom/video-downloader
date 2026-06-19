@@ -24,6 +24,108 @@ final class AutomaticFormatResolverTest extends TestCase
         self::assertSame('301', $resolved);
     }
 
+    public function testResolveUsesBestCappedMuxedFormatForMediumPreset(): void
+    {
+        $resolver = new AutomaticFormatResolver();
+
+        $resolved = $resolver->resolve('medium', [
+            'formats' => [
+                [
+                    'format_id' => '18',
+                    'protocol' => 'https',
+                    'acodec' => 'mp4a.40.2',
+                    'vcodec' => 'avc1.42001E',
+                    'height' => 360,
+                    'fps' => 30,
+                    'tbr' => 259,
+                ],
+                [
+                    'format_id' => '22',
+                    'protocol' => 'https',
+                    'acodec' => 'mp4a.40.2',
+                    'vcodec' => 'avc1.64001F',
+                    'height' => 720,
+                    'fps' => 30,
+                    'tbr' => 900,
+                ],
+                [
+                    'format_id' => '37',
+                    'protocol' => 'https',
+                    'acodec' => 'mp4a.40.2',
+                    'vcodec' => 'avc1.640028',
+                    'height' => 1080,
+                    'fps' => 30,
+                    'tbr' => 2500,
+                ],
+            ],
+        ]);
+
+        self::assertSame('22', $resolved);
+    }
+
+    public function testResolveKeepsPresetWhenNoCappedMuxedFormatExists(): void
+    {
+        $resolver = new AutomaticFormatResolver();
+
+        $resolved = $resolver->resolve('low', [
+            'formats' => [
+                [
+                    'format_id' => '137',
+                    'protocol' => 'https',
+                    'acodec' => 'none',
+                    'vcodec' => 'avc1.640028',
+                    'height' => 1080,
+                    'fps' => 30,
+                    'tbr' => 2200,
+                ],
+                [
+                    'format_id' => '140',
+                    'protocol' => 'https',
+                    'acodec' => 'mp4a.40.2',
+                    'vcodec' => 'none',
+                    'height' => 0,
+                    'fps' => 0,
+                    'tbr' => 128,
+                ],
+            ],
+        ]);
+
+        self::assertSame('low', $resolved);
+    }
+
+    public function testResolveRejectsAv1RequestedDownloadForMediumYoutubePreset(): void
+    {
+        $resolver = new AutomaticFormatResolver();
+
+        $resolved = $resolver->resolve('medium', [
+            'requested_downloads' => [
+                ['format_id' => '401', 'vcodec' => 'av01.0.08M.08', 'height' => 720],
+            ],
+            'formats' => [
+                [
+                    'format_id' => '401',
+                    'protocol' => 'https',
+                    'acodec' => 'mp4a.40.2',
+                    'vcodec' => 'av01.0.08M.08',
+                    'height' => 720,
+                    'fps' => 30,
+                    'tbr' => 900,
+                ],
+                [
+                    'format_id' => '22',
+                    'protocol' => 'https',
+                    'acodec' => 'mp4a.40.2',
+                    'vcodec' => 'avc1.64001F',
+                    'height' => 720,
+                    'fps' => 30,
+                    'tbr' => 850,
+                ],
+            ],
+        ], true);
+
+        self::assertSame('22', $resolved);
+    }
+
     public function testResolveUsesRequestedDownloadFormatForPostLiveStreams(): void
     {
         $resolver = new AutomaticFormatResolver();
@@ -152,7 +254,7 @@ final class AutomaticFormatResolverTest extends TestCase
                     'tbr' => 3362,
                 ],
             ],
-        ]);
+        ], true);
 
         self::assertSame('301', $resolved);
     }
@@ -186,7 +288,7 @@ final class AutomaticFormatResolverTest extends TestCase
                     'tbr' => 3362,
                 ],
             ],
-        ]);
+        ], true);
 
         self::assertSame('301', $resolved);
     }

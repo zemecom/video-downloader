@@ -10,6 +10,7 @@ final readonly class SelectedItemMetadata
         public PlaylistItem $playlistItem,
         public string $infoJsonPath,
         public string $expectedPath,
+        public string $resolvedFormatCode,
         public bool $exists,
         public ?int $filesize,
         public ?int $filesizeApprox,

@@ -40,6 +40,10 @@ final readonly class SingleVideoFlowService
             $options->insecure,
             $options->outputFormat,
             $options->dryRun,
+            $options->concurrentFragments,
+            $options->downloadDir,
+            $options->progressNewline,
+            $options->progressDelta,
         );
 
         return $this->isSuccessfulDownloadStatus($result->status)
@@ -72,11 +76,20 @@ final readonly class SingleVideoFlowService
             $this->logger->info(
                 $options->audioOnly
                     ? '⚡️ Автоматический режим: скачиваю лучшее аудио...'
-                    : '⚡️ Автоматический режим: скачиваю лучшее качество...',
+                    : '⚡️ Автоматический режим: скачиваю качество ' . $this->qualityPresetLabel($options->qualityPreset) . '...',
             );
         }
 
-        return $options->audioOnly ? 'bestaudio' : 'best';
+        return $options->audioOnly ? 'bestaudio' : $options->qualityPreset;
+    }
+
+    private function qualityPresetLabel(string $qualityPreset): string
+    {
+        return match ($qualityPreset) {
+            'medium' => 'medium',
+            'low' => 'low',
+            default => 'best',
+        };
     }
 
     private function isSuccessfulDownloadStatus(string $status): bool

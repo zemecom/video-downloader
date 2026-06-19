@@ -50,10 +50,16 @@ final class YtdCommand extends Command
             ->addOption('insecure', 'i', InputOption::VALUE_NONE, 'Отключить проверку SSL сертификатов')
             ->addOption('manual', 'm', InputOption::VALUE_NONE, 'Ручной режим (выбор формата)')
             ->addOption('audio', 'a', InputOption::VALUE_NONE, 'Скачать только аудио в лучшем формате (opus)')
+            ->addOption('quality', 'Q', InputOption::VALUE_REQUIRED, 'Качество видео: b/best, m/medium, l/low', 'b')
             ->addOption('dry-run', null, InputOption::VALUE_NONE, 'Показать, что будет скачано, но не запускать загрузку')
             ->addOption('mp4', null, InputOption::VALUE_NONE, 'Сохранить в формате MP4 (вместо MKV)')
+            ->addOption('output-format', null, InputOption::VALUE_REQUIRED, 'Итоговый контейнер: mkv или mp4', $this->bootstrap->getDefaultOutputFormat())
+            ->addOption('download-dir', null, InputOption::VALUE_REQUIRED, 'Папка назначения для текущего запуска')
             ->addOption('no-playlist-sizes', null, InputOption::VALUE_NONE, 'Показать плейлист без предварительного подсчёта размеров')
-            ->addOption('concurrent-downloads', null, InputOption::VALUE_REQUIRED, 'Сколько роликов из плейлиста качать одновременно', '1')
+            ->addOption('concurrent-downloads', null, InputOption::VALUE_REQUIRED, 'Сколько роликов из плейлиста качать одновременно', (string) $this->bootstrap->getConcurrentDownloads())
+            ->addOption('concurrent-fragments', null, InputOption::VALUE_REQUIRED, 'Сколько фрагментов одного файла качать параллельно через yt-dlp', (string) $this->bootstrap->getConcurrentFragments())
+            ->addOption('progress-newline', null, InputOption::VALUE_NEGATABLE, 'Печатать прогресс построчно вместо перерисовки')
+            ->addOption('progress-delta', null, InputOption::VALUE_REQUIRED, 'Интервал обновления прогресса yt-dlp в секундах', $this->bootstrap->getProgressDelta())
             ->addOption('doctor', null, InputOption::VALUE_NONE, 'Проверить окружение и конфиги без скачивания');
     }
 
@@ -92,8 +98,9 @@ final class YtdCommand extends Command
             (bool) $input->getOption('remote'),
         );
         $proxyUrl = $route->proxyUrl;
-        $outputFormat = (bool) $input->getOption('mp4') ? 'mp4' : $this->bootstrap->getDefaultOutputFormat();
+        $outputFormat = $this->resolveOutputFormat($input);
         $currentProxy = $proxyUrl !== null ? '--proxy=' . $proxyUrl : null;
+        $progressNewline = $this->resolveProgressNewlineOverride($input);
 
         return new RuntimeOptions(
             $proxyUrl,
@@ -101,15 +108,64 @@ final class YtdCommand extends Command
             (bool) $input->getOption('insecure'),
             (bool) $input->getOption('manual'),
             (bool) $input->getOption('audio'),
+            $this->resolveQualityPreset($input),
             (bool) $input->getOption('dry-run'),
             !(bool) $input->getOption('no-playlist-sizes'),
             max(1, (int) $input->getOption('concurrent-downloads')),
+            max(1, (int) $input->getOption('concurrent-fragments')),
+            $this->optionalString($input->getOption('download-dir')),
+            $progressNewline,
+            $this->resolveProgressDelta($input),
             $outputFormat,
             $route->mode,
             $route->matchedSection,
             $route->matchedPattern,
             $route->hostname,
         );
+    }
+
+    private function resolveOutputFormat(InputInterface $input): string
+    {
+        if ((bool) $input->getOption('mp4')) {
+            return 'mp4';
+        }
+
+        $value = $this->optionalString($input->getOption('output-format')) ?? $this->bootstrap->getDefaultOutputFormat();
+        $normalized = $this->bootstrap->normalizeOutputFormat($value);
+        if ($normalized !== strtolower($value)) {
+            throw new UserFacingException('Неподдерживаемый output format. Используй mkv или mp4.');
+        }
+
+        return $normalized;
+    }
+
+    private function resolveProgressDelta(InputInterface $input): string
+    {
+        $value = $this->optionalString($input->getOption('progress-delta')) ?? $this->bootstrap->getProgressDelta();
+        if (!is_numeric($value) || (float) $value <= 0) {
+            throw new UserFacingException('`--progress-delta` должен быть положительным числом.');
+        }
+
+        return $value;
+    }
+
+    private function resolveProgressNewlineOverride(InputInterface $input): ?bool
+    {
+        $value = $input->getOption('progress-newline');
+
+        return is_bool($value) ? $value : null;
+    }
+
+    private function resolveQualityPreset(InputInterface $input): string
+    {
+        $value = strtolower($this->optionalString($input->getOption('quality')) ?? 'b');
+
+        return match ($value) {
+            'b', 'best' => 'best',
+            'm', 'medium' => 'medium',
+            'l', 'low' => 'low',
+            default => throw new UserFacingException('`--quality` поддерживает только b/best, m/medium или l/low.'),
+        };
     }
 
     private function logRuntimeConfiguration(RuntimeOptions $options): void

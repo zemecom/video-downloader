@@ -66,6 +66,51 @@ final class DownloaderServiceBestFormatTest extends TestCase
         }
     }
 
+    public function testDownloadVideoFallsBackSafelyForMediumQualityOnNonYoutubeUrls(): void
+    {
+        $root = sys_get_temp_dir() . '/ytd_php_medium_format_' . uniqid();
+        $binDir = $root . '/bin';
+        $downloadDir = $root . '/downloads';
+        mkdir($binDir, 0777, true);
+        mkdir($downloadDir, 0777, true);
+
+        $scriptPath = $binDir . '/yt-dlp';
+        file_put_contents($scriptPath, $this->fakeYtDlpScriptThatRejectsYoutubeOnlyBestFormat());
+        chmod($scriptPath, 0777);
+
+        $previousPath = getenv('PATH');
+        $previousDownloadDir = getenv('DOWNLOAD_DIR_GENERAL');
+
+        putenv('PATH=' . $binDir . PATH_SEPARATOR . ($previousPath !== false ? $previousPath : ''));
+        putenv('DOWNLOAD_DIR_GENERAL=' . $downloadDir);
+
+        try {
+            $bootstrap = new RuntimeBootstrap(getcwd() ?: null);
+            $logger = new ConsoleLogger();
+            $prompter = new InputPrompter();
+            $client = new YtDlpClient($logger);
+            $service = new DownloaderService($client, $bootstrap, $logger, $prompter);
+
+            $result = $service->downloadVideo('https://www.xvideos.com/video.oufdtba54ef/example', 'medium');
+
+            self::assertSame('completed', $result->status);
+            self::assertFileExists($downloadDir . '/My_Cool_Video.mkv');
+            self::assertFalse(file_exists($downloadDir . '/My Cool Video.mkv'));
+        } finally {
+            if ($previousPath === false) {
+                putenv('PATH');
+            } else {
+                putenv('PATH=' . $previousPath);
+            }
+
+            if ($previousDownloadDir === false) {
+                putenv('DOWNLOAD_DIR_GENERAL');
+            } else {
+                putenv('DOWNLOAD_DIR_GENERAL=' . $previousDownloadDir);
+            }
+        }
+    }
+
     private function fakeYtDlpScriptThatRejectsYoutubeOnlyBestFormat(): string
     {
         return <<<'PHP'
@@ -131,7 +176,7 @@ if (in_array('--get-filename', $args, true)) {
     exit(0);
 }
 
-if ($formatCode === 'bestvideo[vcodec!^=av01]+bestaudio/best[vcodec!^=av01]') {
+if (is_string($formatCode) && str_contains($formatCode, 'vcodec!^=av01')) {
     fwrite(STDERR, "ERROR: Requested format is not available\n");
 
     exit(1);

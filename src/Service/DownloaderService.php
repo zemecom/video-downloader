@@ -60,8 +60,12 @@ final readonly class DownloaderService
         bool $insecure = false,
         string $outputFormat = 'mkv',
         bool $dryRun = false,
+        ?int $concurrentFragments = null,
+        ?string $downloadDir = null,
+        ?bool $progressNewline = null,
+        ?string $progressDelta = null,
     ): DownloadResult {
-        $basePath = $this->bootstrap->getDownloadBasePath($videoUrl);
+        $basePath = $this->bootstrap->getDownloadBasePath($videoUrl, $downloadDir);
         $outputTemplate = $basePath . '/%(title)s.%(ext)s';
 
         $this->logger->info('⏳ Получаю метаданные...');
@@ -87,7 +91,7 @@ final readonly class DownloaderService
             $metadata = [];
         }
 
-        $resolvedFormatCode = $this->automaticFormatResolver->resolve($formatCode, $metadata);
+        $resolvedFormatCode = $this->resolveRequestedFormatCode($formatCode, $metadata, $videoUrl);
 
         try {
             $this->logger->info('🔍 Проверяю наличие файла...');
@@ -145,6 +149,9 @@ final readonly class DownloaderService
                 $expectedFile,
                 true,
                 $videoUrl,
+                $concurrentFragments,
+                $progressNewline,
+                $progressDelta,
             );
         } finally {
             if (file_exists($tempJsonPath)) {
@@ -164,6 +171,9 @@ final readonly class DownloaderService
         ?string $expectedFile = null,
         bool $emitLogs = true,
         ?string $sourceUrl = null,
+        ?int $concurrentFragments = null,
+        ?bool $progressNewline = null,
+        ?string $progressDelta = null,
     ): DownloadResult {
         $expectedFile ??= $this->ytDlpClient->getExpectedFilename(
             null,
@@ -194,7 +204,9 @@ final readonly class DownloaderService
             $formatCode,
             $outputTemplate,
             $outputFormat,
-            $this->shouldUseLineBufferedProgress(),
+            $this->resolveLineBufferedProgress($progressNewline),
+            $concurrentFragments ?? $this->bootstrap->getConcurrentFragments(),
+            $this->resolveProgressDelta($progressDelta),
         );
         if ($emitLogs) {
             $this->logger->info('🚀 Начинаю загрузку...');
@@ -206,6 +218,18 @@ final readonly class DownloaderService
         return $this->finalizeProcessResult($process, $expectedFile, $emitLogs);
     }
 
+    /**
+     * @param array<mixed> $metadata
+     */
+    public function resolveRequestedFormatCode(string $formatCode, array $metadata, ?string $sourceUrl = null): string
+    {
+        return $this->automaticFormatResolver->resolve(
+            $formatCode,
+            $metadata,
+            is_string($sourceUrl) && $sourceUrl !== '' && $this->bootstrap->isYoutubeUrl($sourceUrl),
+        );
+    }
+
     public function createPlaylistDownloadProcess(
         string $infoJsonPath,
         string $outputPath,
@@ -215,6 +239,9 @@ final readonly class DownloaderService
         string $outputFormat,
         bool $forceOverwrites,
         ?string $sourceUrl = null,
+        ?int $concurrentFragments = null,
+        ?bool $progressNewline = null,
+        ?string $progressDelta = null,
     ): Process {
         $builder = new YtDlpCommandBuilder($sourceUrl);
         $builder->setProxy($proxy)->setInsecure($insecure)->loadInfoJson($infoJsonPath);
@@ -226,7 +253,9 @@ final readonly class DownloaderService
             $formatCode,
             $outputPath,
             $outputFormat,
-            $this->shouldUseLineBufferedProgress(),
+            $this->resolveLineBufferedProgress($progressNewline),
+            $concurrentFragments ?? $this->bootstrap->getConcurrentFragments(),
+            $this->resolveProgressDelta($progressDelta),
         ));
         $process->setTimeout(null);
         $process->setEnv(YtDlpClient::buildProcessEnv());
@@ -284,11 +313,16 @@ final readonly class DownloaderService
         return $removedCount;
     }
 
-    private function shouldUseLineBufferedProgress(): bool
+    private function resolveLineBufferedProgress(?bool $override): bool
     {
-        $flag = getenv('YTD_PROGRESS_NEWLINE');
+        return $override ?? $this->bootstrap->shouldUseProgressNewline();
+    }
 
-        return $flag !== false && $flag !== '';
+    private function resolveProgressDelta(?string $override): string
+    {
+        return is_string($override) && $override !== ''
+            ? $override
+            : $this->bootstrap->getProgressDelta();
     }
 
     private function logOutputPath(string $expectedFile, ?int $sizeBytes = null): void

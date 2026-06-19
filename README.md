@@ -106,6 +106,8 @@ cp proxy_rules.example.yaml proxy_rules.yaml
 - `DOWNLOAD_DIR_YOUTUBE`
 - `DOWNLOAD_DIR_GENERAL`
 - `OUTPUT_FORMAT`
+- `CONCURRENT_DOWNLOADS`
+- `CONCURRENT_FRAGMENTS`
 
 3. Проверь окружение:
 
@@ -179,6 +181,10 @@ Runtime-конфигурация хранится в:
 - `DOWNLOAD_DIR_YOUTUBE` - каталог для загрузок с YouTube
 - `DOWNLOAD_DIR_GENERAL` - каталог для загрузок с прочих сайтов
 - `OUTPUT_FORMAT` - итоговый контейнер: `mkv` или `mp4`
+- `CONCURRENT_DOWNLOADS` - сколько роликов из плейлиста качать одновременно по умолчанию
+- `CONCURRENT_FRAGMENTS` - сколько фрагментов одного файла качать одновременно через `yt-dlp`
+- `YTD_PROGRESS_DELTA` - интервал обновления прогресса `yt-dlp` в секундах
+- `YTD_PROGRESS_NEWLINE` - печатать прогресс построчно (`1`, `true`, `yes`)
 - `TEST_URL_DIRECT` - необязательный URL для ручного direct integration-теста
 - `TEST_URL_REMOTE` - необязательный URL для ручного remote integration-теста
 - `TEST_URL_LOCAL` - необязательный URL для ручного local integration-теста
@@ -246,16 +252,23 @@ ytdphp URL
 | `--doctor` | `-dc` | Проверить окружение и конфиг без скачивания |
 | `--manual` | `-m` | Показать форматы и выбрать вручную для одиночного видео |
 | `--audio` | `-a` | Скачать только аудио в лучшем формате (opus) |
+| `--quality` | `-Q` | Пресет качества видео: `b/best`, `m/medium`, `l/low` |
 | `--dry-run` | `-dr` | Показать preflight-результат без реальной загрузки |
 | `--remote` | `-r` | Принудительно использовать удалённый прокси |
 | `--no-proxy` | `-np` | Отключить прокси для этого запуска |
 | `--insecure` | `-i` | Отключить SSL-проверку сертификатов |
 | `--mp4` |  | Сохранять итоговый файл как MP4 вместо MKV |
+| `--output-format` |  | Явно выбрать итоговый контейнер: `mkv` или `mp4` |
+| `--download-dir` |  | Переопределить папку назначения для текущего запуска |
 | `--no-playlist-sizes` | `-nps` | Пропустить предварительную оценку размеров плейлиста |
 | `--concurrent-downloads` | `-cd` | Количество параллельных загрузок плейлиста |
+| `--concurrent-fragments` | `-cf` | Количество параллельных фрагментов одного файла для `yt-dlp` |
+| `--progress-newline` |  | Печатать прогресс построчно вместо перерисовки |
+| `--no-progress-newline` |  | Явно выключить построчный прогресс для текущего запуска |
+| `--progress-delta` |  | Задать интервал обновления прогресса `yt-dlp` |
 | `--proxy` |  | Явно указать прокси и перекрыть другие настройки |
 
-Для совместимости поддерживаются legacy short-формы вроде `-dc`, `-dr`, `-np`, `-nps`, `-cd`.
+Для совместимости поддерживаются legacy short-формы вроде `-dc`, `-dr`, `-np`, `-nps`, `-cd`, `-cf`.
 
 ### Примеры
 
@@ -275,6 +288,12 @@ php bin/ytd https://youtu.be/example -m
 
 ```bash
 php bin/ytd https://youtu.be/example -a
+```
+
+Скачать в среднем качестве:
+
+```bash
+php bin/ytd https://youtu.be/example -Q m
 ```
 
 Принудительно использовать удалённый прокси:
@@ -299,6 +318,12 @@ php bin/ytd https://youtu.be/example -dr
 
 ```bash
 php bin/ytd https://youtu.be/example --mp4
+```
+
+Скачать в произвольную папку и сделать более редкий прогресс:
+
+```bash
+php bin/ytd https://youtu.be/example --download-dir ~/Desktop/Test --progress-delta 1.5
 ```
 
 Запустить проверку окружения:

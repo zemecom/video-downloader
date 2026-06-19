@@ -34,6 +34,22 @@ final class YtDlpCommandBuilderTest extends TestCase
         self::assertContains('0.5', $command);
     }
 
+    public function testBuildForDownloadAcceptsCustomConcurrentFragments(): void
+    {
+        $builder = new YtDlpCommandBuilder();
+        $command = $builder->buildForDownload('best', '/tmp/video.%(ext)s', 'mp4', false, 7);
+
+        self::assertSame('7', $command[array_search('--concurrent-fragments', $command, true) + 1]);
+    }
+
+    public function testBuildForDownloadAcceptsCustomProgressDelta(): void
+    {
+        $builder = new YtDlpCommandBuilder();
+        $command = $builder->buildForDownload('best', '/tmp/video.%(ext)s', 'mp4', false, 7, '1.75');
+
+        self::assertSame('1.75', $command[array_search('--progress-delta', $command, true) + 1]);
+    }
+
     public function testBuildForDownloadUsesNonAv1BestQualityForYoutubeUrls(): void
     {
         $builder = new YtDlpCommandBuilder('https://www.youtube.com/watch?v=123');
@@ -41,6 +57,22 @@ final class YtDlpCommandBuilderTest extends TestCase
 
         self::assertSame('bestvideo[vcodec!^=av01]+bestaudio/best[vcodec!^=av01]', $command[array_search('-f', $command, true) + 1]);
         self::assertContains('mp4', $command);
+    }
+
+    public function testBuildForDownloadUsesMediumQualityPreset(): void
+    {
+        $builder = new YtDlpCommandBuilder();
+        $command = $builder->buildForDownload('medium', '/tmp/video.%(ext)s', 'mp4');
+
+        self::assertSame('bestvideo[height<=720]+bestaudio/best[height<=720]/bestvideo+bestaudio/best', $command[array_search('-f', $command, true) + 1]);
+    }
+
+    public function testBuildForDownloadUsesLowQualityPresetForYoutubeUrls(): void
+    {
+        $builder = new YtDlpCommandBuilder('https://www.youtube.com/watch?v=123');
+        $command = $builder->buildForDownload('low', '/tmp/video.%(ext)s', 'mp4');
+
+        self::assertSame('bestvideo[vcodec!^=av01][height<=480]+bestaudio/best[vcodec!^=av01][height<=480]/bestvideo[vcodec!^=av01]+bestaudio/best[vcodec!^=av01]/bestvideo[height<=480]+bestaudio/best[height<=480]/bestvideo+bestaudio/best', $command[array_search('-f', $command, true) + 1]);
     }
 
     public function testBuildForDownloadDisablesFfmpegHttpPersistence(): void

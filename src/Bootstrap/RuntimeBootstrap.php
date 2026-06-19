@@ -9,6 +9,7 @@ use Symfony\Component\Dotenv\Dotenv;
 use Symfony\Component\Dotenv\Exception\FormatException;
 
 use function array_key_exists;
+use function in_array;
 use function array_values;
 use function basename;
 use function count;
@@ -25,6 +26,7 @@ use function preg_replace;
 use function putenv;
 use function realpath;
 use function str_contains;
+use function strtolower;
 use function strrpos;
 use function str_starts_with;
 use function substr;
@@ -44,6 +46,7 @@ final class RuntimeBootstrap
         '-dr' => '--dry-run',
         '-nps' => '--no-playlist-sizes',
         '-cd' => '--concurrent-downloads',
+        '-cf' => '--concurrent-fragments',
         '-dc' => '--doctor',
     ];
 
@@ -196,8 +199,12 @@ final class RuntimeBootstrap
         );
     }
 
-    public function getDownloadBasePath(string $videoUrl): string
+    public function getDownloadBasePath(string $videoUrl, ?string $overridePath = null): string
     {
+        if (is_string($overridePath) && trim($overridePath) !== '') {
+            return $this->expandPath(trim($overridePath));
+        }
+
         $envPath = $this->isYoutubeUrl($videoUrl)
             ? (getenv('DOWNLOAD_DIR_YOUTUBE') ?: '~/Movies/Downloaded/Youtube')
             : (getenv('DOWNLOAD_DIR_GENERAL') ?: '~/Movies/Downloaded');
@@ -209,7 +216,50 @@ final class RuntimeBootstrap
     {
         $format = getenv('OUTPUT_FORMAT');
 
-        return is_string($format) && $format !== '' ? strtolower($format) : 'mkv';
+        return $this->normalizeOutputFormat(is_string($format) ? $format : null);
+    }
+
+    public function normalizeOutputFormat(?string $format): string
+    {
+        $normalized = strtolower(trim((string) $format));
+
+        return in_array($normalized, ['mkv', 'mp4'], true) ? $normalized : 'mkv';
+    }
+
+    public function getConcurrentDownloads(): int
+    {
+        $value = getenv('CONCURRENT_DOWNLOADS');
+
+        return max(1, (int) (is_string($value) && $value !== '' ? $value : '1'));
+    }
+
+    public function getConcurrentFragments(): int
+    {
+        $value = getenv('CONCURRENT_FRAGMENTS');
+
+        return max(1, (int) (is_string($value) && $value !== '' ? $value : '20'));
+    }
+
+    public function getProgressDelta(): string
+    {
+        $value = trim((string) (getenv('YTD_PROGRESS_DELTA') ?: ''));
+        if ($value === '') {
+            return '0.5';
+        }
+
+        return is_numeric($value) && (float) $value > 0 ? $value : '0.5';
+    }
+
+    public function shouldUseProgressNewline(): bool
+    {
+        $value = getenv('YTD_PROGRESS_NEWLINE');
+        if (!is_string($value)) {
+            return false;
+        }
+
+        $normalized = strtolower(trim($value));
+
+        return $normalized !== '' && $normalized !== '0' && $normalized !== 'false' && $normalized !== 'no';
     }
 
     public function isYoutubeUrl(string $videoUrl): bool

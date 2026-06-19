@@ -18,8 +18,29 @@ final class AutomaticFormatResolver
     /**
      * @param array<mixed> $metadata
      */
-    public function resolve(string $formatCode, array $metadata): string
+    public function resolve(string $formatCode, array $metadata, bool $preferNonAv1 = false): string
     {
+        if ($formatCode === 'bestaudio') {
+            return $formatCode;
+        }
+
+        $maxHeight = $this->qualityPresetMaxHeight($formatCode);
+        if ($maxHeight !== null) {
+            $recommendedFormatId = $this->resolvePreferredRequestedDownloadFormatId(
+                $metadata['requested_downloads'] ?? null,
+                $metadata['formats'] ?? null,
+                $preferNonAv1,
+                $maxHeight,
+            );
+            if ($recommendedFormatId !== null) {
+                return $recommendedFormatId;
+            }
+
+            $fallbackFormatId = $this->resolveBestMuxedFormatId($metadata['formats'] ?? null, $preferNonAv1, $maxHeight);
+
+            return $fallbackFormatId ?? $formatCode;
+        }
+
         if ($formatCode !== 'best' || !$this->shouldPreferRecommendedDownload($metadata)) {
             return $formatCode;
         }
@@ -28,14 +49,24 @@ final class AutomaticFormatResolver
         $recommendedFormatId = $this->resolvePreferredRequestedDownloadFormatId(
             $requestedDownloads,
             $metadata['formats'] ?? null,
+            $preferNonAv1,
         );
         if ($recommendedFormatId !== null) {
             return $recommendedFormatId;
         }
 
-        $fallbackFormatId = $this->resolveBestMuxedFormatId($metadata['formats'] ?? null);
+        $fallbackFormatId = $this->resolveBestMuxedFormatId($metadata['formats'] ?? null, $preferNonAv1);
 
         return $fallbackFormatId ?? $formatCode;
+    }
+
+    private function qualityPresetMaxHeight(string $formatCode): ?int
+    {
+        return match ($formatCode) {
+            'medium' => 720,
+            'low' => 480,
+            default => null,
+        };
     }
 
     /**
@@ -56,7 +87,7 @@ final class AutomaticFormatResolver
         return $liveStatus === 'is_live' || $liveStatus === 'post_live' || $liveStatus === 'was_live';
     }
 
-    private function resolveBestMuxedFormatId(mixed $formats): ?string
+    private function resolveBestMuxedFormatId(mixed $formats, bool $preferNonAv1 = false, ?int $maxHeight = null): ?string
     {
         if (!is_array($formats)) {
             return null;
@@ -68,7 +99,11 @@ final class AutomaticFormatResolver
         $bestMuxedScore = -1;
 
         foreach ($formats as $format) {
-            if (!is_array($format) || !$this->isMuxedFormat($format) || $this->isAv1Format($format)) {
+            if (!is_array($format) || !$this->isMuxedFormat($format)) {
+                continue;
+            }
+
+            if (($preferNonAv1 && $this->isAv1Format($format)) || !$this->matchesHeightCap($format, $maxHeight)) {
                 continue;
             }
 
@@ -92,8 +127,12 @@ final class AutomaticFormatResolver
         return $bestHlsFormatId ?? $bestMuxedFormatId;
     }
 
-    private function resolvePreferredRequestedDownloadFormatId(mixed $requestedDownloads, mixed $formats): ?string
-    {
+    private function resolvePreferredRequestedDownloadFormatId(
+        mixed $requestedDownloads,
+        mixed $formats,
+        bool $preferNonAv1 = false,
+        ?int $maxHeight = null,
+    ): ?string {
         if (!is_array($requestedDownloads) || count($requestedDownloads) !== 1 || !is_array($requestedDownloads[0])) {
             return null;
         }
@@ -106,12 +145,15 @@ final class AutomaticFormatResolver
 
         $knownFormat = $this->findFormatById($recommendedFormatId, $formats);
         if ($knownFormat !== null) {
-            return $this->isAv1Format($knownFormat)
-                ? null
-                : $recommendedFormatId;
+            if (($preferNonAv1 && $this->isAv1Format($knownFormat)) || !$this->matchesHeightCap($knownFormat, $maxHeight)) {
+                return null;
+            }
+
+            return $recommendedFormatId;
         }
 
-        if ($this->hasKnownVideoCodec($recommendedDownload) && $this->isAv1Format($recommendedDownload)) {
+        if (($preferNonAv1 && $this->hasKnownVideoCodec($recommendedDownload) && $this->isAv1Format($recommendedDownload))
+            || !$this->matchesHeightCap($recommendedDownload, $maxHeight)) {
             return null;
         }
 
@@ -203,5 +245,19 @@ final class AutomaticFormatResolver
     private function isHlsProtocol(mixed $protocol): bool
     {
         return is_string($protocol) && str_contains($protocol, 'm3u8');
+    }
+
+    /**
+     * @param array<mixed> $format
+     */
+    private function matchesHeightCap(array $format, ?int $maxHeight): bool
+    {
+        if ($maxHeight === null) {
+            return true;
+        }
+
+        $height = $this->normalizeNumber($format['height'] ?? null);
+
+        return $height > 0 && $height <= $maxHeight;
     }
 }

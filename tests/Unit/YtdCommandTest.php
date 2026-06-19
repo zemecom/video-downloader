@@ -10,6 +10,7 @@ use Symfony\Component\Console\Input\ArrayInput;
 use YtdPhp\Bootstrap\RuntimeBootstrap;
 use YtdPhp\Command\YtdCommand;
 use YtdPhp\Dto\RuntimeOptions;
+use YtdPhp\Exception\UserFacingException;
 use YtdPhp\Service\ConsoleLogger;
 use YtdPhp\Service\DoctorService;
 use YtdPhp\Service\DownloaderService;
@@ -47,6 +48,136 @@ final class YtdCommandTest extends TestCase
         $options = $this->buildRuntimeOptions($command, $input);
 
         self::assertFalse($options->audioOnly);
+        self::assertSame('best', $options->qualityPreset);
+    }
+
+    public function testBuildRuntimeOptionsUsesConcurrentFragmentsFromEnvByDefault(): void
+    {
+        putenv('CONCURRENT_FRAGMENTS=9');
+
+        try {
+            $command = $this->makeCommand();
+            $input = new ArrayInput([
+                'url' => 'https://www.youtube.com/watch?v=test',
+                '--no-proxy' => true,
+            ], $command->getDefinition());
+
+            $options = $this->buildRuntimeOptions($command, $input);
+
+            self::assertSame(9, $options->concurrentFragments);
+        } finally {
+            putenv('CONCURRENT_FRAGMENTS');
+        }
+    }
+
+    public function testBuildRuntimeOptionsAllowsConcurrentFragmentsOverrideFromCli(): void
+    {
+        putenv('CONCURRENT_FRAGMENTS=9');
+
+        try {
+            $command = $this->makeCommand();
+            $input = new ArrayInput([
+                'url' => 'https://www.youtube.com/watch?v=test',
+                '--no-proxy' => true,
+                '--concurrent-fragments' => '4',
+            ], $command->getDefinition());
+
+            $options = $this->buildRuntimeOptions($command, $input);
+
+            self::assertSame(4, $options->concurrentFragments);
+        } finally {
+            putenv('CONCURRENT_FRAGMENTS');
+        }
+    }
+
+    public function testBuildRuntimeOptionsUsesConcurrentDownloadsFromEnvByDefault(): void
+    {
+        putenv('CONCURRENT_DOWNLOADS=3');
+
+        try {
+            $command = $this->makeCommand();
+            $input = new ArrayInput([
+                'url' => 'https://www.youtube.com/watch?v=test',
+                '--no-proxy' => true,
+            ], $command->getDefinition());
+
+            $options = $this->buildRuntimeOptions($command, $input);
+
+            self::assertSame(3, $options->concurrentDownloads);
+        } finally {
+            putenv('CONCURRENT_DOWNLOADS');
+        }
+    }
+
+    public function testBuildRuntimeOptionsAcceptsManualOutputControls(): void
+    {
+        $command = $this->makeCommand();
+        $input = new ArrayInput([
+            'url' => 'https://www.youtube.com/watch?v=test',
+            '--no-proxy' => true,
+            '-Q' => 'm',
+            '--output-format' => 'mp4',
+            '--download-dir' => '~/Downloads/Test',
+            '--progress-newline' => true,
+            '--progress-delta' => '1.5',
+        ], $command->getDefinition());
+
+        $options = $this->buildRuntimeOptions($command, $input);
+
+        self::assertSame('medium', $options->qualityPreset);
+        self::assertSame('mp4', $options->outputFormat);
+        self::assertSame('~/Downloads/Test', $options->downloadDir);
+        self::assertTrue($options->progressNewline);
+        self::assertSame('1.5', $options->progressDelta);
+    }
+
+    public function testBuildRuntimeOptionsAllowsDisablingProgressNewlineFromCli(): void
+    {
+        putenv('YTD_PROGRESS_NEWLINE=1');
+
+        try {
+            $command = $this->makeCommand();
+            $input = new ArrayInput([
+                'url' => 'https://www.youtube.com/watch?v=test',
+                '--no-proxy' => true,
+                '--no-progress-newline' => true,
+            ], $command->getDefinition());
+
+            $options = $this->buildRuntimeOptions($command, $input);
+
+            self::assertFalse($options->progressNewline);
+        } finally {
+            putenv('YTD_PROGRESS_NEWLINE');
+        }
+    }
+
+    public function testBuildRuntimeOptionsAcceptsLowQualityAlias(): void
+    {
+        $command = $this->makeCommand();
+        $input = new ArrayInput([
+            'url' => 'https://www.youtube.com/watch?v=test',
+            '--no-proxy' => true,
+            '--quality' => 'low',
+        ], $command->getDefinition());
+
+        $options = $this->buildRuntimeOptions($command, $input);
+
+        self::assertSame('low', $options->qualityPreset);
+    }
+
+    public function testBuildRuntimeOptionsRejectsUnknownQualityAlias(): void
+    {
+        $command = $this->makeCommand();
+        $input = new ArrayInput([
+            'url' => 'https://www.youtube.com/watch?v=test',
+            '--no-proxy' => true,
+            '--quality' => 'ultra',
+        ], $command->getDefinition());
+
+        $this->expectException(UserFacingException::class);
+        $this->expectExceptionMessage('`--quality` поддерживает только b/best, m/medium или l/low.');
+
+        $this->buildRuntimeOptions($command, $input);
     }
 
     private function makeCommand(): YtdCommand
