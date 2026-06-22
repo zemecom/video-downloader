@@ -14,16 +14,16 @@
 
 body {
   margin: 0;
-  min-height: 100vh;
-  background:
-    radial-gradient(circle at top left, rgba(79, 182, 255, 0.18), transparent 38%),
-    radial-gradient(circle at bottom right, rgba(15, 92, 255, 0.16), transparent 36%),
-    linear-gradient(180deg, #121c30, #080d18);
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  background: #000;
   color: #f7f4ee;
 }
 
 .preview {
-  min-height: 100vh;
+  height: 100%;
+  min-height: 0;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 16px;
@@ -46,12 +46,6 @@ body {
   color: var(--ytd-blue-1);
 }
 
-h1 {
-  margin: 3px 0 0;
-  font-size: 20px;
-  line-height: 1.1;
-}
-
 .actions {
   display: flex;
   gap: 8px;
@@ -61,10 +55,12 @@ h1 {
 
 .player-shell {
   min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border-radius: 16px;
   overflow: hidden;
   background: #000;
-  border: 1px solid var(--ytd-border);
   box-shadow: 0 20px 60px rgba(2, 8, 20, 0.42);
 }
 
@@ -72,7 +68,9 @@ h1 {
   display: block;
   width: 100%;
   height: 100%;
-  min-height: 260px;
+  min-height: 0;
+  max-height: 100%;
+  object-fit: contain;
   background: #000;
 }
 
@@ -82,6 +80,18 @@ h1 {
   font-size: 13px;
   line-height: 1.4;
   color: rgba(225, 240, 255, 0.78);
+}
+
+.file-path {
+  margin: 3px 0 0;
+  min-width: 0;
+  max-width: calc(100vw - 44px);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
+  font-size: 14px;
+  line-height: 1.35;
+  color: #686868;
 }
 
 .button {
@@ -131,5 +141,9 @@ h1 {
 
   .actions {
     justify-content: flex-start;
+  }
+
+  .file-path {
+    max-width: calc(100vw - 28px);
   }
 }

@@ -1,6 +1,6 @@
 const HOST_NAME = 'dev.zemecom.ytd_downloader';
 // Use a data URL for notifications so the notifications backend does not need
-// to fetch an extension resource before showing the popup.
+// to fetch an extension resource before showing the notification.
 const NOTIFICATION_ICON =
   'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAADDPmHLAAAEA0lEQVR42u2da1JTQRBGZwsuQAkkBBSkXJVrcBsqKD7w/QB8rsbtjJ1YCWLF5N47r56e81WdW/k10+nvUCnQqjinPA9HN33NOIIABAHI0DySJdYMDSIACRJgWxZZMTQYLMAtXzM0GJjHssSaoUEEINZLRg4KR4guOZY3CZuheLAhAiU2LMLxjgwP0aiq/BMZGOJD8aBXBIppWIKTnS0P+VFR/hMZBMqBAAhQd/n+1/2NULRCCVKXjgyKJXg63vJDCCn+X4bOYBnVAsQsHwkKCqCheCQoKIGm8pEgswCnckEfcgkwo+9sllEhQM7ykSCDAKfjke9KifKvJBiBUIUAD+7dmIMAFQjwTA7tQp+yFgLElqDrrJaJL8BEDu7AUAFiitB1VsuoL/9/AsQQAQEiS1BCACRAgCARljMFBgEkz+WwLqQSYIgIy5kC0/W9aySrAEN+SvsK0EcEBDAsQBcJEMCoAHwERBbgxe7IxyC1AH3PXs4VmFj70YoIsO1joem3gOVMwQJsm0a1ACF/B0CAigWI8edgBOgowEt5xCKGADHKvzZTYGLuRyMu9oEa/jUQASoSIMV/CkGAggIM+ShIVT4CdBDgTB6xKVX+ylkCk2I/mnBnU3mRgCICrJojVIBE+9GCS3l46fIRoLAAuSRYez8CrBfg1XTHpyZl+RvvDkyO/ZTE5bqoRPkIoEiAmCL0ug8BdAkQIsKgexBgvQCv5VGadaUHnx0YDftJibP+BhFgkwB78sIwwQIY3w8CtC7AG3lYJjTW9+NaKzR1EAABEKBVCar8CHi7N/Y1oi217rFaATRJUPMOEaB5AfblRcUUL7/y/VUvQEkJLOzOvZOHBXLHyt4QAAHGHgnaLN+cADkksLYv914e1kgVi7tCAAQYeyRos/w/AtyeeKtEK9/wjtwHeVgmNNb3Y16AEAla2A0CIMDEI0Gb5c8F+CiPVuialnbSlABdJGhtHwiAABOPBG2WPxfg052J18aqpL6jtvlj0awAf99T6/yRBNj12li9wHT31Dp/DDp9p4BVAazPH+0bQz7LYTlZldwzWJgfARAAARAAARAgNOdyWE4sJvcOz6MKcCAHZsSkAJl3OCPqN4gjQF0CuNhBgMYFuJBDc2ExOfd3gQAI4FLk4mDqc2BTgGk2XKogQOMC5JIAAZSWP8ulXJIai8mxt8scAswlOJTLEmJSgMQ7m+FyBQEaFyCHBKC4/EW+yMVQHlcyFNBw+QiAAEjQevmLfD3c85APpzEU03D510S4K4NCdFxNobCGy1/kmwwO4bjaQ4mNFo8IFI8IFL853+XNt4gj9uWgwVABjmSRFUODCEBC8uNo39cMDSIAQQCCAGRYfsoSa4YGEUB1fgNSXbeyRDB8+wAAAABJRU5ErkJggg==';
 
@@ -22,7 +22,7 @@ const MESSAGES = {
   unexpected_error: 'Native host вернул неожиданный ответ.',
 };
 
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.type === 'ytd:start-download') {
     startDownload(message).then(sendResponse);
 
@@ -46,6 +46,12 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return true;
   }
 
+  if (message?.type === 'ytd:get-recent-download-path') {
+    getRecentDownloadPath(message).then(sendResponse);
+
+    return true;
+  }
+
   if (message?.type === 'ytd:preview-recent-download') {
     previewRecentDownload(message).then(sendResponse);
 
@@ -53,7 +59,13 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   }
 
   if (message?.type === 'ytd:open-preview-page') {
-    openPreviewPage(message).then(sendResponse);
+    openPreviewPage(message, sender).then(sendResponse);
+
+    return true;
+  }
+
+  if (message?.type === 'ytd:pause-origin-video') {
+    pauseOriginVideo(message).then(sendResponse);
 
     return true;
   }
@@ -161,6 +173,7 @@ async function startDownload(message) {
 
 async function previewRecentDownload(message) {
   const entryId = typeof message?.entryId === 'string' ? message.entryId : '';
+  const originTabId = resolveYoutubeOriginTabId(message);
 
   if (entryId === '') {
     return {
@@ -190,12 +203,16 @@ async function previewRecentDownload(message) {
   return openPreviewPage({
     previewUrl: response.payload.previewUrl,
     recentDownloadId: response.payload?.recentDownloadId ?? entryId,
+    filePath: normalizeText(response.payload?.filePath) || normalizeText(message?.filePath),
+    originTabId,
   });
 }
 
-async function openPreviewPage(message) {
+async function openPreviewPage(message, sender = null) {
   const previewUrl = typeof message?.previewUrl === 'string' ? message.previewUrl : '';
   const recentDownloadId = typeof message?.recentDownloadId === 'string' ? message.recentDownloadId : '';
+  const filePath = normalizeText(message?.filePath) || await findRecentDownloadPath(recentDownloadId);
+  const originTabId = resolveYoutubeOriginTabId(message, sender);
   if (previewUrl === '') {
     return {
       ok: false,
@@ -209,6 +226,8 @@ async function openPreviewPage(message) {
     [`preview:${previewId}`]: {
       previewUrl,
       recentDownloadId,
+      filePath,
+      originTabId,
       createdAt: Date.now(),
     },
   });
@@ -224,6 +243,95 @@ async function openPreviewPage(message) {
       previewId,
     },
   };
+}
+
+async function findRecentDownloadPath(recentDownloadId) {
+  if (typeof recentDownloadId !== 'string' || recentDownloadId === '') {
+    return '';
+  }
+
+  const response = await callNativeHost({
+    action: 'list_recent_downloads',
+  });
+  if (!response.ok) {
+    return '';
+  }
+
+  const items = Array.isArray(response.payload?.items) ? response.payload.items : [];
+  const entry = items.find((item) => item?.id === recentDownloadId);
+
+  return normalizeText(entry?.path);
+}
+
+async function getRecentDownloadPath(message) {
+  const recentDownloadId = typeof message?.entryId === 'string' ? message.entryId : '';
+  const filePath = await findRecentDownloadPath(recentDownloadId);
+
+  return {
+    ok: filePath !== '',
+    payload: {
+      filePath,
+    },
+  };
+}
+
+async function pauseOriginVideo(message) {
+  const originTabId = Number.isInteger(message?.originTabId) ? message.originTabId : null;
+  if (!Number.isInteger(originTabId)) {
+    return {
+      ok: true,
+      payload: {
+        paused: false,
+      },
+    };
+  }
+
+  try {
+    let response = null;
+    try {
+      response = await sendTabMessage(originTabId, {
+        type: 'ytd-pause-page-video',
+      });
+    } catch (_error) {
+      await ensureOverlay(originTabId);
+      response = await sendTabMessage(originTabId, {
+        type: 'ytd-pause-page-video',
+      });
+    }
+
+    return {
+      ok: true,
+      payload: {
+        paused: response?.paused === true,
+      },
+    };
+  } catch (_error) {
+    return {
+      ok: true,
+      payload: {
+        paused: false,
+      },
+    };
+  }
+}
+
+function resolveYoutubeOriginTabId(message, sender = null) {
+  if (Number.isInteger(message?.originTabId)) {
+    return message.originTabId;
+  }
+
+  const tabId = Number.isInteger(message?.tabId)
+    ? message.tabId
+    : (Number.isInteger(sender?.tab?.id) ? sender.tab.id : null);
+  const url = typeof message?.url === 'string'
+    ? message.url
+    : (typeof sender?.tab?.url === 'string' ? sender.tab.url : '');
+
+  return Number.isInteger(tabId) && isYoutubeUrl(url) ? tabId : null;
+}
+
+function normalizeText(value) {
+  return typeof value === 'string' ? value : '';
 }
 
 function createPreviewId() {
@@ -246,6 +354,23 @@ function isSupportedTabUrl(url) {
     const parsed = new URL(url);
 
     return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+function isYoutubeUrl(url) {
+  if (!url) {
+    return false;
+  }
+
+  try {
+    const hostname = new URL(url).hostname.toLowerCase();
+
+    return hostname === 'youtube.com'
+      || hostname === 'youtu.be'
+      || hostname.endsWith('.youtube.com')
+      || hostname.endsWith('.youtu.be');
   } catch {
     return false;
   }
@@ -286,10 +411,14 @@ async function ensureOverlay(tabId) {
 
 async function sendOverlayMessage(tabId, payload) {
   try {
-    await chrome.tabs.sendMessage(tabId, payload);
+    await sendTabMessage(tabId, payload);
   } catch (_error) {
     // Ignore message delivery failures for tabs that navigated away.
   }
+}
+
+function sendTabMessage(tabId, payload) {
+  return chrome.tabs.sendMessage(tabId, payload);
 }
 
 function callNativeHost(payload) {

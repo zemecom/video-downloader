@@ -201,7 +201,7 @@
     }
   });
 
-  chrome.runtime.onMessage.addListener((message) => {
+  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message?.type === 'ytd-overlay-show') {
       overlay.dataset.visible = 'true';
       renderState(message);
@@ -223,7 +223,17 @@
     }
 
     if (message?.type === 'ytd-overlay-open-preview') {
-      void requestPreviewPage(message.previewUrl, message.recentDownloadId);
+      const nextFilePath = typeof message?.filePath === 'string' && message.filePath !== ''
+        ? message.filePath
+        : (typeof message?.outputPath === 'string' ? message.outputPath : '');
+      void requestPreviewPage(message.previewUrl, message.recentDownloadId, nextFilePath);
+      return;
+    }
+
+    if (message?.type === 'ytd-pause-page-video') {
+      sendResponse({
+        paused: pausePageVideos(),
+      });
     }
   });
 
@@ -316,6 +326,7 @@
     const progressPercent = typeof payload?.progressPercent === 'number' ? payload.progressPercent : null;
     const canCancel = Boolean(payload?.canCancel);
     const nextPreviewUrl = typeof payload?.previewUrl === 'string' && payload.previewUrl !== '' ? payload.previewUrl : null;
+    const nextFilePath = typeof payload?.outputPath === 'string' && payload.outputPath !== '' ? payload.outputPath : '';
     const previewReady = payload?.previewReady === true && nextPreviewUrl !== null;
 
     const recentDownloadId = typeof payload?.recentDownloadId === 'string' && payload.recentDownloadId !== ''
@@ -323,7 +334,7 @@
       : null;
 
     if (status === 'completed' && previewReady) {
-      void requestPreviewPage(nextPreviewUrl, recentDownloadId);
+      void requestPreviewPage(nextPreviewUrl, recentDownloadId, nextFilePath);
       return;
     }
 
@@ -354,13 +365,15 @@
     }
   }
 
-  async function requestPreviewPage(nextPreviewUrl, nextRecentDownloadId) {
+  async function requestPreviewPage(nextPreviewUrl, nextRecentDownloadId, nextFilePath = '') {
     stopAutoHide();
     overlay.dataset.visible = 'false';
     await sendRuntimeMessage({
       type: 'ytd:open-preview-page',
       previewUrl: nextPreviewUrl,
       recentDownloadId: nextRecentDownloadId,
+      filePath: nextFilePath,
+      url: globalThis.location.href,
     });
   }
 
@@ -401,5 +414,20 @@
         resolve(response);
       });
     });
+  }
+
+  function pausePageVideos() {
+    let paused = false;
+
+    document.querySelectorAll('video').forEach((video) => {
+      if (video.paused) {
+        return;
+      }
+
+      video.pause();
+      paused = true;
+    });
+
+    return paused;
   }
 })();

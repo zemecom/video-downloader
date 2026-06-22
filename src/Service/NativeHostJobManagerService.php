@@ -184,6 +184,7 @@ final class NativeHostJobManagerService
             ...$preview,
             'entryId' => $entryId,
             'recentDownloadId' => $entryId,
+            'filePath' => $entry['path'],
         ]);
     }
 
@@ -262,6 +263,7 @@ final class NativeHostJobManagerService
             'previewReady' => $state['previewReady'] ?? false,
             'previewUrl' => $state['previewUrl'] ?? null,
             'recentDownloadId' => $state['recentDownloadId'] ?? null,
+            'outputPath' => $state['outputPath'] ?? null,
         ];
     }
 

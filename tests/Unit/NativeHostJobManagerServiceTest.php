@@ -329,6 +329,7 @@ final class NativeHostJobManagerServiceTest extends TestCase
             self::assertTrue($payload['ok']);
             self::assertTrue($payload['previewReady']);
             self::assertSame($entry['id'], $payload['recentDownloadId']);
+            self::assertSame($filePath, $payload['filePath']);
             self::assertMatchesRegularExpression(
                 '#^http://127\.0\.0\.1:38123/preview/recent-' . preg_quote((string) $entry['id'], '#') . '-[a-f0-9]+\?token=[a-f0-9]+$#',
                 (string) $payload['previewUrl'],

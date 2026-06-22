@@ -80,7 +80,7 @@ function renderRecentDownloads(items) {
       playButton.className = 'recent-button';
       playButton.textContent = 'Воспроизвести';
       playButton.addEventListener('click', () => {
-        playRecentVideo(item?.id, title.textContent);
+        playRecentVideo(item?.id, title.textContent, item?.path);
       });
       actions.appendChild(playButton);
     }
@@ -122,7 +122,7 @@ function renderRecentDownloads(items) {
   });
 }
 
-async function playRecentVideo(entryId, title) {
+async function playRecentVideo(entryId, title, filePath) {
   if (typeof entryId !== 'string' || entryId === '') {
     setStatus('Файл из списка больше недоступен.');
     return;
@@ -139,6 +139,7 @@ async function playRecentVideo(entryId, title) {
     entryId,
     tabId: tab?.id,
     url: tab?.url,
+    filePath,
   });
 
   if (!response?.ok) {

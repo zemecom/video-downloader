@@ -1,4 +1,5 @@
 const player = document.querySelector('.player');
+const filePathNode = document.querySelector('.file-path');
 const statusNode = document.querySelector('.status');
 const playButton = document.querySelector('.play-action');
 const openButton = document.querySelector('.open-action');
@@ -6,6 +7,7 @@ const revealButton = document.querySelector('.reveal-action');
 
 let previewUrl = null;
 let recentDownloadId = null;
+let originTabId = null;
 
 initPreview();
 
@@ -22,6 +24,7 @@ revealButton.addEventListener('click', async () => {
 });
 
 player.addEventListener('play', () => {
+  void pauseOriginVideo();
   playButton.classList.add('button-hidden');
   statusNode.textContent = '';
 });
@@ -50,6 +53,9 @@ async function initPreview() {
 
   previewUrl = payload.previewUrl;
   recentDownloadId = typeof payload.recentDownloadId === 'string' ? payload.recentDownloadId : '';
+  originTabId = Number.isInteger(payload.originTabId) ? payload.originTabId : null;
+  renderFilePath(resolveFilePath(payload));
+  void hydrateFilePath();
   openButton.disabled = recentDownloadId === '';
   revealButton.disabled = recentDownloadId === '';
 
@@ -108,13 +114,61 @@ async function runRecentAction(type, pendingMessage, fallbackErrorMessage) {
     : (response?.errorMessage || fallbackErrorMessage);
 }
 
+async function pauseOriginVideo() {
+  if (!Number.isInteger(originTabId)) {
+    return;
+  }
+
+  await sendRuntimeMessage({
+    type: 'ytd:pause-origin-video',
+    originTabId,
+  });
+}
+
 function renderFatalError(message) {
+  renderFilePath('');
   statusNode.textContent = message;
   player.removeAttribute('src');
   player.load();
   playButton.classList.add('button-hidden');
   openButton.disabled = true;
   revealButton.disabled = true;
+}
+
+function renderFilePath(filePath) {
+  const normalizedPath = typeof filePath === 'string' ? filePath : '';
+  filePathNode.textContent = normalizedPath;
+  filePathNode.title = normalizedPath;
+  filePathNode.hidden = normalizedPath === '';
+}
+
+async function hydrateFilePath() {
+  if (!filePathNode.hidden || typeof recentDownloadId !== 'string' || recentDownloadId === '') {
+    return;
+  }
+
+  const response = await sendRuntimeMessage({
+    type: 'ytd:get-recent-download-path',
+    entryId: recentDownloadId,
+  });
+
+  renderFilePath(resolveFilePath(response?.payload));
+}
+
+function resolveFilePath(payload) {
+  if (typeof payload?.filePath === 'string' && payload.filePath !== '') {
+    return payload.filePath;
+  }
+
+  if (typeof payload?.outputPath === 'string' && payload.outputPath !== '') {
+    return payload.outputPath;
+  }
+
+  if (typeof payload?.path === 'string' && payload.path !== '') {
+    return payload.path;
+  }
+
+  return '';
 }
 
 function sendRuntimeMessage(message) {
