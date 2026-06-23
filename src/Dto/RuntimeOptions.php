@@ -12,6 +12,7 @@ final readonly class RuntimeOptions
         public bool $insecure,
         public bool $manualMode,
         public bool $audioOnly,
+        public bool $fastMode,
         public string $qualityPreset,
         public bool $dryRun,
         public bool $playlistShowSizes,

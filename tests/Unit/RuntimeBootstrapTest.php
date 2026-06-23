@@ -216,6 +216,14 @@ ENV,
             '/tmp/My Dir/My_Cool_Video_[abc_123].mkv',
             $bootstrap->sanitizeOutputFilename('/tmp/My Dir/My Cool Video [abc 123].mkv'),
         );
+        self::assertSame(
+            '/tmp/My Dir/My_Cool_Video_[abc_123].mkv',
+            $bootstrap->sanitizeOutputFilename('/tmp/My Dir/My  Cool Video [abc  123].mkv'),
+        );
+        self::assertSame(
+            '/tmp/My Dir/Already__Separated_Title.mkv',
+            $bootstrap->sanitizeOutputFilename('/tmp/My Dir/Already__Separated Title.mkv'),
+        );
     }
 
     public function testSanitizeOutputFilenamePreservesPunctuationAndReplacesOnlyUnicodeWhitespace(): void
@@ -224,7 +232,7 @@ ENV,
 
         self::assertSame(
             '/tmp/Абстрактный：_Тестовый_сюжет_до_ноября_или_еще_2-3_года？.opus',
-            $bootstrap->sanitizeOutputFilename("/tmp/Абстрактныи\u{0306}：\u{00A0}Тестовыи\u{0306}\u{202F}сюжет_до_ноября_или_еще_2-3_года？.opus"),
+            $bootstrap->sanitizeOutputFilename("/tmp/Абстрактныи\u{0306}：\u{00A0}Тестовыи\u{0306}\u{202F}сюжет\u{200B}до_ноября_или_еще_2-3_года？.opus"),
         );
     }
 }

@@ -18,12 +18,13 @@ final class AutomaticFormatResolver
     /**
      * @param array<mixed> $metadata
      */
-    public function resolve(string $formatCode, array $metadata, bool $preferNonAv1 = false): string
+    public function resolve(string $formatCode, array $metadata, bool $preferNonAv1 = false, string $outputFormat = 'mkv'): string
     {
         if ($formatCode === 'bestaudio') {
             return $formatCode;
         }
 
+        $requireBrowserSafeMp4 = $outputFormat === 'mp4';
         $maxHeight = $this->qualityPresetMaxHeight($formatCode);
         if ($maxHeight !== null) {
             $recommendedFormatId = $this->resolvePreferredRequestedDownloadFormatId(
@@ -31,12 +32,18 @@ final class AutomaticFormatResolver
                 $metadata['formats'] ?? null,
                 $preferNonAv1,
                 $maxHeight,
+                $requireBrowserSafeMp4,
             );
             if ($recommendedFormatId !== null) {
                 return $recommendedFormatId;
             }
 
-            $fallbackFormatId = $this->resolveBestMuxedFormatId($metadata['formats'] ?? null, $preferNonAv1, $maxHeight);
+            $fallbackFormatId = $this->resolveBestMuxedFormatId(
+                $metadata['formats'] ?? null,
+                $preferNonAv1,
+                $maxHeight,
+                $requireBrowserSafeMp4,
+            );
 
             return $fallbackFormatId ?? $formatCode;
         }
@@ -50,12 +57,19 @@ final class AutomaticFormatResolver
             $requestedDownloads,
             $metadata['formats'] ?? null,
             $preferNonAv1,
+            null,
+            $requireBrowserSafeMp4,
         );
         if ($recommendedFormatId !== null) {
             return $recommendedFormatId;
         }
 
-        $fallbackFormatId = $this->resolveBestMuxedFormatId($metadata['formats'] ?? null, $preferNonAv1);
+        $fallbackFormatId = $this->resolveBestMuxedFormatId(
+            $metadata['formats'] ?? null,
+            $preferNonAv1,
+            null,
+            $requireBrowserSafeMp4,
+        );
 
         return $fallbackFormatId ?? $formatCode;
     }
@@ -87,8 +101,12 @@ final class AutomaticFormatResolver
         return $liveStatus === 'is_live' || $liveStatus === 'post_live' || $liveStatus === 'was_live';
     }
 
-    private function resolveBestMuxedFormatId(mixed $formats, bool $preferNonAv1 = false, ?int $maxHeight = null): ?string
-    {
+    private function resolveBestMuxedFormatId(
+        mixed $formats,
+        bool $preferNonAv1 = false,
+        ?int $maxHeight = null,
+        bool $requireBrowserSafeMp4 = false,
+    ): ?string {
         if (!is_array($formats)) {
             return null;
         }
@@ -103,7 +121,9 @@ final class AutomaticFormatResolver
                 continue;
             }
 
-            if (($preferNonAv1 && $this->isAv1Format($format)) || !$this->matchesHeightCap($format, $maxHeight)) {
+            if (($preferNonAv1 && $this->isAv1Format($format))
+                || !$this->matchesHeightCap($format, $maxHeight)
+                || ($requireBrowserSafeMp4 && !$this->isBrowserSafeMp4Format($format))) {
                 continue;
             }
 
@@ -132,6 +152,7 @@ final class AutomaticFormatResolver
         mixed $formats,
         bool $preferNonAv1 = false,
         ?int $maxHeight = null,
+        bool $requireBrowserSafeMp4 = false,
     ): ?string {
         if (!is_array($requestedDownloads) || count($requestedDownloads) !== 1 || !is_array($requestedDownloads[0])) {
             return null;
@@ -145,7 +166,9 @@ final class AutomaticFormatResolver
 
         $knownFormat = $this->findFormatById($recommendedFormatId, $formats);
         if ($knownFormat !== null) {
-            if (($preferNonAv1 && $this->isAv1Format($knownFormat)) || !$this->matchesHeightCap($knownFormat, $maxHeight)) {
+            if (($preferNonAv1 && $this->isAv1Format($knownFormat))
+                || !$this->matchesHeightCap($knownFormat, $maxHeight)
+                || ($requireBrowserSafeMp4 && !$this->isBrowserSafeMp4Format($knownFormat))) {
                 return null;
             }
 
@@ -153,7 +176,8 @@ final class AutomaticFormatResolver
         }
 
         if (($preferNonAv1 && $this->hasKnownVideoCodec($recommendedDownload) && $this->isAv1Format($recommendedDownload))
-            || !$this->matchesHeightCap($recommendedDownload, $maxHeight)) {
+            || !$this->matchesHeightCap($recommendedDownload, $maxHeight)
+            || ($requireBrowserSafeMp4 && !$this->isBrowserSafeMp4Format($recommendedDownload))) {
             return null;
         }
 
@@ -198,6 +222,41 @@ final class AutomaticFormatResolver
         return is_string($videoCodec)
             && $videoCodec !== ''
             && str_starts_with(strtolower($videoCodec), 'av01');
+    }
+
+    /**
+     * @param array<mixed> $format
+     */
+    private function isBrowserSafeMp4Format(array $format): bool
+    {
+        $extension = strtolower((string) ($format['ext'] ?? ''));
+
+        return ($extension === '' || $extension === 'mp4' || $extension === 'm4v')
+            && $this->isBrowserSafeVideoCodec($format)
+            && $this->isBrowserSafeAudioCodec($format);
+    }
+
+    /**
+     * @param array<mixed> $format
+     */
+    private function isBrowserSafeVideoCodec(array $format): bool
+    {
+        $videoCodec = strtolower((string) ($format['vcodec'] ?? ''));
+
+        return str_starts_with($videoCodec, 'avc1')
+            || str_starts_with($videoCodec, 'h264')
+            || str_starts_with($videoCodec, 'h.264');
+    }
+
+    /**
+     * @param array<mixed> $format
+     */
+    private function isBrowserSafeAudioCodec(array $format): bool
+    {
+        $audioCodec = strtolower((string) ($format['acodec'] ?? ''));
+
+        return str_starts_with($audioCodec, 'mp4a')
+            || str_starts_with($audioCodec, 'aac');
     }
 
     /**

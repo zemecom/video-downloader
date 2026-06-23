@@ -676,7 +676,12 @@ final readonly class PlaylistService
 
         $metadata['playlist_index'] ??= $item->playlistIndex;
         $sourceUrl = $item->url !== '' ? $item->url : $playlist->sourceUrl;
-        $resolvedFormatCode = $this->downloader->resolveRequestedFormatCode($requestedFormatCode, $metadata, $sourceUrl);
+        $resolvedFormatCode = $this->downloader->resolveRequestedFormatCode(
+            $requestedFormatCode,
+            $metadata,
+            $sourceUrl,
+            $options->outputFormat,
+        );
         $tempJsonPath = $this->writePlaylistItemMetadataJson($metadata);
         if ($tempJsonPath === null) {
             return $this->failedItemMetadata($item, 'playlist_item_tempfile_failed');

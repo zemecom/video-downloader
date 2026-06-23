@@ -51,6 +51,52 @@ final class YtdCommandTest extends TestCase
         self::assertSame('best', $options->qualityPreset);
     }
 
+    public function testBuildRuntimeOptionsEnablesFastModeFromCliFlag(): void
+    {
+        $command = $this->makeCommand();
+        $input = new ArrayInput([
+            'url' => 'https://www.youtube.com/watch?v=test',
+            '--no-proxy' => true,
+            '--fast' => true,
+        ], $command->getDefinition());
+
+        $options = $this->buildRuntimeOptions($command, $input);
+
+        self::assertTrue($options->fastMode);
+    }
+
+    public function testBuildRuntimeOptionsRejectsFastModeWithAudioOnly(): void
+    {
+        $command = $this->makeCommand();
+        $input = new ArrayInput([
+            'url' => 'https://www.youtube.com/watch?v=test',
+            '--no-proxy' => true,
+            '--fast' => true,
+            '--audio' => true,
+        ], $command->getDefinition());
+
+        $this->expectException(UserFacingException::class);
+        $this->expectExceptionMessage('`--fast` нельзя использовать вместе с `--audio`');
+
+        $this->buildRuntimeOptions($command, $input);
+    }
+
+    public function testBuildRuntimeOptionsRejectsFastModeWithManualMode(): void
+    {
+        $command = $this->makeCommand();
+        $input = new ArrayInput([
+            'url' => 'https://www.youtube.com/watch?v=test',
+            '--no-proxy' => true,
+            '--fast' => true,
+            '--manual' => true,
+        ], $command->getDefinition());
+
+        $this->expectException(UserFacingException::class);
+        $this->expectExceptionMessage('`--fast` пока не поддерживает `--manual`');
+
+        $this->buildRuntimeOptions($command, $input);
+    }
+
     public function testBuildRuntimeOptionsUsesConcurrentFragmentsFromEnvByDefault(): void
     {
         putenv('CONCURRENT_FRAGMENTS=9');

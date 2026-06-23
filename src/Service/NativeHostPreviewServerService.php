@@ -270,7 +270,7 @@ final readonly class NativeHostPreviewServerService
             return;
         }
 
-        $written = fwrite($clientState['socket'], $clientState['pendingWrite']);
+        $written = @fwrite($clientState['socket'], $clientState['pendingWrite']);
         if (!is_int($written) || $written < 0) {
             $clientState['done'] = true;
 

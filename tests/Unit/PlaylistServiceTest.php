@@ -174,6 +174,7 @@ final class PlaylistServiceTest extends TestCase
             false,
             false,
             false,
+            false,
             'best',
             false,
             false,

@@ -329,9 +329,18 @@ final class RuntimeBootstrap
         if (class_exists(Normalizer::class)) {
             $filename = Normalizer::normalize($filename, Normalizer::FORM_C) ?: $filename;
         }
-        $filename = (string) preg_replace('/\\s+/u', '_', $filename);
+        $filename = $this->normalizeFilenameWhitespace($filename);
 
         return $directory . $filename;
+    }
+
+    private function normalizeFilenameWhitespace(string $filename): string
+    {
+        return (string) preg_replace(
+            '/(?:\\s|\\p{Z}|\\x{00A0}|\\x{1680}|\\x{180E}|[\\x{2000}-\\x{200B}]|\\x{2028}|\\x{2029}|\\x{202F}|\\x{205F}|\\x{3000}|\\x{FEFF})+/u',
+            '_',
+            $filename,
+        );
     }
 
     /**

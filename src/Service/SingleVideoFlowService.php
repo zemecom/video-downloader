@@ -25,6 +25,25 @@ final readonly class SingleVideoFlowService
 
     public function handle(string $videoUrl, RuntimeOptions $options): int
     {
+        if ($options->fastMode) {
+            $this->logger->info('⚡️ Быстрый режим: скачиваю видео и аудио параллельно...');
+            $result = $this->downloaderService->downloadVideoFast(
+                $videoUrl,
+                $options->qualityPreset,
+                $options->currentProxy,
+                $options->insecure,
+                $options->outputFormat,
+                $options->dryRun,
+                $options->concurrentFragments,
+                $options->downloadDir,
+                $options->progressDelta,
+            );
+
+            return $this->isSuccessfulDownloadStatus($result->status)
+                ? Command::SUCCESS
+                : Command::FAILURE;
+        }
+
         $formatCode = $options->manualMode
             ? $this->chooseManualFormat($videoUrl, $options)
             : $this->defaultFormatCode($options, true);

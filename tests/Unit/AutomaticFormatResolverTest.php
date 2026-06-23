@@ -126,6 +126,43 @@ final class AutomaticFormatResolverTest extends TestCase
         self::assertSame('22', $resolved);
     }
 
+    public function testResolveRejectsVp9OpusRequestedDownloadForMp4Output(): void
+    {
+        $resolver = new AutomaticFormatResolver();
+
+        $resolved = $resolver->resolve('best', [
+            'is_live' => true,
+            'live_status' => 'is_live',
+            'requested_downloads' => [
+                ['format_id' => '616', 'ext' => 'mp4', 'vcodec' => 'vp09.00.51.08', 'acodec' => 'opus'],
+            ],
+            'formats' => [
+                [
+                    'format_id' => '616',
+                    'ext' => 'mp4',
+                    'protocol' => 'm3u8_native',
+                    'acodec' => 'opus',
+                    'vcodec' => 'vp09.00.51.08',
+                    'height' => 1080,
+                    'fps' => 30,
+                    'tbr' => 2800,
+                ],
+                [
+                    'format_id' => '22',
+                    'ext' => 'mp4',
+                    'protocol' => 'https',
+                    'acodec' => 'mp4a.40.2',
+                    'vcodec' => 'avc1.64001F',
+                    'height' => 720,
+                    'fps' => 30,
+                    'tbr' => 900,
+                ],
+            ],
+        ], false, 'mp4');
+
+        self::assertSame('22', $resolved);
+    }
+
     public function testResolveUsesRequestedDownloadFormatForPostLiveStreams(): void
     {
         $resolver = new AutomaticFormatResolver();

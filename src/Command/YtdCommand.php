@@ -50,6 +50,7 @@ final class YtdCommand extends Command
             ->addOption('insecure', 'i', InputOption::VALUE_NONE, 'Отключить проверку SSL сертификатов')
             ->addOption('manual', 'm', InputOption::VALUE_NONE, 'Ручной режим (выбор формата)')
             ->addOption('audio', 'a', InputOption::VALUE_NONE, 'Скачать только аудио в лучшем формате (opus)')
+            ->addOption('fast', null, InputOption::VALUE_NONE, 'Скачать видео и аудио параллельно, затем объединить через ffmpeg')
             ->addOption('quality', 'Q', InputOption::VALUE_REQUIRED, 'Качество видео: b/best, m/medium, l/low', 'b')
             ->addOption('dry-run', null, InputOption::VALUE_NONE, 'Показать, что будет скачано, но не запускать загрузку')
             ->addOption('mp4', null, InputOption::VALUE_NONE, 'Сохранить в формате MP4 (вместо MKV)')
@@ -78,6 +79,10 @@ final class YtdCommand extends Command
             $this->ytDlpClient->checkBinary();
 
             if ($this->playlistService->shouldTreatAsPlaylist($videoUrl, $options)) {
+                if ($options->fastMode) {
+                    throw new UserFacingException('`--fast` пока поддерживается только для одиночных видео.');
+                }
+
                 return $this->playlistFlowService->handle($videoUrl, $options);
             }
 
@@ -101,13 +106,18 @@ final class YtdCommand extends Command
         $outputFormat = $this->resolveOutputFormat($input);
         $currentProxy = $proxyUrl !== null ? '--proxy=' . $proxyUrl : null;
         $progressNewline = $this->resolveProgressNewlineOverride($input);
+        $manualMode = (bool) $input->getOption('manual');
+        $audioOnly = (bool) $input->getOption('audio');
+        $fastMode = (bool) $input->getOption('fast');
+        $this->validateFastMode($fastMode, $manualMode, $audioOnly);
 
         return new RuntimeOptions(
             $proxyUrl,
             $currentProxy,
             (bool) $input->getOption('insecure'),
-            (bool) $input->getOption('manual'),
-            (bool) $input->getOption('audio'),
+            $manualMode,
+            $audioOnly,
+            $fastMode,
             $this->resolveQualityPreset($input),
             (bool) $input->getOption('dry-run'),
             !(bool) $input->getOption('no-playlist-sizes'),
@@ -122,6 +132,21 @@ final class YtdCommand extends Command
             $route->matchedPattern,
             $route->hostname,
         );
+    }
+
+    private function validateFastMode(bool $fastMode, bool $manualMode, bool $audioOnly): void
+    {
+        if (!$fastMode) {
+            return;
+        }
+
+        if ($audioOnly) {
+            throw new UserFacingException('`--fast` нельзя использовать вместе с `--audio`: аудио-режим уже скачивает только один поток.');
+        }
+
+        if ($manualMode) {
+            throw new UserFacingException('`--fast` пока не поддерживает `--manual`: быстрый режим сам выбирает пару video/audio потоков.');
+        }
     }
 
     private function resolveOutputFormat(InputInterface $input): string
