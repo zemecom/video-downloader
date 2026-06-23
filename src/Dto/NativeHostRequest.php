@@ -6,12 +6,6 @@ namespace YtdPhp\Dto;
 
 use YtdPhp\Exception\NativeHostException;
 
-use function filter_var;
-use function in_array;
-use function is_string;
-use function parse_url;
-use function strtolower;
-
 use const FILTER_VALIDATE_URL;
 
 final readonly class NativeHostRequest
@@ -51,7 +45,7 @@ final readonly class NativeHostRequest
             $action = self::START_DOWNLOAD;
         }
 
-        if (!is_string($action) || $action === '') {
+        if (!\is_string($action) || $action === '') {
             throw new NativeHostException('invalid_payload', 'Invalid native host payload.');
         }
 
@@ -66,16 +60,16 @@ final readonly class NativeHostRequest
 
     private static function validateUrl(mixed $url): string
     {
-        if (!is_string($url) || $url === '') {
+        if (!\is_string($url) || $url === '') {
             throw new NativeHostException('invalid_payload', 'Invalid native host payload.');
         }
 
-        if (filter_var($url, FILTER_VALIDATE_URL) === false) {
+        if (\filter_var($url, FILTER_VALIDATE_URL) === false) {
             throw new NativeHostException('invalid_url', 'Invalid URL.');
         }
 
-        $scheme = strtolower((string) (parse_url($url, PHP_URL_SCHEME) ?? ''));
-        if (!in_array($scheme, ['http', 'https'], true)) {
+        $scheme = \strtolower((string) (\parse_url($url, PHP_URL_SCHEME) ?? ''));
+        if (!\in_array($scheme, ['http', 'https'], true)) {
             throw new NativeHostException('unsupported_page', 'Unsupported page URL.');
         }
 
@@ -84,7 +78,7 @@ final readonly class NativeHostRequest
 
     private static function validateJobId(mixed $jobId): string
     {
-        if (!is_string($jobId) || $jobId === '' || preg_match('/^[A-Za-z0-9._-]+$/', $jobId) !== 1) {
+        if (!\is_string($jobId) || $jobId === '' || preg_match('/^[A-Za-z0-9._-]+$/', $jobId) !== 1) {
             throw new NativeHostException('invalid_payload', 'Invalid native host payload.');
         }
 
@@ -97,7 +91,7 @@ final readonly class NativeHostRequest
             return self::MODE_VIDEO;
         }
 
-        if (!is_string($mode) || !in_array($mode, [self::MODE_VIDEO, self::MODE_AUDIO], true)) {
+        if (!\is_string($mode) || !\in_array($mode, [self::MODE_VIDEO, self::MODE_AUDIO], true)) {
             throw new NativeHostException('invalid_payload', 'Invalid native host payload.');
         }
 
@@ -106,7 +100,7 @@ final readonly class NativeHostRequest
 
     private static function validateEntryId(mixed $entryId): string
     {
-        if (!is_string($entryId) || $entryId === '' || preg_match('/^[A-Za-z0-9._-]+$/', $entryId) !== 1) {
+        if (!\is_string($entryId) || $entryId === '' || preg_match('/^[A-Za-z0-9._-]+$/', $entryId) !== 1) {
             throw new NativeHostException('invalid_payload', 'Invalid native host payload.');
         }
 
