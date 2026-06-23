@@ -56,7 +56,7 @@ Node.js/npm для текущего Chrome-расширения не нужны:
 ### Вариант 1. Быстрая локальная установка через Makefile
 
 ```bash
-cd ytd
+cd /path/to/video-downloader
 make install-deps
 make init
 ```
@@ -90,7 +90,7 @@ make install PHP_ALIAS_NAME=ytd
 Затем поставь PHP-зависимости проекта:
 
 ```bash
-cd ytd
+cd /path/to/video-downloader
 composer install
 cp .env.example .env
 cp proxy_rules.example.yaml proxy_rules.yaml
@@ -287,71 +287,19 @@ ytdphp URL
 
 ### Примеры
 
-Скачать одно видео:
-
-```bash
-php bin/ytd https://youtu.be/example
-```
-
-Показать форматы и выбрать вручную:
-
-```bash
-php bin/ytd https://youtu.be/example -m
-```
-
-Скачать только аудио:
-
-```bash
-php bin/ytd https://youtu.be/example -a
-```
-
-Скачать в среднем качестве:
-
-```bash
-php bin/ytd https://youtu.be/example -Q m
-```
-
-Скачать быстрее, параллельно загрузив video/audio потоки и объединив их через `ffmpeg`:
-
-```bash
-php bin/ytd https://youtu.be/example --fast
-```
-
-Принудительно использовать удалённый прокси:
-
-```bash
-php bin/ytd https://youtu.be/example -r
-```
-
-Полностью отключить прокси:
-
-```bash
-php bin/ytd https://youtu.be/example -np
-```
-
-Сделать dry-run:
-
-```bash
-php bin/ytd https://youtu.be/example -dr
-```
-
-Скачать в MP4:
-
-```bash
-php bin/ytd https://youtu.be/example --mp4
-```
-
-Скачать в произвольную папку и сделать более редкий прогресс:
-
-```bash
-php bin/ytd https://youtu.be/example --download-dir ~/Desktop/Test --progress-delta 1.5
-```
-
-Запустить проверку окружения:
-
-```bash
-php bin/ytd -dc
-```
+| Сценарий | Команда |
+| :--- | :--- |
+| Скачать одно видео | `php bin/ytd https://youtu.be/example` |
+| Показать форматы и выбрать вручную | `php bin/ytd https://youtu.be/example -m` |
+| Скачать только аудио | `php bin/ytd https://youtu.be/example -a` |
+| Скачать в среднем качестве | `php bin/ytd https://youtu.be/example -Q m` |
+| Скачать быстрее, параллельно загрузив video/audio потоки и объединив их через `ffmpeg` | `php bin/ytd https://youtu.be/example --fast` |
+| Принудительно использовать удалённый прокси | `php bin/ytd https://youtu.be/example -r` |
+| Полностью отключить прокси | `php bin/ytd https://youtu.be/example -np` |
+| Сделать dry-run | `php bin/ytd https://youtu.be/example -dr` |
+| Скачать в MP4 | `php bin/ytd https://youtu.be/example --mp4` |
+| Скачать в произвольную папку и сделать более редкий прогресс | `php bin/ytd https://youtu.be/example --download-dir ~/Desktop/Test --progress-delta 1.5` |
+| Запустить проверку окружения | `php bin/ytd -dc` |
 
 ## Разработка
 
