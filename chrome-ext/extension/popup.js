@@ -2,13 +2,28 @@ const buttons = Array.from(document.querySelectorAll('[data-mode]'));
 const statusNode = document.querySelector('.status');
 const recentListNode = document.querySelector('.recent-list');
 const recentEmptyNode = document.querySelector('.recent-empty');
+const activeDownloadNode = document.querySelector('.active-download');
+const activeDownloadStatusNode = document.querySelector('.active-download-status');
+const activeDownloadFillNode = document.querySelector('.active-download-fill');
+const activeDownloadPhaseNode = document.querySelector('.active-download-phase');
+const activeDownloadPercentNode = document.querySelector('.active-download-percent');
+const activeDownloadCancelButton = document.querySelector('.active-download-cancel');
+
+let activePollTimer = null;
+let activePollGeneration = 0;
+let activeJobId = null;
 
 loadRecentDownloads();
+startActiveDownloadPolling();
 
 buttons.forEach((button) => {
   button.addEventListener('click', () => {
     startDownload(button.dataset.mode === 'audio' ? 'audio' : 'video');
   });
+});
+
+activeDownloadCancelButton.addEventListener('click', () => {
+  cancelActiveDownload();
 });
 
 async function startDownload(mode) {
@@ -28,6 +43,10 @@ async function startDownload(mode) {
   });
 
   if (response?.ok) {
+    if (response.payload) {
+      renderActiveDownload(response.payload);
+    }
+
     window.close();
     return;
   }
@@ -175,6 +194,159 @@ async function runRecentAction(type, entryId, pendingMessage, reloadOnSuccess = 
   }
 }
 
+function startActiveDownloadPolling() {
+  if (activePollTimer !== null) {
+    clearTimeout(activePollTimer);
+    activePollTimer = null;
+  }
+
+  const generation = ++activePollGeneration;
+  void pollActiveDownload(generation);
+}
+
+function scheduleActiveDownloadPoll(generation, delayMs = 1000) {
+  activePollTimer = setTimeout(() => {
+    activePollTimer = null;
+    void pollActiveDownload(generation);
+  }, delayMs);
+}
+
+function stopActiveDownloadPolling() {
+  activePollGeneration += 1;
+
+  if (activePollTimer !== null) {
+    clearTimeout(activePollTimer);
+    activePollTimer = null;
+  }
+}
+
+async function pollActiveDownload(generation) {
+  const response = await sendMessage({
+    type: 'ytd:get-active-download',
+  });
+
+  if (generation !== activePollGeneration) {
+    return;
+  }
+
+  if (!response?.ok) {
+    renderActiveDownloadError(response?.errorMessage || 'Не удалось получить статус загрузки.');
+    scheduleActiveDownloadPoll(generation, 2000);
+    return;
+  }
+
+  if (!response.payload) {
+    hideActiveDownload();
+    return;
+  }
+
+  renderActiveDownload(response.payload);
+
+  if (isTerminalStatus(response.payload.status)) {
+    await loadRecentDownloads();
+    return;
+  }
+
+  scheduleActiveDownloadPoll(generation);
+}
+
+async function cancelActiveDownload() {
+  if (!activeJobId) {
+    return;
+  }
+
+  activeDownloadCancelButton.disabled = true;
+  renderActiveDownload({
+    jobId: activeJobId,
+    status: 'cancelling',
+    progressPercent: null,
+    progressText: 'Останавливаю загрузку...',
+    canCancel: false,
+  });
+
+  const response = await sendMessage({
+    type: 'ytd:cancel-download',
+    jobId: activeJobId,
+  });
+
+  if (!response?.ok) {
+    renderActiveDownloadError(response?.errorMessage || 'Не удалось отменить загрузку.');
+    return;
+  }
+
+  if (response.payload) {
+    renderActiveDownload(response.payload);
+  }
+
+  startActiveDownloadPolling();
+}
+
+function renderActiveDownload(payload) {
+  const status = typeof payload?.status === 'string' ? payload.status : 'starting';
+  const progressText = typeof payload?.progressText === 'string' ? payload.progressText : 'Подготавливаю загрузку...';
+  const progressPercent = typeof payload?.progressPercent === 'number' ? payload.progressPercent : null;
+  const canCancel = Boolean(payload?.canCancel);
+
+  activeJobId = typeof payload?.jobId === 'string' && payload.jobId !== '' ? payload.jobId : activeJobId;
+  activeDownloadNode.hidden = false;
+  activeDownloadStatusNode.textContent = progressText;
+  activeDownloadPhaseNode.textContent = statusLabel(status);
+  activeDownloadPercentNode.textContent = progressPercent === null ? '--' : `${Math.round(progressPercent)}%`;
+  activeDownloadCancelButton.textContent = isTerminalStatus(status) ? 'Готово' : 'Отменить';
+  activeDownloadCancelButton.disabled = !canCancel || isTerminalStatus(status);
+
+  if (progressPercent === null || status === 'starting' || status === 'cancelling') {
+    activeDownloadFillNode.dataset.indeterminate = 'true';
+    activeDownloadFillNode.style.width = '38%';
+    return;
+  }
+
+  activeDownloadFillNode.dataset.indeterminate = 'false';
+  activeDownloadFillNode.style.width = `${Math.max(0, Math.min(100, progressPercent))}%`;
+}
+
+function renderActiveDownloadError(message) {
+  activeDownloadNode.hidden = false;
+  activeDownloadStatusNode.textContent = message;
+  activeDownloadPhaseNode.textContent = 'Ошибка';
+  activeDownloadPercentNode.textContent = '--';
+  activeDownloadCancelButton.disabled = true;
+  activeDownloadFillNode.dataset.indeterminate = 'true';
+  activeDownloadFillNode.style.width = '38%';
+}
+
+function hideActiveDownload() {
+  activeJobId = null;
+  activeDownloadNode.hidden = true;
+  activeDownloadStatusNode.textContent = '';
+  activeDownloadPhaseNode.textContent = 'Подготовка';
+  activeDownloadPercentNode.textContent = '--';
+  activeDownloadCancelButton.disabled = false;
+  activeDownloadFillNode.dataset.indeterminate = 'true';
+  activeDownloadFillNode.style.width = '38%';
+}
+
+function statusLabel(status) {
+  switch (status) {
+    case 'downloading':
+      return 'Идёт загрузка';
+    case 'completed':
+      return 'Готово';
+    case 'failed':
+      return 'Ошибка';
+    case 'cancelled':
+      return 'Отменено';
+    case 'cancelling':
+      return 'Останавливаю';
+    default:
+      return 'Подготовка';
+  }
+}
+
+function isTerminalStatus(status) {
+  return status === 'completed' || status === 'failed' || status === 'cancelled';
+}
+
 function setBusyState(isBusy) {
   buttons.forEach((button) => {
     button.disabled = isBusy;
@@ -201,3 +373,7 @@ function sendMessage(message) {
     });
   });
 }
+
+globalThis.addEventListener('unload', () => {
+  stopActiveDownloadPolling();
+});

@@ -90,6 +90,73 @@ PHP);
         }
     }
 
+    public function testRunStopsDownloadProcessWhenCancellationIsRequestedBeforeOutputIsReady(): void
+    {
+        $root = \sys_get_temp_dir() . '/ytd_native_runner_cancel_' . \uniqid();
+        \mkdir($root . '/bin', 0777, true);
+        \mkdir($root . '/downloads', 0777, true);
+        putenv('YTD_PROJECT_ROOT=' . $root);
+
+        try {
+            \file_put_contents($root . '/bin/ytd', <<<'PHP'
+#!/usr/bin/env php
+<?php
+fwrite(STDOUT, "[download]   12.0% of 10.00MiB at 2.00MiB/s ETA 00:05\n");
+fflush(STDOUT);
+usleep(1800000);
+file_put_contents(__DIR__ . '/../downloads/natural-exit.txt', 'done');
+fwrite(STDOUT, "[download]   80.0% of 10.00MiB at 2.00MiB/s ETA 00:01\n");
+PHP);
+            \chmod($root . '/bin/ytd', 0777);
+
+            $runnerScript = \sprintf(
+                <<<'PHP'
+require %s;
+putenv(%s);
+$root = %s;
+$bootstrap = new \YtdPhp\Runtime\RuntimeBootstrap($root);
+$runner = new \YtdPhp\NativeHost\NativeHostJobRunnerService(
+    $bootstrap,
+    new \YtdPhp\NativeHost\NativeHostJobStateStore($bootstrap),
+    new \YtdPhp\NativeHost\NativeHostProgressParserService(),
+    new \YtdPhp\NativeHost\NativeHostRecentDownloadsStore($bootstrap),
+);
+exit($runner->run('job-cancel', 'https://example.com/watch?v=cancel', 'video'));
+PHP,
+                var_export(\dirname(__DIR__, 2) . '/vendor/autoload.php', true),
+                var_export('YTD_PROJECT_ROOT=' . $root, true),
+                var_export($root, true),
+            );
+
+            $process = new Process([PHP_BINARY, '-r', $runnerScript]);
+            $process->start();
+
+            $bootstrap = new RuntimeBootstrap($root);
+            $store = new NativeHostJobStateStore($bootstrap);
+            $deadline = \microtime(true) + 2.0;
+            do {
+                $state = $store->read('job-cancel');
+                if (\is_int($state['downloadPid'] ?? null)) {
+                    break;
+                }
+                \usleep(20000);
+            } while (\microtime(true) < $deadline);
+
+            $store->requestCancel('job-cancel');
+
+            $process->wait();
+            $state = $store->read('job-cancel');
+
+            self::assertSame(0, $process->getExitCode());
+            self::assertSame('cancelled', $state['status'] ?? null);
+            self::assertSame('Загрузка отменена.', $state['progressText'] ?? null);
+            self::assertFalse($store->cancelRequested('job-cancel'));
+            self::assertFileDoesNotExist($root . '/downloads/natural-exit.txt');
+        } finally {
+            putenv('YTD_PROJECT_ROOT');
+        }
+    }
+
     public function testRunKeepsCompletedStateWhenCancellationArrivesAfterOutputIsReady(): void
     {
         $root = \sys_get_temp_dir() . '/ytd_native_runner_late_cancel_' . \uniqid();

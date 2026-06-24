@@ -76,6 +76,98 @@ body {
   font-weight: 700;
 }
 
+.active-download {
+  margin-top: 8px;
+  padding: 8px;
+  border-radius: 10px;
+  border: 1px solid rgba(125, 220, 255, 0.14);
+  background: linear-gradient(180deg, rgba(15, 35, 60, 0.76), rgba(10, 22, 40, 0.82));
+}
+
+.active-download[hidden] {
+  display: none;
+}
+
+.active-download-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.active-download-title {
+  min-width: 0;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(173, 227, 255, 0.86);
+}
+
+.active-download-cancel {
+  flex: 0 0 auto;
+  border: 1px solid rgba(255, 160, 160, 0.3);
+  border-radius: 999px;
+  background: rgba(255, 127, 127, 0.1);
+  color: #ffdede;
+  padding: 4px 8px;
+  font-size: 9px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.active-download-cancel:hover:not(:disabled) {
+  border-color: rgba(255, 190, 190, 0.5);
+  background: rgba(255, 127, 127, 0.16);
+}
+
+.active-download-cancel:disabled {
+  opacity: 0.58;
+  cursor: default;
+}
+
+.active-download-status {
+  margin-top: 6px;
+  min-height: 26px;
+  font-size: 10px;
+  line-height: 1.3;
+  color: rgba(255, 255, 255, 0.84);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.active-download-progress {
+  margin-top: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: rgba(125, 220, 255, 0.1);
+  overflow: hidden;
+}
+
+.active-download-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--ytd-blue-1), var(--ytd-blue-2), var(--ytd-blue-4));
+  transition: width 180ms ease;
+}
+
+.active-download-fill[data-indeterminate="true"] {
+  width: 38%;
+  background: linear-gradient(90deg, rgba(125, 220, 255, 0.08), var(--ytd-blue-1), rgba(15, 92, 255, 0.18));
+  animation: ytd-popup-progress-slide 1.25s ease-in-out infinite;
+}
+
+.active-download-meta {
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 9px;
+  color: rgba(173, 227, 255, 0.72);
+}
+
 .status {
   margin: 6px 2px 0;
   font-size: 10px;
@@ -167,4 +259,14 @@ body {
   margin: 6px 0 0;
   font-size: 9px;
   color: rgba(173, 227, 255, 0.66);
+}
+
+@keyframes ytd-popup-progress-slide {
+  0% {
+    transform: translateX(-105%);
+  }
+
+  100% {
+    transform: translateX(255%);
+  }
 }

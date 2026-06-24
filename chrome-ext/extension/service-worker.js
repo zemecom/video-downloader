@@ -1,4 +1,5 @@
 const HOST_NAME = 'dev.zemecom.ytd_downloader';
+const ACTIVE_DOWNLOAD_KEY = 'activeDownload';
 // Use a data URL for notifications so the notifications backend does not need
 // to fetch an extension resource before showing the notification.
 const NOTIFICATION_ICON =
@@ -97,11 +98,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message?.type === 'ytd:get-active-download') {
+    getActiveDownload().then(sendResponse);
+
+    return true;
+  }
+
   if (message?.type === 'ytd:cancel-download') {
-    callNativeHost({
-      action: 'cancel_download',
-      jobId: message.jobId,
-    }).then(sendResponse);
+    cancelDownload(message).then(sendResponse);
 
     return true;
   }
@@ -164,11 +168,70 @@ async function startDownload(message) {
     type: 'ytd-overlay-bind-job',
     ...response.payload,
   });
+  await rememberActiveDownload({
+    ...response.payload,
+    mode,
+    url,
+  });
 
   return {
     ok: true,
     payload: response.payload,
   };
+}
+
+async function getActiveDownload() {
+  const activeDownload = await readActiveDownload();
+  const jobId = normalizeText(activeDownload?.jobId);
+
+  if (jobId === '') {
+    return {
+      ok: true,
+      payload: null,
+    };
+  }
+
+  const response = await callNativeHost({
+    action: 'get_job_status',
+    jobId,
+  });
+
+  if (!response.ok) {
+    if (response.errorCode === 'job_not_found') {
+      await forgetActiveDownload(jobId);
+
+      return {
+        ok: true,
+        payload: null,
+      };
+    }
+
+    return response;
+  }
+
+  await rememberActiveDownload(response.payload);
+
+  return response;
+}
+
+async function cancelDownload(message) {
+  const jobId = normalizeText(message?.jobId);
+  const response = await callNativeHost({
+    action: 'cancel_download',
+    jobId,
+  });
+
+  if (!response.ok) {
+    if (response.errorCode === 'job_not_found') {
+      await forgetActiveDownload(jobId);
+    }
+
+    return response;
+  }
+
+  await rememberActiveDownload(response.payload);
+
+  return response;
 }
 
 async function previewRecentDownload(message) {
@@ -332,6 +395,44 @@ function resolveYoutubeOriginTabId(message, sender = null) {
 
 function normalizeText(value) {
   return typeof value === 'string' ? value : '';
+}
+
+async function readActiveDownload() {
+  const items = await chrome.storage.session.get(ACTIVE_DOWNLOAD_KEY);
+  const activeDownload = items[ACTIVE_DOWNLOAD_KEY];
+
+  return activeDownload && typeof activeDownload === 'object' ? activeDownload : null;
+}
+
+async function rememberActiveDownload(payload) {
+  const jobId = normalizeText(payload?.jobId);
+
+  if (jobId === '') {
+    return;
+  }
+
+  const existing = await readActiveDownload();
+  const isExistingDownload = normalizeText(existing?.jobId) === jobId;
+  await chrome.storage.session.set({
+    [ACTIVE_DOWNLOAD_KEY]: {
+      jobId,
+      mode: payload?.mode === 'audio' ? 'audio' : 'video',
+      status: normalizeText(payload?.status) || 'starting',
+      url: normalizeText(payload?.url) || (isExistingDownload ? normalizeText(existing?.url) : ''),
+      startedAt: isExistingDownload && Number.isFinite(existing?.startedAt) ? existing.startedAt : Date.now(),
+      updatedAt: Date.now(),
+    },
+  });
+}
+
+async function forgetActiveDownload(jobId) {
+  const activeDownload = await readActiveDownload();
+
+  if (normalizeText(activeDownload?.jobId) !== jobId) {
+    return;
+  }
+
+  await chrome.storage.session.remove(ACTIVE_DOWNLOAD_KEY);
 }
 
 function createPreviewId() {

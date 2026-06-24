@@ -304,8 +304,8 @@ final class NativeHostJobManagerService
     private function makeDefaultSignalSender(): Closure
     {
         return static function (int $pid): void {
-            (new Process(['kill', '-TERM', (string) $pid]))->run();
             (new Process(['pkill', '-TERM', '-P', (string) $pid]))->run();
+            (new Process(['kill', '-TERM', (string) $pid]))->run();
         };
     }
 

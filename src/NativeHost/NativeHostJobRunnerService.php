@@ -96,14 +96,11 @@ final readonly class NativeHostJobRunnerService
         }
 
         $buffers = [1 => '', 2 => ''];
+        $terminationRequested = false;
         while (true) {
-            if ($this->store->cancelRequested($jobId)) {
-                $state = $this->store->read($jobId) ?? $state;
-                $state['status'] = 'cancelling';
-                $state['progressText'] = 'Останавливаю загрузку...';
-                $state['canCancel'] = false;
-                $state['updatedAt'] = $this->now();
-                $this->store->write($jobId, $state);
+            $cancelRequested = $this->store->cancelRequested($jobId);
+            if ($cancelRequested) {
+                $state = $this->markCancelling($jobId, $state);
             }
 
             $read = [];
@@ -133,18 +130,14 @@ final readonly class NativeHostJobRunnerService
                             continue;
                         }
 
-                        $state = $this->store->read($jobId) ?? $state;
-                        $state['status'] = $parsed['status'];
-                        $state['progressPercent'] = $parsed['progressPercent'];
-                        $state['progressText'] = $parsed['progressText'];
-                        if (\is_string($parsed['outputPath'] ?? null) && $parsed['outputPath'] !== '') {
-                            $state['outputPath'] = $parsed['outputPath'];
-                        }
-                        $state['canCancel'] = !\in_array($state['status'], ['completed', 'failed', 'cancelled'], true);
-                        $state['updatedAt'] = $this->now();
-                        $this->store->write($jobId, $state);
+                        $state = $this->applyParsedOutput($jobId, $state, $parsed);
                     }
                 }
+            }
+
+            if ($cancelRequested && !$terminationRequested && !$this->hasOutputFile($state)) {
+                $this->terminateProcess($process, $state);
+                $terminationRequested = true;
             }
 
             $running = \proc_get_status($process);
@@ -170,10 +163,8 @@ final readonly class NativeHostJobRunnerService
         $exitCode = \proc_close($process);
         $state = $this->store->read($jobId) ?? $state;
 
-        $outputPath = \is_string($state['outputPath'] ?? null)
-            ? (string) $state['outputPath']
-            : null;
-        $hasOutputFile = \is_string($outputPath) && $outputPath !== '' && \file_exists($outputPath);
+        $outputPath = $this->outputPath($state);
+        $hasOutputFile = $this->hasOutputFile($state);
         $cancelRequested = $this->store->cancelRequested($jobId) || ($state['status'] ?? null) === 'cancelling';
 
         if ($exitCode === 0 && ($hasOutputFile || !$cancelRequested)) {
@@ -254,18 +245,92 @@ final readonly class NativeHostJobRunnerService
                 continue;
             }
 
-            $state['status'] = $parsed['status'];
-            $state['progressPercent'] = $parsed['progressPercent'];
-            $state['progressText'] = $parsed['progressText'];
-            if (\is_string($parsed['outputPath'] ?? null) && $parsed['outputPath'] !== '') {
-                $state['outputPath'] = $parsed['outputPath'];
-            }
-            $state['canCancel'] = !\in_array($state['status'], ['completed', 'failed', 'cancelled'], true);
-            $state['updatedAt'] = $this->now();
-            $this->store->write($jobId, $state);
+            $state = $this->applyParsedOutput($jobId, $state, $parsed);
         }
 
         return $state;
+    }
+
+    /**
+     * @param array<string, mixed> $state
+     * @return array<string, mixed>
+     */
+    private function markCancelling(string $jobId, array $state): array
+    {
+        $state = $this->store->read($jobId) ?? $state;
+        $state['status'] = 'cancelling';
+        $state['progressText'] = 'Останавливаю загрузку...';
+        $state['canCancel'] = false;
+        $state['updatedAt'] = $this->now();
+        $this->store->write($jobId, $state);
+
+        return $state;
+    }
+
+    /**
+     * @param array<string, mixed> $state
+     */
+    private function terminateProcess(mixed $process, array $state): void
+    {
+        $pid = $state['downloadPid'] ?? null;
+        if (\is_int($pid) && $pid > 0) {
+            (new Process(['pkill', '-TERM', '-P', (string) $pid]))->run();
+        }
+
+        \proc_terminate($process);
+    }
+
+    /**
+     * @param array<string, mixed> $state
+     * @param array{status:string, progressPercent:?float, progressText:string, outputPath?:string} $parsed
+     * @return array<string, mixed>
+     */
+    private function applyParsedOutput(string $jobId, array $state, array $parsed): array
+    {
+        $state = $this->store->read($jobId) ?? $state;
+        if (\is_string($parsed['outputPath'] ?? null) && $parsed['outputPath'] !== '') {
+            $state['outputPath'] = $parsed['outputPath'];
+        }
+
+        if (!$this->isCancelling($jobId, $state)) {
+            $state['status'] = $parsed['status'];
+            $state['progressPercent'] = $parsed['progressPercent'];
+            $state['progressText'] = $parsed['progressText'];
+            $state['canCancel'] = !\in_array($state['status'], ['completed', 'failed', 'cancelled'], true);
+        }
+
+        $state['updatedAt'] = $this->now();
+        $this->store->write($jobId, $state);
+
+        return $state;
+    }
+
+    /**
+     * @param array<string, mixed> $state
+     */
+    private function isCancelling(string $jobId, array $state): bool
+    {
+        return $this->store->cancelRequested($jobId) || ($state['status'] ?? null) === 'cancelling';
+    }
+
+    /**
+     * @param array<string, mixed> $state
+     */
+    private function hasOutputFile(array $state): bool
+    {
+        $outputPath = $this->outputPath($state);
+
+        return $outputPath !== null && \file_exists($outputPath);
+    }
+
+    /**
+     * @param array<string, mixed> $state
+     */
+    private function outputPath(array $state): ?string
+    {
+        return \is_string($state['outputPath'] ?? null) && $state['outputPath'] !== ''
+            ? (string) $state['outputPath']
+            : null;
     }
 
     private function now(): string
