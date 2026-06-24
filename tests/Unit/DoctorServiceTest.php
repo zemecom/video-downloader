@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace YtdPhp\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
-use YtdPhp\Bootstrap\RuntimeBootstrap;
-use YtdPhp\Service\DoctorService;
-use YtdPhp\Service\RoutingService;
+use YtdPhp\Runtime\RuntimeBootstrap;
+use YtdPhp\Diagnostics\DoctorService;
+use YtdPhp\Routing\RoutingService;
 
 final class DoctorServiceTest extends TestCase
 {

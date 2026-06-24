@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace YtdPhp\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
-use YtdPhp\Bootstrap\RuntimeBootstrap;
-use YtdPhp\Service\NativeHostRecentDownloadsStore;
+use YtdPhp\Runtime\RuntimeBootstrap;
+use YtdPhp\NativeHost\NativeHostRecentDownloadsStore;
 
 use const JSON_THROW_ON_ERROR;
 

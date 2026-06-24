@@ -7,19 +7,19 @@ namespace YtdPhp\Tests\Unit;
 use PHPUnit\Framework\TestCase;
 use ReflectionMethod;
 use Symfony\Component\Console\Input\ArrayInput;
-use YtdPhp\Bootstrap\RuntimeBootstrap;
+use YtdPhp\Runtime\RuntimeBootstrap;
 use YtdPhp\Command\YtdCommand;
-use YtdPhp\Dto\RuntimeOptions;
-use YtdPhp\Exception\UserFacingException;
-use YtdPhp\Service\ConsoleLogger;
-use YtdPhp\Service\DoctorService;
-use YtdPhp\Service\DownloaderService;
-use YtdPhp\Service\InputPrompter;
-use YtdPhp\Service\PlaylistFlowService;
-use YtdPhp\Service\PlaylistService;
-use YtdPhp\Service\RoutingService;
-use YtdPhp\Service\SingleVideoFlowService;
-use YtdPhp\Service\YtDlpClient;
+use YtdPhp\Runtime\RuntimeOptions;
+use YtdPhp\Shared\UserFacingException;
+use YtdPhp\Shared\ConsoleLogger;
+use YtdPhp\Diagnostics\DoctorService;
+use YtdPhp\Download\DownloaderService;
+use YtdPhp\Shared\InputPrompter;
+use YtdPhp\Playlist\PlaylistFlowService;
+use YtdPhp\Playlist\PlaylistService;
+use YtdPhp\Routing\RoutingService;
+use YtdPhp\Download\SingleVideoFlowService;
+use YtdPhp\Download\YtDlpClient;
 
 final class YtdCommandTest extends TestCase
 {

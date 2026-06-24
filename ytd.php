@@ -3,8 +3,8 @@
 declare(strict_types=1);
 
 use YtdPhp\Application;
-use YtdPhp\Bootstrap\RuntimeBootstrap;
-use YtdPhp\Service\ErrorLogService;
+use YtdPhp\Runtime\RuntimeBootstrap;
+use YtdPhp\Runtime\ErrorLogService;
 
 if (! function_exists('ytd_run')) {
     function ytd_run(string $projectRoot): int

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace YtdPhp\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
-use YtdPhp\Service\YtDlpCommandBuilder;
+use YtdPhp\Download\YtDlpCommandBuilder;
 
 final class YtDlpCommandBuilderTest extends TestCase
 {

@@ -5,17 +5,17 @@ declare(strict_types=1);
 namespace YtdPhp;
 
 use Symfony\Component\Console\Application as SymfonyApplication;
-use YtdPhp\Bootstrap\RuntimeBootstrap;
+use YtdPhp\Runtime\RuntimeBootstrap;
 use YtdPhp\Command\YtdCommand;
-use YtdPhp\Service\ConsoleLogger;
-use YtdPhp\Service\DoctorService;
-use YtdPhp\Service\DownloaderService;
-use YtdPhp\Service\InputPrompter;
-use YtdPhp\Service\PlaylistFlowService;
-use YtdPhp\Service\PlaylistService;
-use YtdPhp\Service\RoutingService;
-use YtdPhp\Service\SingleVideoFlowService;
-use YtdPhp\Service\YtDlpClient;
+use YtdPhp\Shared\ConsoleLogger;
+use YtdPhp\Diagnostics\DoctorService;
+use YtdPhp\Download\DownloaderService;
+use YtdPhp\Shared\InputPrompter;
+use YtdPhp\Playlist\PlaylistFlowService;
+use YtdPhp\Playlist\PlaylistService;
+use YtdPhp\Routing\RoutingService;
+use YtdPhp\Download\SingleVideoFlowService;
+use YtdPhp\Download\YtDlpClient;
 
 final class Application
 {

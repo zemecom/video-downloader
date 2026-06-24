@@ -5,17 +5,17 @@ declare(strict_types=1);
 namespace YtdPhp\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
-use YtdPhp\Bootstrap\RuntimeBootstrap;
-use YtdPhp\Dto\PlaylistInfo;
-use YtdPhp\Dto\PlaylistItem;
-use YtdPhp\Dto\PlaylistSelectionSummary;
-use YtdPhp\Dto\RuntimeOptions;
-use YtdPhp\Dto\SelectedItemMetadata;
-use YtdPhp\Service\ConsoleLogger;
-use YtdPhp\Service\DownloaderService;
-use YtdPhp\Service\InputPrompter;
-use YtdPhp\Service\PlaylistService;
-use YtdPhp\Service\YtDlpClient;
+use YtdPhp\Runtime\RuntimeBootstrap;
+use YtdPhp\Playlist\PlaylistInfo;
+use YtdPhp\Playlist\PlaylistItem;
+use YtdPhp\Playlist\PlaylistSelectionSummary;
+use YtdPhp\Runtime\RuntimeOptions;
+use YtdPhp\Playlist\SelectedItemMetadata;
+use YtdPhp\Shared\ConsoleLogger;
+use YtdPhp\Download\DownloaderService;
+use YtdPhp\Shared\InputPrompter;
+use YtdPhp\Playlist\PlaylistService;
+use YtdPhp\Download\YtDlpClient;
 
 final class PlaylistServiceTest extends TestCase
 {

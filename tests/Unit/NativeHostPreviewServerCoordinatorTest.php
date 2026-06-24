@@ -6,9 +6,9 @@ namespace YtdPhp\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Process\Process;
-use YtdPhp\Bootstrap\RuntimeBootstrap;
-use YtdPhp\Service\NativeHostPreviewServerCoordinator;
-use YtdPhp\Service\NativeHostPreviewServerStateStore;
+use YtdPhp\Runtime\RuntimeBootstrap;
+use YtdPhp\NativeHost\NativeHostPreviewServerCoordinator;
+use YtdPhp\NativeHost\NativeHostPreviewServerStateStore;
 
 final class NativeHostPreviewServerCoordinatorTest extends TestCase
 {

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace YtdPhp\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
-use YtdPhp\Service\AutomaticFormatResolver;
+use YtdPhp\Download\AutomaticFormatResolver;
 
 final class AutomaticFormatResolverTest extends TestCase
 {

@@ -9,17 +9,17 @@ use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
-use YtdPhp\Bootstrap\RuntimeBootstrap;
-use YtdPhp\Dto\RuntimeOptions;
-use YtdPhp\Exception\RoutingConfigException;
-use YtdPhp\Exception\UserFacingException;
-use YtdPhp\Service\ConsoleLogger;
-use YtdPhp\Service\DoctorService;
-use YtdPhp\Service\PlaylistFlowService;
-use YtdPhp\Service\PlaylistService;
-use YtdPhp\Service\RoutingService;
-use YtdPhp\Service\SingleVideoFlowService;
-use YtdPhp\Service\YtDlpClient;
+use YtdPhp\Runtime\RuntimeBootstrap;
+use YtdPhp\Runtime\RuntimeOptions;
+use YtdPhp\Routing\RoutingConfigException;
+use YtdPhp\Shared\UserFacingException;
+use YtdPhp\Shared\ConsoleLogger;
+use YtdPhp\Diagnostics\DoctorService;
+use YtdPhp\Playlist\PlaylistFlowService;
+use YtdPhp\Playlist\PlaylistService;
+use YtdPhp\Routing\RoutingService;
+use YtdPhp\Download\SingleVideoFlowService;
+use YtdPhp\Download\YtDlpClient;
 
 final class YtdCommand extends Command
 {

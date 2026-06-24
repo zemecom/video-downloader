@@ -6,11 +6,11 @@ namespace YtdPhp\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Output\BufferedOutput;
-use YtdPhp\Bootstrap\RuntimeBootstrap;
-use YtdPhp\Service\ConsoleLogger;
-use YtdPhp\Service\DownloaderService;
-use YtdPhp\Service\InputPrompter;
-use YtdPhp\Service\YtDlpClient;
+use YtdPhp\Runtime\RuntimeBootstrap;
+use YtdPhp\Shared\ConsoleLogger;
+use YtdPhp\Download\DownloaderService;
+use YtdPhp\Shared\InputPrompter;
+use YtdPhp\Download\YtDlpClient;
 use YtdPhp\Tests\Support\FakeDownloaderBinaries;
 
 final class DownloaderServiceTest extends TestCase

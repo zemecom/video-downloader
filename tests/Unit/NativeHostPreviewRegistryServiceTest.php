@@ -6,8 +6,8 @@ namespace YtdPhp\Tests\Unit;
 
 use DateTimeImmutable;
 use PHPUnit\Framework\TestCase;
-use YtdPhp\Bootstrap\RuntimeBootstrap;
-use YtdPhp\Service\NativeHostPreviewRegistryService;
+use YtdPhp\Runtime\RuntimeBootstrap;
+use YtdPhp\NativeHost\NativeHostPreviewRegistryService;
 
 final class NativeHostPreviewRegistryServiceTest extends TestCase
 {

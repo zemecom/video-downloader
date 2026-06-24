@@ -6,8 +6,8 @@ namespace YtdPhp\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Output\BufferedOutput;
-use YtdPhp\Service\ConsoleLogger;
-use YtdPhp\Service\YtDlpProgressRenderer;
+use YtdPhp\Shared\ConsoleLogger;
+use YtdPhp\Download\YtDlpProgressRenderer;
 
 final class YtDlpProgressRendererTest extends TestCase
 {

@@ -3,15 +3,15 @@
 
 declare(strict_types=1);
 
-use YtdPhp\Bootstrap\RuntimeBootstrap;
-use YtdPhp\Dto\NativeHostResponse;
-use YtdPhp\Exception\NativeHostException;
-use YtdPhp\Service\NativeHostHandlerService;
-use YtdPhp\Service\NativeHostJobManagerService;
-use YtdPhp\Service\NativeHostRecentDownloadsStore;
-use YtdPhp\Service\NativeHostJobStateStore;
-use YtdPhp\Service\NativeHostLogService;
-use YtdPhp\Service\NativeMessagingProtocolService;
+use YtdPhp\Runtime\RuntimeBootstrap;
+use YtdPhp\NativeHost\NativeHostResponse;
+use YtdPhp\NativeHost\NativeHostException;
+use YtdPhp\NativeHost\NativeHostHandlerService;
+use YtdPhp\NativeHost\NativeHostJobManagerService;
+use YtdPhp\NativeHost\NativeHostRecentDownloadsStore;
+use YtdPhp\NativeHost\NativeHostJobStateStore;
+use YtdPhp\NativeHost\NativeHostLogService;
+use YtdPhp\NativeHost\NativeMessagingProtocolService;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 

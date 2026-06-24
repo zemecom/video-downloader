@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace YtdPhp\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
-use YtdPhp\Dto\NativeHostRequest;
-use YtdPhp\Exception\NativeHostException;
+use YtdPhp\NativeHost\NativeHostRequest;
+use YtdPhp\NativeHost\NativeHostException;
 
 final class NativeHostRequestTest extends TestCase
 {

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace YtdPhp\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
-use YtdPhp\Service\FastStreamFormatResolver;
+use YtdPhp\Download\FastStreamFormatResolver;
 
 final class FastStreamFormatResolverTest extends TestCase
 {

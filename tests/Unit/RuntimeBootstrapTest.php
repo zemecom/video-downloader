@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace YtdPhp\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
-use YtdPhp\Bootstrap\RuntimeBootstrap;
+use YtdPhp\Runtime\RuntimeBootstrap;
 
 final class RuntimeBootstrapTest extends TestCase
 {

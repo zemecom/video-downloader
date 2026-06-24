@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace YtdPhp\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
-use YtdPhp\Bootstrap\RuntimeBootstrap;
-use YtdPhp\Service\NativeHostJobManagerService;
-use YtdPhp\Service\NativeHostPreviewRegistryService;
-use YtdPhp\Service\NativeHostRecentDownloadsStore;
-use YtdPhp\Service\NativeHostJobStateStore;
+use YtdPhp\Runtime\RuntimeBootstrap;
+use YtdPhp\NativeHost\NativeHostJobManagerService;
+use YtdPhp\NativeHost\NativeHostPreviewRegistryService;
+use YtdPhp\NativeHost\NativeHostRecentDownloadsStore;
+use YtdPhp\NativeHost\NativeHostJobStateStore;
 
 final class NativeHostJobManagerServiceTest extends TestCase
 {
