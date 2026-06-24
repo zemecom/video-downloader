@@ -8,18 +8,12 @@ use PHPUnit\Framework\TestCase;
 use YtdPhp\Bootstrap\RuntimeBootstrap;
 use YtdPhp\Service\NativeHostJobStateStore;
 
-use function dirname;
-use function file_put_contents;
-use function mkdir;
-use function sys_get_temp_dir;
-use function uniqid;
-
 final class NativeHostJobStateStoreTest extends TestCase
 {
     public function testWriteAndReadRoundTripStatePayload(): void
     {
-        $root = sys_get_temp_dir() . '/ytd_native_state_' . uniqid();
-        mkdir($root, 0777, true);
+        $root = \sys_get_temp_dir() . '/ytd_native_state_' . \uniqid();
+        \mkdir($root, 0777, true);
         putenv('YTD_PROJECT_ROOT=' . $root);
 
         try {
@@ -41,8 +35,8 @@ final class NativeHostJobStateStoreTest extends TestCase
 
     public function testCancelRequestLifecycleCreatesAndClearsFlagFile(): void
     {
-        $root = sys_get_temp_dir() . '/ytd_native_cancel_state_' . uniqid();
-        mkdir($root, 0777, true);
+        $root = \sys_get_temp_dir() . '/ytd_native_cancel_state_' . \uniqid();
+        \mkdir($root, 0777, true);
         putenv('YTD_PROJECT_ROOT=' . $root);
 
         try {
@@ -62,14 +56,14 @@ final class NativeHostJobStateStoreTest extends TestCase
 
     public function testReadReturnsNullForInvalidJsonStateFile(): void
     {
-        $root = sys_get_temp_dir() . '/ytd_native_invalid_state_' . uniqid();
-        mkdir($root, 0777, true);
+        $root = \sys_get_temp_dir() . '/ytd_native_invalid_state_' . \uniqid();
+        \mkdir($root, 0777, true);
         putenv('YTD_PROJECT_ROOT=' . $root);
 
         try {
             $store = new NativeHostJobStateStore(new RuntimeBootstrap($root));
-            mkdir(dirname($store->statePath('job-bad')), 0777, true);
-            file_put_contents($store->statePath('job-bad'), '{not-json');
+            \mkdir(\dirname($store->statePath('job-bad')), 0777, true);
+            \file_put_contents($store->statePath('job-bad'), '{not-json');
 
             self::assertNull($store->read('job-bad'));
         } finally {

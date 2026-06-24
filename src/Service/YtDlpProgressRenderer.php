@@ -4,27 +4,6 @@ declare(strict_types=1);
 
 namespace YtdPhp\Service;
 
-use function array_filter;
-use function array_keys;
-use function implode;
-use function is_array;
-use function mb_strlen;
-use function mb_substr;
-use function max;
-use function min;
-use function preg_match;
-use function preg_split;
-use function round;
-use function sprintf;
-use function str_contains;
-use function str_starts_with;
-use function str_replace;
-use function str_repeat;
-use function strtolower;
-use function strtoupper;
-use function substr_count;
-use function trim;
-
 final class YtDlpProgressRenderer
 {
     private const int PANEL_WIDTH = 118;
@@ -63,14 +42,14 @@ final class YtDlpProgressRenderer
         }
         $this->states[$label] ??= $this->initialState();
 
-        $normalized = str_replace("\r", "\n", $chunk);
-        $lines = preg_split('/\n+/', $normalized);
-        if (!is_array($lines)) {
+        $normalized = \str_replace("\r", "\n", $chunk);
+        $lines = \preg_split('/\n+/', $normalized);
+        if (!\is_array($lines)) {
             return;
         }
 
-        foreach (array_filter($lines, static fn(string $line): bool => trim($line) !== '') as $line) {
-            $this->consumeLine($label, trim($line));
+        foreach (\array_filter($lines, static fn(string $line): bool => \trim($line) !== '') as $line) {
+            $this->consumeLine($label, \trim($line));
         }
     }
 
@@ -104,21 +83,21 @@ final class YtDlpProgressRenderer
             return;
         }
 
-        if (str_starts_with($line, '[download] Destination:')) {
+        if (\str_starts_with($line, '[download] Destination:')) {
             $this->states[$label]['detail'] = 'stream init';
             $this->render();
 
             return;
         }
 
-        if (str_starts_with($line, '[info]')) {
+        if (\str_starts_with($line, '[info]')) {
             $this->states[$label]['detail'] = 'probe';
             $this->render();
 
             return;
         }
 
-        if (str_starts_with($line, '[Fixup')) {
+        if (\str_starts_with($line, '[Fixup')) {
             $this->states[$label]['detail'] = 'container fix';
             $this->render();
 
@@ -142,20 +121,20 @@ final class YtDlpProgressRenderer
 
     private function updateDiagnosticState(string $label, string $line): bool
     {
-        if (preg_match('/^(ERROR|WARNING):\s*(.+)$/i', $line, $matches) !== 1) {
+        if (\preg_match('/^(ERROR|WARNING):\s*(.+)$/i', $line, $matches) !== 1) {
             return false;
         }
 
-        $this->states[$label]['detail'] = $this->formatDiagnosticDetail($matches[1], trim($matches[2]));
+        $this->states[$label]['detail'] = $this->formatDiagnosticDetail($matches[1], \trim($matches[2]));
 
         return true;
     }
 
     private function formatDiagnosticDetail(string $level, string $message): string
     {
-        $normalizedLevel = strtoupper($level);
-        if (preg_match('/HTTP Error\s+(\d+):\s*(.+)$/i', $message, $matches) === 1) {
-            return $normalizedLevel . ': HTTP ' . trim($matches[1]) . ' ' . trim($matches[2]);
+        $normalizedLevel = \strtoupper($level);
+        if (\preg_match('/HTTP Error\s+(\d+):\s*(.+)$/i', $message, $matches) === 1) {
+            return $normalizedLevel . ': HTTP ' . \trim($matches[1]) . ' ' . \trim($matches[2]);
         }
 
         return $normalizedLevel . ': ' . $message;
@@ -163,7 +142,7 @@ final class YtDlpProgressRenderer
 
     private function updateRoutineExtractorState(string $label, string $line): bool
     {
-        if (str_contains($line, 'ERROR:') || str_contains($line, 'WARNING:')) {
+        if (\str_contains($line, 'ERROR:') || \str_contains($line, 'WARNING:')) {
             return false;
         }
 
@@ -179,31 +158,31 @@ final class YtDlpProgressRenderer
 
     private function routineDetail(string $line): ?string
     {
-        if (preg_match('/^\[(?:youtube|generic|extractor|jsc:[^\]]+)\]/', $line) !== 1) {
+        if (\preg_match('/^\[(?:youtube|generic|extractor|jsc:[^\]]+)\]/', $line) !== 1) {
             return null;
         }
 
-        $normalized = strtolower($line);
+        $normalized = \strtolower($line);
 
-        if (str_contains($normalized, 'extracting url')) {
+        if (\str_contains($normalized, 'extracting url')) {
             return 'link scan';
         }
-        if (str_contains($normalized, 'downloading webpage')) {
+        if (\str_contains($normalized, 'downloading webpage')) {
             return 'web probe';
         }
-        if (str_contains($normalized, 'api json')) {
+        if (\str_contains($normalized, 'api json')) {
             return 'player api';
         }
-        if (str_contains($normalized, 'downloading player')) {
+        if (\str_contains($normalized, 'downloading player')) {
             return 'player core';
         }
-        if (str_contains($normalized, 'solving js challenges')) {
+        if (\str_contains($normalized, 'solving js challenges')) {
             return 'cipher solve';
         }
-        if (str_contains($normalized, 'downloading m3u8') || str_contains($normalized, 'downloading mpd')) {
+        if (\str_contains($normalized, 'downloading m3u8') || \str_contains($normalized, 'downloading mpd')) {
             return 'manifest';
         }
-        if (str_contains($normalized, 'checking')) {
+        if (\str_contains($normalized, 'checking')) {
             return 'check';
         }
 
@@ -212,34 +191,34 @@ final class YtDlpProgressRenderer
 
     private function updateProgressState(string $label, string $line): bool
     {
-        if (preg_match('/^\[download\]\s+([0-9.]+)%\s+of\s+(.+?)\s+at\s+(.+?)\s+ETA\s+(.+)$/', $line, $matches) === 1) {
+        if (\preg_match('/^\[download\]\s+([0-9.]+)%\s+of\s+(.+?)\s+at\s+(.+?)\s+ETA\s+(.+)$/', $line, $matches) === 1) {
             $this->states[$label] = [
                 'percent' => (float) $matches[1],
-                'total' => trim($matches[2]),
-                'speed' => trim($matches[3]),
-                'eta' => trim($matches[4]),
+                'total' => \trim($matches[2]),
+                'speed' => \trim($matches[3]),
+                'eta' => \trim($matches[4]),
                 'detail' => '',
             ];
 
             return true;
         }
 
-        if (preg_match('/^\[download\]\s+100%\s+of\s+(.+?)\s+in\s+(.+?)\s+at\s+(.+)$/', $line, $matches) === 1) {
+        if (\preg_match('/^\[download\]\s+100%\s+of\s+(.+?)\s+in\s+(.+?)\s+at\s+(.+)$/', $line, $matches) === 1) {
             $this->states[$label] = [
                 'percent' => 100.0,
-                'total' => trim($matches[1]),
-                'speed' => trim($matches[3]),
-                'eta' => 'done ' . trim($matches[2]),
+                'total' => \trim($matches[1]),
+                'speed' => \trim($matches[3]),
+                'eta' => 'done ' . \trim($matches[2]),
                 'detail' => '',
             ];
 
             return true;
         }
 
-        if (preg_match('/^\[download\]\s+100%\s+of\s+(.+)$/', $line, $matches) === 1) {
+        if (\preg_match('/^\[download\]\s+100%\s+of\s+(.+)$/', $line, $matches) === 1) {
             $this->states[$label] = [
                 'percent' => 100.0,
-                'total' => trim($matches[1]),
+                'total' => \trim($matches[1]),
                 'speed' => '',
                 'eta' => 'done',
                 'detail' => '',
@@ -260,7 +239,7 @@ final class YtDlpProgressRenderer
         $output = $this->buildRenderedOutput();
         $this->logger->raw($output);
         $this->rendered = true;
-        $this->renderedLineCount = substr_count($output, PHP_EOL) + 1;
+        $this->renderedLineCount = \substr_count($output, PHP_EOL) + 1;
     }
 
     private function writeLogLine(string $label, string $line): void
@@ -279,17 +258,17 @@ final class YtDlpProgressRenderer
         $lines = [
             $this->frameColor($this->buildTopBorder()),
         ];
-        foreach (array_keys($this->states) as $label) {
+        foreach (\array_keys($this->states) as $label) {
             $lines[] = $this->buildLine($label);
         }
         $lines[] = $this->frameColor($this->buildBottomBorder());
 
-        return implode(PHP_EOL, $lines);
+        return \implode(PHP_EOL, $lines);
     }
 
     private function clearRenderedLines(): void
     {
-        $count = max(1, $this->renderedLineCount);
+        $count = \max(1, $this->renderedLineCount);
         for ($index = 0; $index < $count - 1; ++$index) {
             $this->logger->raw("\r\033[2K\033[1A");
         }
@@ -301,7 +280,7 @@ final class YtDlpProgressRenderer
     {
         $state = $this->states[$label];
         $percent = $state['percent'];
-        $percentLabel = $percent === null ? ' --.-%' : sprintf('%5.1f%%', $percent);
+        $percentLabel = $percent === null ? ' --.-%' : \sprintf('%5.1f%%', $percent);
         $parts = [
             $this->labelTitle($label),
             $this->buildBar($percent),
@@ -322,52 +301,52 @@ final class YtDlpProgressRenderer
             $metrics[] = $state['detail'];
         }
         if ($metrics !== []) {
-            $parts[] = implode(' · ', $metrics);
+            $parts[] = \implode(' · ', $metrics);
         }
 
-        return $this->colorize($label, $this->frameLine(implode('  ', $parts)));
+        return $this->colorize($label, $this->frameLine(\implode('  ', $parts)));
     }
 
     private function buildBar(?float $percent): string
     {
         if ($percent === null) {
-            return '⟦' . str_repeat('·', self::BAR_WIDTH) . '⟧';
+            return '⟦' . \str_repeat('·', self::BAR_WIDTH) . '⟧';
         }
 
-        $filled = (int) round(max(0.0, min(100.0, $percent)) / 100 * self::BAR_WIDTH);
+        $filled = (int) \round(\max(0.0, \min(100.0, $percent)) / 100 * self::BAR_WIDTH);
 
-        return '⟦' . str_repeat('▰', $filled) . str_repeat('▱', self::BAR_WIDTH - $filled) . '⟧';
+        return '⟦' . \str_repeat('▰', $filled) . \str_repeat('▱', self::BAR_WIDTH - $filled) . '⟧';
     }
 
     private function buildTopBorder(): string
     {
         $title = '─ YTD STREAM MATRIX ';
-        $fill = str_repeat('─', max(0, self::PANEL_WIDTH - 2 - mb_strlen($title)));
+        $fill = \str_repeat('─', \max(0, self::PANEL_WIDTH - 2 - \mb_strlen($title)));
 
         return '╭' . $title . $fill . '╮';
     }
 
     private function buildBottomBorder(): string
     {
-        return '╰' . str_repeat('─', self::PANEL_WIDTH - 2) . '╯';
+        return '╰' . \str_repeat('─', self::PANEL_WIDTH - 2) . '╯';
     }
 
     private function frameLine(string $content): string
     {
         $innerWidth = self::PANEL_WIDTH - 2;
         $content = ' ' . $this->fitLine($content, $innerWidth - 2) . ' ';
-        $padding = str_repeat(' ', max(0, $innerWidth - mb_strlen($content)));
+        $padding = \str_repeat(' ', \max(0, $innerWidth - \mb_strlen($content)));
 
         return '│' . $content . $padding . '│';
     }
 
     private function fitLine(string $line, int $width): string
     {
-        if (mb_strlen($line) <= $width) {
+        if (\mb_strlen($line) <= $width) {
             return $line;
         }
 
-        return mb_substr($line, 0, $width - 3) . '...';
+        return \mb_substr($line, 0, $width - 3) . '...';
     }
 
     private function labelTitle(string $label): string

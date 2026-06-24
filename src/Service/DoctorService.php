@@ -9,15 +9,6 @@ use YtdPhp\Bootstrap\RuntimeBootstrap;
 use YtdPhp\Dto\DoctorResult;
 use YtdPhp\Exception\RoutingConfigException;
 
-use function array_key_exists;
-use function array_values;
-use function count;
-use function dirname;
-use function file_exists;
-use function is_array;
-use function is_string;
-use function trim;
-
 final readonly class DoctorService
 {
     public const string STATUS_OK = 'ok';
@@ -70,11 +61,11 @@ final readonly class DoctorService
                 $this->checkBinary('ffmpeg', 'Установи ffmpeg и убедись, что команда доступна в PATH.'),
             ];
 
-        $results[] = file_exists($envPath)
+        $results[] = \file_exists($envPath)
             ? new DoctorResult(self::STATUS_OK, '.env найден', $envPath)
             : new DoctorResult(self::STATUS_ERROR, '.env не найден', 'Создай его из .env.example: скопируй шаблон в .env.');
 
-        $results[] = file_exists($rulesPath)
+        $results[] = \file_exists($rulesPath)
             ? new DoctorResult(self::STATUS_OK, 'proxy_rules.yaml найден', $rulesPath)
             : new DoctorResult(self::STATUS_ERROR, 'proxy_rules.yaml не найден', 'Создай его из proxy_rules.example.yaml.');
 
@@ -188,7 +179,7 @@ final readonly class DoctorService
         $process->setEnv(YtDlpClient::buildProcessEnv());
         $process->run();
         if ($process->isSuccessful()) {
-            $details = trim($process->getOutput());
+            $details = \trim($process->getOutput());
 
             return new DoctorResult(
                 self::STATUS_OK,
@@ -213,6 +204,6 @@ final readonly class DoctorService
     {
         $value = getenv(self::SKIP_BINARY_CHECKS_ENV);
 
-        return is_string($value) && $value === '1';
+        return \is_string($value) && $value === '1';
     }
 }

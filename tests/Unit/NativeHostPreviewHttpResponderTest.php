@@ -10,17 +10,12 @@ use YtdPhp\Bootstrap\RuntimeBootstrap;
 use YtdPhp\Service\NativeHostPreviewHttpResponder;
 use YtdPhp\Service\NativeHostPreviewRegistryService;
 
-use function file_put_contents;
-use function mkdir;
-use function sys_get_temp_dir;
-use function uniqid;
-
 final class NativeHostPreviewHttpResponderTest extends TestCase
 {
     public function testRespondReturnsWholeFileForGetRequest(): void
     {
-        $root = sys_get_temp_dir() . '/ytd_native_preview_http_get_' . uniqid();
-        mkdir($root, 0777, true);
+        $root = \sys_get_temp_dir() . '/ytd_native_preview_http_get_' . \uniqid();
+        \mkdir($root, 0777, true);
         putenv('YTD_PROJECT_ROOT=' . $root);
 
         try {
@@ -38,8 +33,8 @@ final class NativeHostPreviewHttpResponderTest extends TestCase
 
     public function testRespondReturnsHeadersOnlyForHeadRequest(): void
     {
-        $root = sys_get_temp_dir() . '/ytd_native_preview_http_head_' . uniqid();
-        mkdir($root, 0777, true);
+        $root = \sys_get_temp_dir() . '/ytd_native_preview_http_head_' . \uniqid();
+        \mkdir($root, 0777, true);
         putenv('YTD_PROJECT_ROOT=' . $root);
 
         try {
@@ -57,8 +52,8 @@ final class NativeHostPreviewHttpResponderTest extends TestCase
 
     public function testRespondSupportsByteRanges(): void
     {
-        $root = sys_get_temp_dir() . '/ytd_native_preview_http_range_' . uniqid();
-        mkdir($root, 0777, true);
+        $root = \sys_get_temp_dir() . '/ytd_native_preview_http_range_' . \uniqid();
+        \mkdir($root, 0777, true);
         putenv('YTD_PROJECT_ROOT=' . $root);
 
         try {
@@ -78,8 +73,8 @@ final class NativeHostPreviewHttpResponderTest extends TestCase
 
     public function testRespondReturnsNotFoundForUnknownToken(): void
     {
-        $root = sys_get_temp_dir() . '/ytd_native_preview_http_unknown_' . uniqid();
-        mkdir($root, 0777, true);
+        $root = \sys_get_temp_dir() . '/ytd_native_preview_http_unknown_' . \uniqid();
+        \mkdir($root, 0777, true);
         putenv('YTD_PROJECT_ROOT=' . $root);
 
         try {
@@ -95,13 +90,13 @@ final class NativeHostPreviewHttpResponderTest extends TestCase
 
     public function testRespondReturnsNotFoundForExpiredToken(): void
     {
-        $root = sys_get_temp_dir() . '/ytd_native_preview_http_expired_' . uniqid();
-        mkdir($root, 0777, true);
+        $root = \sys_get_temp_dir() . '/ytd_native_preview_http_expired_' . \uniqid();
+        \mkdir($root, 0777, true);
         putenv('YTD_PROJECT_ROOT=' . $root);
 
         try {
             $filePath = $root . '/preview-video.mp4';
-            file_put_contents($filePath, 'abcdefghijklmnopqrstuvwxyz');
+            \file_put_contents($filePath, 'abcdefghijklmnopqrstuvwxyz');
 
             $registry = new NativeHostPreviewRegistryService(
                 new RuntimeBootstrap($root),
@@ -127,8 +122,8 @@ final class NativeHostPreviewHttpResponderTest extends TestCase
 
     public function testRespondReturnsNotFoundWhenFileWasDeleted(): void
     {
-        $root = sys_get_temp_dir() . '/ytd_native_preview_http_missing_' . uniqid();
-        mkdir($root, 0777, true);
+        $root = \sys_get_temp_dir() . '/ytd_native_preview_http_missing_' . \uniqid();
+        \mkdir($root, 0777, true);
         putenv('YTD_PROJECT_ROOT=' . $root);
 
         try {
@@ -149,7 +144,7 @@ final class NativeHostPreviewHttpResponderTest extends TestCase
     private function buildPreviewFixture(string $root, string $body): array
     {
         $filePath = $root . '/preview-video.mp4';
-        file_put_contents($filePath, $body);
+        \file_put_contents($filePath, $body);
 
         $registry = new NativeHostPreviewRegistryService(
             new RuntimeBootstrap($root),

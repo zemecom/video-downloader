@@ -8,21 +8,6 @@ use Symfony\Component\Process\Exception\ProcessFailedException;
 use Symfony\Component\Process\Process;
 use YtdPhp\Exception\UserFacingException;
 
-use function array_filter;
-use function array_merge;
-use function array_values;
-use function explode;
-use function file_exists;
-use function file_get_contents;
-use function getenv;
-use function implode;
-use function is_array;
-use function is_string;
-use function json_decode;
-use function sprintf;
-use function trim;
-use function uniqid;
-
 final readonly class YtDlpClient
 {
     /**
@@ -37,15 +22,15 @@ final readonly class YtDlpClient
 
     public static function buildAugmentedPath(): string
     {
-        $existingPath = getenv('PATH');
-        $home = getenv('HOME');
+        $existingPath = \getenv('PATH');
+        $home = \getenv('HOME');
 
-        $segments = is_string($existingPath) && $existingPath !== ''
-            ? explode(PATH_SEPARATOR, $existingPath)
+        $segments = \is_string($existingPath) && $existingPath !== ''
+            ? \explode(PATH_SEPARATOR, $existingPath)
             : [];
 
-        $preferred = array_filter([
-            is_string($home) && $home !== '' ? $home . '/.local/bin' : null,
+        $preferred = \array_filter([
+            \is_string($home) && $home !== '' ? $home . '/.local/bin' : null,
             '/opt/homebrew/bin',
             '/usr/local/bin',
             '/usr/bin',
@@ -53,15 +38,15 @@ final readonly class YtDlpClient
         ]);
 
         $ordered = [];
-        foreach (array_merge($preferred, $segments) as $segment) {
-            if (!is_string($segment) || $segment === '' || isset($ordered[$segment])) {
+        foreach (\array_merge($preferred, $segments) as $segment) {
+            if (!\is_string($segment) || $segment === '' || isset($ordered[$segment])) {
                 continue;
             }
 
             $ordered[$segment] = true;
         }
 
-        return implode(PATH_SEPARATOR, array_keys($ordered));
+        return \implode(PATH_SEPARATOR, array_keys($ordered));
     }
 
     public function __construct(
@@ -94,13 +79,13 @@ final readonly class YtDlpClient
         $process = new Process($command);
         $process->setEnv(self::buildProcessEnv());
         $process->mustRun();
-        $output = trim($process->getOutput());
+        $output = \trim($process->getOutput());
         if ($output === '') {
             return [];
         }
 
-        $decoded = json_decode($output, true);
-        if (is_array($decoded)) {
+        $decoded = \json_decode($output, true);
+        if (\is_array($decoded)) {
             return $decoded;
         }
 
@@ -140,7 +125,7 @@ final readonly class YtDlpClient
     public function listFormats(string $videoUrl, ?string $proxy = null, bool $insecure = false): bool
     {
         $command = ['yt-dlp'];
-        if (is_string($proxy) && $proxy !== '') {
+        if (\is_string($proxy) && $proxy !== '') {
             $command[] = $proxy;
         }
         if ($insecure) {
@@ -180,7 +165,7 @@ final readonly class YtDlpClient
         $builder->setInsecure($insecure)->loadInfoJson($infoJsonPath);
         $command = $builder->buildForFilename($outputPath);
         if ($infoJsonPath !== null && $videoUrl !== null) {
-            $command = array_values(array_filter($command, static fn(string $value): bool => $value !== $videoUrl));
+            $command = \array_values(\array_filter($command, static fn(string $value): bool => $value !== $videoUrl));
         }
 
         $process = new Process($command);
@@ -190,7 +175,7 @@ final readonly class YtDlpClient
             return null;
         }
 
-        $filename = trim($process->getOutput());
+        $filename = \trim($process->getOutput());
         if ($filename === '') {
             return null;
         }
@@ -203,13 +188,13 @@ final readonly class YtDlpClient
         }
 
         $willMerge = false;
-        if ($infoJsonPath !== null && file_exists($infoJsonPath)) {
-            $payload = json_decode((string) file_get_contents($infoJsonPath), true);
-            if (!is_array($payload)) {
+        if ($infoJsonPath !== null && \file_exists($infoJsonPath)) {
+            $payload = \json_decode((string) \file_get_contents($infoJsonPath), true);
+            if (!\is_array($payload)) {
                 $willMerge = true;
             } else {
                 $requestedFormats = $payload['requested_formats'] ?? null;
-                $willMerge = is_array($requestedFormats) && count($requestedFormats) > 1;
+                $willMerge = \is_array($requestedFormats) && count($requestedFormats) > 1;
             }
         }
 
@@ -222,12 +207,12 @@ final readonly class YtDlpClient
             ? $processOrException->getProcess()
             : $processOrException;
 
-        $stderr = trim($process->getErrorOutput());
+        $stderr = \trim($process->getErrorOutput());
         if ($stderr !== '') {
             return $stderr;
         }
 
-        $stdout = trim($process->getOutput());
+        $stdout = \trim($process->getOutput());
         if ($stdout !== '') {
             return $stdout;
         }

@@ -14,14 +14,6 @@ use YtdPhp\Bootstrap\RuntimeBootstrap;
 use YtdPhp\Dto\NativeHostRequest;
 use YtdPhp\Dto\NativeHostResponse;
 
-use function dirname;
-use function file_exists;
-use function is_int;
-use function is_array;
-use function is_string;
-use function sprintf;
-use function uniqid;
-
 final class NativeHostJobManagerService
 {
     private readonly NativeHostRecentDownloadsStore $recentDownloads;
@@ -75,7 +67,7 @@ final class NativeHostJobManagerService
 
     public function startDownload(string $url, string $mode = NativeHostRequest::MODE_VIDEO): NativeHostResponse
     {
-        $jobId = 'job-' . uniqid();
+        $jobId = 'job-' . \uniqid();
         $state = $this->baseState($jobId, $url, $mode);
         $this->store->write($jobId, $state);
 
@@ -102,7 +94,7 @@ final class NativeHostJobManagerService
     public function getJobStatus(string $jobId): NativeHostResponse
     {
         $state = $this->store->read($jobId);
-        if (!is_array($state)) {
+        if (!\is_array($state)) {
             return NativeHostResponse::error('job_not_found', 'Download job not found.', null, [
                 'jobId' => $jobId,
             ]);
@@ -114,7 +106,7 @@ final class NativeHostJobManagerService
     public function cancelDownload(string $jobId): NativeHostResponse
     {
         $state = $this->store->read($jobId);
-        if (!is_array($state)) {
+        if (!\is_array($state)) {
             return NativeHostResponse::error('job_not_found', 'Download job not found.', null, [
                 'jobId' => $jobId,
             ]);
@@ -128,7 +120,7 @@ final class NativeHostJobManagerService
         $this->store->requestCancel($jobId);
 
         $downloadPid = $state['downloadPid'] ?? null;
-        if (is_int($downloadPid) && $downloadPid > 0) {
+        if (\is_int($downloadPid) && $downloadPid > 0) {
             ($this->signalSender)($downloadPid);
         }
 
@@ -175,7 +167,7 @@ final class NativeHostJobManagerService
 
         $port = ($this->previewPortResolver)();
         $preview = $this->previewRegistry->register(
-            'recent-' . $entryId . '-' . uniqid(),
+            'recent-' . $entryId . '-' . \uniqid(),
             (string) $entry['path'],
             $port,
         );
@@ -207,14 +199,14 @@ final class NativeHostJobManagerService
     public function deleteRecentDownload(string $entryId): NativeHostResponse
     {
         $entry = $this->recentDownloads->find($entryId);
-        if (!is_array($entry)) {
+        if (!\is_array($entry)) {
             return NativeHostResponse::error('file_not_found', 'Downloaded file not found.', null, [
                 'entryId' => $entryId,
             ]);
         }
 
         $path = $entry['path'] ?? null;
-        if (is_string($path) && $path !== '' && file_exists($path)) {
+        if (\is_string($path) && $path !== '' && \file_exists($path)) {
             (new Filesystem())->remove($path);
         }
 
@@ -273,7 +265,7 @@ final class NativeHostJobManagerService
     private function makeDefaultStarter(): Closure
     {
         return function (string $jobId, string $url, string $mode, string $logPath): void {
-            (new Filesystem())->mkdir(dirname($logPath));
+            (new Filesystem())->mkdir(\dirname($logPath));
 
             $process = proc_open(
                 [
@@ -328,12 +320,12 @@ final class NativeHostJobManagerService
     private function resolveRecentDownload(string $entryId): ?array
     {
         $entry = $this->recentDownloads->find($entryId);
-        if (!is_array($entry)) {
+        if (!\is_array($entry)) {
             return null;
         }
 
         $path = $entry['path'] ?? null;
-        if (!is_string($path) || $path === '' || !file_exists($path)) {
+        if (!\is_string($path) || $path === '' || !\file_exists($path)) {
             return null;
         }
 

@@ -9,23 +9,6 @@ use RuntimeException;
 use Symfony\Component\Process\Process;
 use YtdPhp\Bootstrap\RuntimeBootstrap;
 
-use function array_merge;
-use function fclose;
-use function feof;
-use function fgets;
-use function file_exists;
-use function getmypid;
-use function in_array;
-use function is_array;
-use function is_resource;
-use function is_string;
-use function proc_close;
-use function proc_get_status;
-use function proc_open;
-use function stream_get_contents;
-use function stream_select;
-use function stream_set_blocking;
-
 final readonly class NativeHostJobRunnerService
 {
     private NativeHostPreviewRegistryService $previewRegistry;
@@ -63,7 +46,7 @@ final readonly class NativeHostJobRunnerService
 
         $state['mode'] = $mode;
 
-        $state['workerPid'] = getmypid();
+        $state['workerPid'] = \getmypid();
         $state['updatedAt'] = $this->now();
         $this->store->write($jobId, $state);
 
@@ -80,7 +63,7 @@ final readonly class NativeHostJobRunnerService
 
         $command[] = $url;
 
-        $process = proc_open(
+        $process = \proc_open(
             $command,
             [
                 0 => ['file', '/dev/null', 'r'],
@@ -89,25 +72,25 @@ final readonly class NativeHostJobRunnerService
             ],
             $pipes,
             $this->bootstrap->getPackageRoot(),
-            array_merge(YtDlpClient::buildProcessEnv(), ['YTD_PROGRESS_NEWLINE' => '1']),
+            \array_merge(YtDlpClient::buildProcessEnv(), ['YTD_PROGRESS_NEWLINE' => '1']),
         );
 
-        if (!is_resource($process)) {
+        if (!\is_resource($process)) {
             $this->finalizeFailure($jobId, $state, 'Не удалось запустить ytd CLI.');
 
             return 1;
         }
 
-        $status = proc_get_status($process);
-        if (is_array($status) && isset($status['pid']) && is_int($status['pid'])) {
+        $status = \proc_get_status($process);
+        if (\is_array($status) && isset($status['pid']) && is_int($status['pid'])) {
             $state['downloadPid'] = $status['pid'];
             $state['updatedAt'] = $this->now();
             $this->store->write($jobId, $state);
         }
 
         foreach ([1, 2] as $index) {
-            if (isset($pipes[$index]) && is_resource($pipes[$index])) {
-                stream_set_blocking($pipes[$index], false);
+            if (isset($pipes[$index]) && \is_resource($pipes[$index])) {
+                \stream_set_blocking($pipes[$index], false);
             }
         }
 
@@ -124,7 +107,7 @@ final readonly class NativeHostJobRunnerService
 
             $read = [];
             foreach ([1, 2] as $index) {
-                if (isset($pipes[$index]) && is_resource($pipes[$index]) && !feof($pipes[$index])) {
+                if (isset($pipes[$index]) && \is_resource($pipes[$index]) && !\feof($pipes[$index])) {
                     $read[] = $pipes[$index];
                 }
             }
@@ -132,10 +115,10 @@ final readonly class NativeHostJobRunnerService
             if ($read !== []) {
                 $write = null;
                 $except = null;
-                stream_select($read, $write, $except, 0, 200000);
+                \stream_select($read, $write, $except, 0, 200000);
                 foreach ($read as $stream) {
                     $index = $stream === $pipes[1] ? 1 : 2;
-                    $chunk = stream_get_contents($stream);
+                    $chunk = \stream_get_contents($stream);
                     if ($chunk === false || $chunk === '') {
                         continue;
                     }
@@ -153,29 +136,29 @@ final readonly class NativeHostJobRunnerService
                         $state['status'] = $parsed['status'];
                         $state['progressPercent'] = $parsed['progressPercent'];
                         $state['progressText'] = $parsed['progressText'];
-                        if (is_string($parsed['outputPath'] ?? null) && $parsed['outputPath'] !== '') {
+                        if (\is_string($parsed['outputPath'] ?? null) && $parsed['outputPath'] !== '') {
                             $state['outputPath'] = $parsed['outputPath'];
                         }
-                        $state['canCancel'] = !in_array($state['status'], ['completed', 'failed', 'cancelled'], true);
+                        $state['canCancel'] = !\in_array($state['status'], ['completed', 'failed', 'cancelled'], true);
                         $state['updatedAt'] = $this->now();
                         $this->store->write($jobId, $state);
                     }
                 }
             }
 
-            $running = proc_get_status($process);
-            if (!is_array($running) || !($running['running'] ?? false)) {
+            $running = \proc_get_status($process);
+            if (!\is_array($running) || !($running['running'] ?? false)) {
                 break;
             }
         }
 
         foreach ([1, 2] as $index) {
-            if (isset($pipes[$index]) && is_resource($pipes[$index])) {
-                $rest = stream_get_contents($pipes[$index]);
-                if (is_string($rest) && $rest !== '') {
+            if (isset($pipes[$index]) && \is_resource($pipes[$index])) {
+                $rest = \stream_get_contents($pipes[$index]);
+                if (\is_string($rest) && $rest !== '') {
                     $buffers[$index] .= $rest;
                 }
-                fclose($pipes[$index]);
+                \fclose($pipes[$index]);
             }
         }
 
@@ -183,17 +166,17 @@ final readonly class NativeHostJobRunnerService
             $state = $this->consumeParsedOutput($jobId, $state, $buffers[$index] ?? '');
         }
 
-        $exitCode = proc_close($process);
+        $exitCode = \proc_close($process);
         $state = $this->store->read($jobId) ?? $state;
 
-        $outputPath = is_string($state['outputPath'] ?? null)
+        $outputPath = \is_string($state['outputPath'] ?? null)
             ? (string) $state['outputPath']
             : null;
-        $hasOutputFile = is_string($outputPath) && $outputPath !== '' && file_exists($outputPath);
+        $hasOutputFile = \is_string($outputPath) && $outputPath !== '' && \file_exists($outputPath);
         $cancelRequested = $this->store->cancelRequested($jobId) || ($state['status'] ?? null) === 'cancelling';
 
         if ($exitCode === 0 && ($hasOutputFile || !$cancelRequested)) {
-            if (is_string($outputPath) && $outputPath !== '' && file_exists($outputPath)) {
+            if (\is_string($outputPath) && $outputPath !== '' && \file_exists($outputPath)) {
                 $entry = $this->recentDownloads->append(
                     $outputPath,
                     (string) ($state['url'] ?? ''),
@@ -273,10 +256,10 @@ final readonly class NativeHostJobRunnerService
             $state['status'] = $parsed['status'];
             $state['progressPercent'] = $parsed['progressPercent'];
             $state['progressText'] = $parsed['progressText'];
-            if (is_string($parsed['outputPath'] ?? null) && $parsed['outputPath'] !== '') {
+            if (\is_string($parsed['outputPath'] ?? null) && $parsed['outputPath'] !== '') {
                 $state['outputPath'] = $parsed['outputPath'];
             }
-            $state['canCancel'] = !in_array($state['status'], ['completed', 'failed', 'cancelled'], true);
+            $state['canCancel'] = !\in_array($state['status'], ['completed', 'failed', 'cancelled'], true);
             $state['updatedAt'] = $this->now();
             $this->store->write($jobId, $state);
         }

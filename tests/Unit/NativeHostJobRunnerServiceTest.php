@@ -12,36 +12,24 @@ use YtdPhp\Service\NativeHostJobStateStore;
 use YtdPhp\Service\NativeHostProgressParserService;
 use YtdPhp\Service\NativeHostRecentDownloadsStore;
 
-use function chmod;
-use function dirname;
-use function file_get_contents;
-use function file_put_contents;
-use function json_decode;
-use function mkdir;
-use function realpath;
-use function sprintf;
-use function sys_get_temp_dir;
-use function uniqid;
-use function usleep;
-
 final class NativeHostJobRunnerServiceTest extends TestCase
 {
     public function testRunForVideoInvokesCliWithMp4FlagForBrowserPreview(): void
     {
-        $root = sys_get_temp_dir() . '/ytd_native_runner_' . uniqid();
-        mkdir($root . '/bin', 0777, true);
-        mkdir($root . '/downloads', 0777, true);
+        $root = \sys_get_temp_dir() . '/ytd_native_runner_' . \uniqid();
+        \mkdir($root . '/bin', 0777, true);
+        \mkdir($root . '/downloads', 0777, true);
         putenv('YTD_PROJECT_ROOT=' . $root);
 
         try {
             $argvPath = $root . '/downloads/argv.txt';
-            file_put_contents($root . '/bin/ytd', <<<'PHP'
+            \file_put_contents($root . '/bin/ytd', <<<'PHP'
 #!/usr/bin/env php
 <?php
 file_put_contents(__DIR__ . '/../downloads/argv.txt', json_encode($argv, JSON_UNESCAPED_SLASHES));
 echo "📄 Файл: " . __DIR__ . "/../downloads/fake-preview.mp4 (7B)\n";
 PHP);
-            chmod($root . '/bin/ytd', 0777);
+            \chmod($root . '/bin/ytd', 0777);
 
             $bootstrap = new RuntimeBootstrap($root);
             $runner = new NativeHostJobRunnerService(
@@ -52,7 +40,7 @@ PHP);
             );
 
             $exitCode = $runner->run('job-123', 'https://example.com/watch?v=42', 'video');
-            $argv = json_decode((string) file_get_contents($argvPath), true);
+            $argv = \json_decode((string) \file_get_contents($argvPath), true);
 
             self::assertSame(0, $exitCode);
             self::assertContains('--mp4', $argv);
@@ -64,20 +52,20 @@ PHP);
 
     public function testRunStoresRecentDownloadWhenOutputPathIsPrintedRightBeforeProcessExit(): void
     {
-        $root = sys_get_temp_dir() . '/ytd_native_runner_tail_' . uniqid();
-        mkdir($root . '/bin', 0777, true);
-        mkdir($root . '/downloads', 0777, true);
+        $root = \sys_get_temp_dir() . '/ytd_native_runner_tail_' . \uniqid();
+        \mkdir($root . '/bin', 0777, true);
+        \mkdir($root . '/downloads', 0777, true);
         putenv('YTD_PROJECT_ROOT=' . $root);
 
         try {
-            file_put_contents($root . '/bin/ytd', <<<'PHP'
+            \file_put_contents($root . '/bin/ytd', <<<'PHP'
 #!/usr/bin/env php
 <?php
 $path = __DIR__ . '/../downloads/final-output.opus';
 touch($path);
 fwrite(STDOUT, "📄 Файл: {$path} (7B)");
 PHP);
-            chmod($root . '/bin/ytd', 0777);
+            \chmod($root . '/bin/ytd', 0777);
 
             $bootstrap = new RuntimeBootstrap($root);
             $store = new NativeHostJobStateStore($bootstrap);
@@ -93,10 +81,10 @@ PHP);
             $recentDownloads = (new NativeHostRecentDownloadsStore($bootstrap))->list();
 
             self::assertSame(0, $exitCode);
-            self::assertSame(realpath($root . '/downloads/final-output.opus'), realpath((string) ($state['outputPath'] ?? '')));
+            self::assertSame(\realpath($root . '/downloads/final-output.opus'), \realpath((string) ($state['outputPath'] ?? '')));
             self::assertIsString($state['recentDownloadId'] ?? null);
             self::assertCount(1, $recentDownloads);
-            self::assertSame(realpath($root . '/downloads/final-output.opus'), realpath((string) ($recentDownloads[0]['path'] ?? '')));
+            self::assertSame(\realpath($root . '/downloads/final-output.opus'), \realpath((string) ($recentDownloads[0]['path'] ?? '')));
         } finally {
             putenv('YTD_PROJECT_ROOT');
         }
@@ -104,13 +92,13 @@ PHP);
 
     public function testRunKeepsCompletedStateWhenCancellationArrivesAfterOutputIsReady(): void
     {
-        $root = sys_get_temp_dir() . '/ytd_native_runner_late_cancel_' . uniqid();
-        mkdir($root . '/bin', 0777, true);
-        mkdir($root . '/downloads', 0777, true);
+        $root = \sys_get_temp_dir() . '/ytd_native_runner_late_cancel_' . \uniqid();
+        \mkdir($root . '/bin', 0777, true);
+        \mkdir($root . '/downloads', 0777, true);
         putenv('YTD_PROJECT_ROOT=' . $root);
 
         try {
-            file_put_contents($root . '/bin/ytd', <<<'PHP'
+            \file_put_contents($root . '/bin/ytd', <<<'PHP'
 #!/usr/bin/env php
 <?php
 $path = __DIR__ . '/../downloads/late-cancel.mp4';
@@ -119,9 +107,9 @@ touch($path);
 fwrite(STDOUT, "📄 Файл: {$path} (7B)\n");
 usleep(300000);
 PHP);
-            chmod($root . '/bin/ytd', 0777);
+            \chmod($root . '/bin/ytd', 0777);
 
-            $runnerScript = sprintf(
+            $runnerScript = \sprintf(
                 <<<'PHP'
 require %s;
 putenv(%s);
@@ -135,7 +123,7 @@ $runner = new \YtdPhp\Service\NativeHostJobRunnerService(
 );
 exit($runner->run('job-late-cancel', 'https://example.com/watch?v=late-cancel', 'video'));
 PHP,
-                var_export(dirname(__DIR__, 2) . '/vendor/autoload.php', true),
+                var_export(\dirname(__DIR__, 2) . '/vendor/autoload.php', true),
                 var_export('YTD_PROJECT_ROOT=' . $root, true),
                 var_export($root, true),
             );
@@ -143,7 +131,7 @@ PHP,
             $process = new Process([PHP_BINARY, '-r', $runnerScript]);
             $process->start();
 
-            usleep(250000);
+            \usleep(250000);
             $bootstrap = new RuntimeBootstrap($root);
             $store = new NativeHostJobStateStore($bootstrap);
             $store->requestCancel('job-late-cancel');
@@ -158,7 +146,7 @@ PHP,
             self::assertFalse($store->cancelRequested('job-late-cancel'));
             self::assertIsString($state['recentDownloadId'] ?? null);
             self::assertCount(1, $recentDownloads);
-            self::assertSame(realpath($root . '/downloads/late-cancel.mp4'), realpath((string) ($recentDownloads[0]['path'] ?? '')));
+            self::assertSame(\realpath($root . '/downloads/late-cancel.mp4'), \realpath((string) ($recentDownloads[0]['path'] ?? '')));
         } finally {
             putenv('YTD_PROJECT_ROOT');
         }

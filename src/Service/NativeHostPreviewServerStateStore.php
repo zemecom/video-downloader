@@ -9,18 +9,6 @@ use JsonException;
 use Symfony\Component\Filesystem\Filesystem;
 use YtdPhp\Bootstrap\RuntimeBootstrap;
 
-use function dirname;
-use function file_exists;
-use function file_get_contents;
-use function file_put_contents;
-use function is_array;
-use function json_decode;
-use function json_encode;
-use function rename;
-use function sprintf;
-use function unlink;
-use function uniqid;
-
 use const JSON_PRETTY_PRINT;
 use const JSON_THROW_ON_ERROR;
 use const JSON_UNESCAPED_SLASHES;
@@ -38,26 +26,26 @@ final readonly class NativeHostPreviewServerStateStore
     public function read(): ?array
     {
         $path = $this->bootstrap->getNativeHostPreviewServerStatePath();
-        if (!file_exists($path)) {
+        if (!\file_exists($path)) {
             return null;
         }
 
         try {
-            $decoded = json_decode((string) file_get_contents($path), true, 512, JSON_THROW_ON_ERROR);
+            $decoded = \json_decode((string) \file_get_contents($path), true, 512, JSON_THROW_ON_ERROR);
         } catch (JsonException) {
             return null;
         }
 
-        return is_array($decoded) ? $decoded : null;
+        return \is_array($decoded) ? $decoded : null;
     }
 
     public function write(int $pid, int $port): void
     {
         $path = $this->bootstrap->getNativeHostPreviewServerStatePath();
-        (new Filesystem())->mkdir(dirname($path));
+        (new Filesystem())->mkdir(\dirname($path));
 
         try {
-            $encoded = json_encode([
+            $encoded = \json_encode([
                 'pid' => $pid,
                 'port' => $port,
                 'updatedAt' => (new DateTimeImmutable())->format(DATE_ATOM),
@@ -66,13 +54,13 @@ final readonly class NativeHostPreviewServerStateStore
             return;
         }
 
-        $tempPath = sprintf('%s.%s.tmp', $path, uniqid());
-        if (file_put_contents($tempPath, $encoded) === false) {
+        $tempPath = \sprintf('%s.%s.tmp', $path, \uniqid());
+        if (\file_put_contents($tempPath, $encoded) === false) {
             return;
         }
 
-        if (!rename($tempPath, $path) && file_exists($tempPath)) {
-            unlink($tempPath);
+        if (!\rename($tempPath, $path) && \file_exists($tempPath)) {
+            \unlink($tempPath);
         }
     }
 

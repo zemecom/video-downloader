@@ -7,10 +7,6 @@ namespace YtdPhp\Service;
 use Symfony\Component\Console\Command\Command;
 use YtdPhp\Dto\RuntimeOptions;
 
-use function in_array;
-use function sprintf;
-use function trim;
-
 final readonly class SingleVideoFlowService
 {
     /** @var list<string> */
@@ -77,8 +73,8 @@ final readonly class SingleVideoFlowService
         }
 
         $defaultFormatCode = $this->defaultFormatCode($options, false);
-        $choice = trim($this->prompter->ask(
-            sprintf(
+        $choice = \trim($this->prompter->ask(
+            \sprintf(
                 "Введи код формата для загрузки (или нажми Enter, чтобы скачать '%s'): ",
                 $defaultFormatCode,
             ),
@@ -113,6 +109,6 @@ final readonly class SingleVideoFlowService
 
     private function isSuccessfulDownloadStatus(string $status): bool
     {
-        return in_array($status, self::SUCCESSFUL_DOWNLOAD_STATUSES, true);
+        return \in_array($status, self::SUCCESSFUL_DOWNLOAD_STATUSES, true);
     }
 }

@@ -14,34 +14,6 @@ use YtdPhp\Dto\PlaylistSelectionSummary;
 use YtdPhp\Dto\RuntimeOptions;
 use YtdPhp\Dto\SelectedItemMetadata;
 
-use function array_filter;
-use function array_key_exists;
-use function array_map;
-use function array_values;
-use function count;
-use function disk_free_space;
-use function file_exists;
-use function file_put_contents;
-use function in_array;
-use function is_array;
-use function is_int;
-use function is_string;
-use function json_decode;
-use function json_encode;
-use function max;
-use function mkdir;
-use function number_format;
-use function parse_url;
-use function sprintf;
-use function str_contains;
-use function str_starts_with;
-use function strtolower;
-use function sys_get_temp_dir;
-use function tempnam;
-use function trim;
-use function unlink;
-use function usleep;
-
 final readonly class PlaylistService
 {
     public const string OVERWRITE_SKIP_ALL = 'skip_all';
@@ -123,21 +95,21 @@ final readonly class PlaylistService
             return null;
         }
 
-        $playlistId = trim((string) ($payload['id'] ?? ''));
-        $playlistTitle = trim((string) ($payload['title'] ?? $payload['playlist_title'] ?? $playlistId ?: 'playlist'));
+        $playlistId = \trim((string) ($payload['id'] ?? ''));
+        $playlistTitle = \trim((string) ($payload['title'] ?? $payload['playlist_title'] ?? $playlistId ?: 'playlist'));
         $entries = $payload['entries'] ?? [];
-        if (!is_array($entries)) {
+        if (!\is_array($entries)) {
             $entries = [];
         }
 
         $items = [];
         foreach ($entries as $index => $entry) {
-            $items[] = $this->normalizePlaylistEntry(is_array($entry) ? $entry : null, $index + 1);
+            $items[] = $this->normalizePlaylistEntry(\is_array($entry) ? $entry : null, $index + 1);
         }
 
-        $totalCount = $this->coerceInt($payload['playlist_count'] ?? null) ?? count($items);
+        $totalCount = $this->coerceInt($payload['playlist_count'] ?? null) ?? \count($items);
         if ($totalCount === 0 && $items !== []) {
-            $totalCount = count($items);
+            $totalCount = \count($items);
         }
 
         return new PlaylistInfo(
@@ -155,11 +127,11 @@ final readonly class PlaylistService
      */
     public function parsePlaylistSelection(string $rawValue, array $items): array
     {
-        $cleaned = strtolower(trim($rawValue));
+        $cleaned = \strtolower(\trim($rawValue));
         $selectableIndexes = [];
         $maxIndex = 0;
         foreach ($items as $item) {
-            $maxIndex = max($maxIndex, $item->playlistIndex);
+            $maxIndex = \max($maxIndex, $item->playlistIndex);
             if ($item->selectable) {
                 $selectableIndexes[] = $item->playlistIndex;
             }
@@ -175,15 +147,15 @@ final readonly class PlaylistService
         }
 
         $indexes = [];
-        $tokens = array_filter(array_map('trim', explode(',', $cleaned)), static fn(string $value): bool => $value !== '');
+        $tokens = \array_filter(\array_map('trim', explode(',', $cleaned)), static fn(string $value): bool => $value !== '');
         if ($tokens === []) {
             throw new \InvalidArgumentException('Пустой выбор.');
         }
 
         foreach ($tokens as $token) {
-            if (str_contains($token, '-')) {
+            if (\str_contains($token, '-')) {
                 $parts = explode('-', $token);
-                if (count($parts) !== 2 || $parts[0] === '' || $parts[1] === '') {
+                if (\count($parts) !== 2 || $parts[0] === '' || $parts[1] === '') {
                     throw new \InvalidArgumentException('Поддерживаются только диапазоны вида 5-8.');
                 }
                 $start = (int) $parts[0];
@@ -210,7 +182,7 @@ final readonly class PlaylistService
             throw new \InvalidArgumentException('Не выбрано ни одного ролика.');
         }
 
-        $result = array_map('intval', array_keys($indexes));
+        $result = \array_map('intval', array_keys($indexes));
         sort($result);
 
         return $result;
@@ -221,7 +193,7 @@ final readonly class PlaylistService
      */
     public function promptPlaylistSelection(PlaylistInfo $playlist, bool $showSizes = true): array
     {
-        $selectableCount = count(array_filter($playlist->items, static fn(PlaylistItem $item): bool => $item->selectable));
+        $selectableCount = \count(\array_filter($playlist->items, static fn(PlaylistItem $item): bool => $item->selectable));
         if ($selectableCount === 0) {
             $this->logger->error('😭 В плейлисте нет доступных роликов для загрузки.');
 
@@ -240,9 +212,9 @@ final readonly class PlaylistService
                     $playlist->items,
                 );
 
-                return array_values(array_filter(
+                return \array_values(\array_filter(
                     $playlist->items,
-                    static fn(PlaylistItem $item): bool => in_array($item->playlistIndex, $selectedIndexes, true),
+                    static fn(PlaylistItem $item): bool => \in_array($item->playlistIndex, $selectedIndexes, true),
                 ));
             } catch (\InvalidArgumentException $error) {
                 $this->logger->warning('⚠️ ' . $error->getMessage());
@@ -262,7 +234,7 @@ final readonly class PlaylistService
             $this->logger->info('❔ Неизвестный размер во всём плейлисте: ' . $summary->playlist->unknownSizeCount);
         }
         $this->logger->info('📁 Папка: ' . $summary->targetDir);
-        $this->logger->info(sprintf('📦 Выбрано: %d из %d', count($summary->selectedItems), $summary->playlist->totalCount));
+        $this->logger->info(\sprintf('📦 Выбрано: %d из %d', \count($summary->selectedItems), $summary->playlist->totalCount));
         $this->logger->info('💾 Свободно: ' . $this->downloader->formatSize($summary->freeSpaceBytes));
         $this->logger->info('📏 Размер выбранного: ' . $this->downloader->formatSize($summary->knownTotalSize));
         if ($summary->unknownSizeCount > 0) {
@@ -305,12 +277,12 @@ final readonly class PlaylistService
             }
         }
 
-        return strtolower($this->prompter->ask('Продолжить загрузку? [y/N]: ')) === 'y';
+        return \strtolower($this->prompter->ask('Продолжить загрузку? [y/N]: ')) === 'y';
     }
 
     public function promptOverwritePolicy(PlaylistSelectionSummary $summary): string
     {
-        $existingCount = count(array_filter($summary->selectedItems, static fn(SelectedItemMetadata $item): bool => $item->exists));
+        $existingCount = \count(\array_filter($summary->selectedItems, static fn(SelectedItemMetadata $item): bool => $item->exists));
         if ($existingCount === 0) {
             return self::OVERWRITE_OVERWRITE_ALL;
         }
@@ -318,14 +290,14 @@ final readonly class PlaylistService
         $this->logger->warning('⚠️ Уже существуют ' . $existingCount . ' файлов(а) из выбранных.');
         $this->logger->info('Выбери политику: `skip` / `overwrite` / `cancel`');
         while (true) {
-            $choice = strtolower($this->prompter->ask('Что делать с существующими файлами? [skip/overwrite/cancel]: '));
-            if (in_array($choice, ['skip', 'skip_all', 's'], true)) {
+            $choice = \strtolower($this->prompter->ask('Что делать с существующими файлами? [skip/overwrite/cancel]: '));
+            if (\in_array($choice, ['skip', 'skip_all', 's'], true)) {
                 return self::OVERWRITE_SKIP_ALL;
             }
-            if (in_array($choice, ['overwrite', 'overwrite_all', 'o'], true)) {
+            if (\in_array($choice, ['overwrite', 'overwrite_all', 'o'], true)) {
                 return self::OVERWRITE_OVERWRITE_ALL;
             }
-            if (in_array($choice, ['cancel', 'c'], true)) {
+            if (\in_array($choice, ['cancel', 'c'], true)) {
                 return self::OVERWRITE_CANCEL;
             }
             $this->logger->warning('⚠️ Не понял выбор. Повтори ещё раз.');
@@ -355,15 +327,15 @@ final readonly class PlaylistService
         $running = [];
         $hasErrors = false;
         while ($queue !== [] || $running !== []) {
-            while ($queue !== [] && count($running) < $options->concurrentDownloads) {
+            while ($queue !== [] && \count($running) < $options->concurrentDownloads) {
                 $item = array_shift($queue);
-                if (!is_array($item)) {
+                if (!\is_array($item)) {
                     continue;
                 }
                 $position = $item['position'];
                 /** @var SelectedItemMetadata $metadata */
                 $metadata = $item['item'];
-                $this->logger->info(sprintf('Старт [%d/%d]: %s', $position, count($summary->selectedItems), $metadata->playlistItem->title));
+                $this->logger->info(\sprintf('Старт [%d/%d]: %s', $position, \count($summary->selectedItems), $metadata->playlistItem->title));
                 $process = $this->downloader->createPlaylistDownloadProcess(
                     $metadata->infoJsonPath,
                     $metadata->expectedPath,
@@ -392,12 +364,12 @@ final readonly class PlaylistService
                 $position = $runningItem['position'];
                 $result = $this->downloader->finalizeProcessResult($process, $metadata->expectedPath, false);
                 unset($running[$index]);
-                $running = array_values($running);
+                $running = \array_values($running);
                 $hasErrors = $hasErrors || $result->status === 'failed';
-                $this->reportQueueResult($position, count($summary->selectedItems), $metadata, $result);
+                $this->reportQueueResult($position, \count($summary->selectedItems), $metadata, $result);
             }
 
-            usleep(100000);
+            \usleep(100000);
         }
 
         $this->cleanupPlaylistSummary($summary);
@@ -408,8 +380,8 @@ final readonly class PlaylistService
     public function cleanupPlaylistSummary(PlaylistSelectionSummary $summary): void
     {
         foreach ($summary->selectedItems as $item) {
-            if (file_exists($item->infoJsonPath)) {
-                unlink($item->infoJsonPath);
+            if (\file_exists($item->infoJsonPath)) {
+                \unlink($item->infoJsonPath);
             }
         }
     }
@@ -418,17 +390,17 @@ final readonly class PlaylistService
     {
         $title = $item->playlistItem->title;
         if ($result->status === 'completed') {
-            $this->logger->info(sprintf('Готово [%d/%d]: %s (%s)', $position, $total, $title, $item->expectedPath));
+            $this->logger->info(\sprintf('Готово [%d/%d]: %s (%s)', $position, $total, $title, $item->expectedPath));
 
             return;
         }
         if ($result->status === 'skipped') {
-            $this->logger->info(sprintf('Пропущено [%d/%d]: %s (%s)', $position, $total, $title, $result->detail ?? 'skipped'));
+            $this->logger->info(\sprintf('Пропущено [%d/%d]: %s (%s)', $position, $total, $title, $result->detail ?? 'skipped'));
 
             return;
         }
 
-        $this->logger->error(sprintf('Ошибка [%d/%d]: %s (%s)', $position, $total, $title, $result->detail ?? 'download_failed'));
+        $this->logger->error(\sprintf('Ошибка [%d/%d]: %s (%s)', $position, $total, $title, $result->detail ?? 'download_failed'));
     }
 
     /**
@@ -439,11 +411,11 @@ final readonly class PlaylistService
         $workItems = [];
         foreach ($summary->selectedItems as $position => $item) {
             if ($item->errorMessage !== null) {
-                $this->logger->error(sprintf('Ошибка [%d/%d]: %s (%s)', $position + 1, count($summary->selectedItems), $item->playlistItem->title, $item->errorMessage));
+                $this->logger->error(\sprintf('Ошибка [%d/%d]: %s (%s)', $position + 1, \count($summary->selectedItems), $item->playlistItem->title, $item->errorMessage));
                 continue;
             }
             if ($item->exists && $overwritePolicy === self::OVERWRITE_SKIP_ALL) {
-                $this->logger->info(sprintf('Пропущено [%d/%d]: %s (уже существует)', $position + 1, count($summary->selectedItems), $item->playlistItem->title));
+                $this->logger->info(\sprintf('Пропущено [%d/%d]: %s (уже существует)', $position + 1, \count($summary->selectedItems), $item->playlistItem->title));
                 continue;
             }
 
@@ -469,25 +441,25 @@ final readonly class PlaylistService
             return null;
         }
 
-        $payloadType = strtolower(trim((string) ($payload['_type'] ?? '')));
+        $payloadType = \strtolower(\trim((string) ($payload['_type'] ?? '')));
 
         return $payloadType !== '' ? $payloadType : null;
     }
 
     private function looksLikeExplicitSingleVideoUrl(string $videoUrl): bool
     {
-        $parts = parse_url($videoUrl);
-        $hostname = strtolower((string) ($parts['host'] ?? ''));
-        $path = strtolower((string) ($parts['path'] ?? ''));
-        $trimmedPath = trim($path, '/');
+        $parts = \parse_url($videoUrl);
+        $hostname = \strtolower((string) ($parts['host'] ?? ''));
+        $path = \strtolower((string) ($parts['path'] ?? ''));
+        $trimmedPath = \trim($path, '/');
 
-        return str_contains($hostname, 'youtu.be')
+        return \str_contains($hostname, 'youtu.be')
             || $path === '/watch'
-            || str_starts_with($path, '/watch/')
+            || \str_starts_with($path, '/watch/')
             || $path === '/video'
-            || str_starts_with($path, '/video/')
-            || (str_starts_with($trimmedPath, 'video') && !str_starts_with($trimmedPath, 'videos'))
-            || str_contains($path, '/shorts/');
+            || \str_starts_with($path, '/video/')
+            || (\str_starts_with($trimmedPath, 'video') && !\str_starts_with($trimmedPath, 'videos'))
+            || \str_contains($path, '/shorts/');
     }
 
     /**
@@ -495,9 +467,9 @@ final readonly class PlaylistService
      */
     private function decodePlaylistPayload(string $output): ?array
     {
-        $payload = json_decode(trim($output), true);
-        if (is_array($payload)) {
-            if (array_is_list($payload) && count($payload) === 1 && is_array($payload[0])) {
+        $payload = \json_decode(\trim($output), true);
+        if (\is_array($payload)) {
+            if (array_is_list($payload) && \count($payload) === 1 && \is_array($payload[0])) {
                 return $payload[0];
             }
 
@@ -512,9 +484,9 @@ final readonly class PlaylistService
         [$status, $selectable] = $this->detectItemStatus($entry);
         $title = '';
         $url = '';
-        if (is_array($entry)) {
-            $title = trim((string) ($entry['title'] ?? $entry['fulltitle'] ?? $entry['id'] ?? ''));
-            $url = trim((string) ($entry['webpage_url'] ?? $entry['url'] ?? ''));
+        if (\is_array($entry)) {
+            $title = \trim((string) ($entry['title'] ?? $entry['fulltitle'] ?? $entry['id'] ?? ''));
+            $url = \trim((string) ($entry['webpage_url'] ?? $entry['url'] ?? ''));
         }
         if ($title === '') {
             $title = 'Видео ' . $index;
@@ -528,19 +500,19 @@ final readonly class PlaylistService
      */
     private function detectItemStatus(?array $entry): array
     {
-        if (!is_array($entry)) {
+        if (!\is_array($entry)) {
             return ['unavailable', false];
         }
 
-        $availability = strtolower(trim((string) ($entry['availability'] ?? '')));
-        $title = strtolower(trim((string) ($entry['title'] ?? '')));
-        if (str_contains($availability, 'private') || str_contains($title, 'private')) {
+        $availability = \strtolower(\trim((string) ($entry['availability'] ?? '')));
+        $title = \strtolower(\trim((string) ($entry['title'] ?? '')));
+        if (\str_contains($availability, 'private') || \str_contains($title, 'private')) {
             return ['private', false];
         }
-        if (str_contains($availability, 'deleted') || str_contains($title, 'deleted')) {
+        if (\str_contains($availability, 'deleted') || \str_contains($title, 'deleted')) {
             return ['deleted', false];
         }
-        if (str_contains($availability, 'unavailable') || str_contains($title, 'not available')) {
+        if (\str_contains($availability, 'unavailable') || \str_contains($title, 'not available')) {
             return ['unavailable', false];
         }
         if ($availability !== '') {
@@ -637,7 +609,7 @@ final readonly class PlaylistService
             }
         }
 
-        $freeSpace = disk_free_space($targetDir);
+        $freeSpace = \disk_free_space($targetDir);
         if ($freeSpace === false) {
             $freeSpace = 0;
         }
@@ -735,7 +707,7 @@ final readonly class PlaylistService
             $tempJsonPath,
             $expectedPath,
             $resolvedFormatCode,
-            file_exists($expectedPath),
+            \file_exists($expectedPath),
             $filesize,
             $filesizeApprox,
             $filesize !== null || $filesizeApprox !== null,
@@ -747,18 +719,18 @@ final readonly class PlaylistService
      */
     private function writePlaylistItemMetadataJson(array $metadata): ?string
     {
-        $tempJson = tempnam(sys_get_temp_dir(), 'ytd_playlist_');
+        $tempJson = \tempnam(\sys_get_temp_dir(), 'ytd_playlist_');
         if ($tempJson === false) {
             return null;
         }
 
         $tempJsonPath = $tempJson . '.json';
-        @unlink($tempJson);
+        @\unlink($tempJson);
 
-        $encoded = json_encode($metadata, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
-        if (!is_string($encoded) || file_put_contents($tempJsonPath, $encoded) === false) {
-            if (file_exists($tempJsonPath)) {
-                @unlink($tempJsonPath);
+        $encoded = \json_encode($metadata, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+        if (!\is_string($encoded) || \file_put_contents($tempJsonPath, $encoded) === false) {
+            if (\file_exists($tempJsonPath)) {
+                @\unlink($tempJsonPath);
             }
 
             return null;
@@ -789,13 +761,13 @@ final readonly class PlaylistService
 
     private function canProbeItemDirectly(PlaylistItem $item): bool
     {
-        return str_starts_with($item->url, 'http://') || str_starts_with($item->url, 'https://');
+        return \str_starts_with($item->url, 'http://') || \str_starts_with($item->url, 'https://');
     }
 
     private function buildPlaylistTargetDir(string $sourceUrl, string $playlistTitle, string $playlistId, ?string $downloadDir = null): string
     {
         $baseDir = $this->bootstrap->getDownloadBasePath($sourceUrl, $downloadDir);
-        $rawName = trim($playlistTitle) !== '' ? trim($playlistTitle) : ($playlistId !== '' ? 'playlist_' . $playlistId : 'playlist');
+        $rawName = \trim($playlistTitle) !== '' ? \trim($playlistTitle) : ($playlistId !== '' ? 'playlist_' . $playlistId : 'playlist');
         $safeName = $this->bootstrap->sanitizePathComponent($rawName, 'playlist_' . ($playlistId !== '' ? $playlistId : 'items'));
 
         return $baseDir . DIRECTORY_SEPARATOR . $safeName;
@@ -823,10 +795,10 @@ final readonly class PlaylistService
         }
 
         $requestedFormats = $metadata['requested_formats'] ?? null;
-        if (is_array($requestedFormats) && $requestedFormats !== []) {
+        if (\is_array($requestedFormats) && $requestedFormats !== []) {
             $sizes = [];
             foreach ($requestedFormats as $format) {
-                if (!is_array($format)) {
+                if (!\is_array($format)) {
                     return [null, null];
                 }
                 $formatSize = $this->coerceInt($format['filesize'] ?? null) ?? $this->coerceInt($format['filesize_approx'] ?? null);
@@ -844,10 +816,10 @@ final readonly class PlaylistService
 
     private function coerceInt(mixed $value): ?int
     {
-        if (is_int($value)) {
+        if (\is_int($value)) {
             return $value;
         }
-        if (is_string($value) && ctype_digit($value)) {
+        if (\is_string($value) && ctype_digit($value)) {
             return (int) $value;
         }
 
@@ -864,16 +836,16 @@ final readonly class PlaylistService
         string $outputFormat,
         string $formatCode = 'best',
     ): string {
-        $title = trim((string) ($metadata['title'] ?? $metadata['fulltitle'] ?? 'video_' . $index));
+        $title = \trim((string) ($metadata['title'] ?? $metadata['fulltitle'] ?? 'video_' . $index));
         $safeTitle = $this->bootstrap->sanitizePathComponent($title, 'video_' . $index);
-        $videoId = trim((string) ($metadata['id'] ?? ''));
+        $videoId = \trim((string) ($metadata['id'] ?? ''));
         $safeVideoId = $videoId !== ''
             ? $this->bootstrap->sanitizePathComponent($videoId, 'item_' . $index)
             : 'item_' . $index;
         $defaultExtension = $formatCode === 'bestaudio' ? 'opus' : $outputFormat;
-        $ext = trim((string) ($metadata['ext'] ?? $defaultExtension)) ?: $defaultExtension;
+        $ext = \trim((string) ($metadata['ext'] ?? $defaultExtension)) ?: $defaultExtension;
 
-        return sprintf('%s/%03d - %s [%s].%s', $targetDir, $index, $safeTitle, $safeVideoId, $ext);
+        return \sprintf('%s/%03d - %s [%s].%s', $targetDir, $index, $safeTitle, $safeVideoId, $ext);
     }
 
     private function requestedFormatCode(RuntimeOptions $options): string
@@ -892,11 +864,11 @@ final readonly class PlaylistService
         $this->logger->info('📋 Доступные ролики:');
         foreach ($playlist->items as $item) {
             $mark = $item->selectable ? '✅' : '⛔';
-            $statusText = ($item->status !== '' && !in_array($item->status, ['available', 'public', 'unlisted'], true))
+            $statusText = ($item->status !== '' && !\in_array($item->status, ['available', 'public', 'unlisted'], true))
                 ? ' [' . $item->status . ']'
                 : '';
             $sizeText = $showSizes ? ' (' . $this->playlistItemSizeLabel($item) . ')' : '';
-            $this->logger->info(sprintf('%3d. %s %s%s%s', $item->playlistIndex, $mark, $item->title, $statusText, $sizeText));
+            $this->logger->info(\sprintf('%3d. %s %s%s%s', $item->playlistIndex, $mark, $item->title, $statusText, $sizeText));
         }
     }
 
@@ -921,7 +893,7 @@ final readonly class PlaylistService
         if ($number < 1 || $number > $maxIndex) {
             throw new \InvalidArgumentException('Номер ' . $number . ' вне диапазона.');
         }
-        if (!in_array($number, $selectableIndexes, true)) {
+        if (!\in_array($number, $selectableIndexes, true)) {
             throw new \InvalidArgumentException('Ролик ' . $number . ' нельзя выбрать.');
         }
     }

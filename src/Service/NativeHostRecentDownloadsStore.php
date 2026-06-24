@@ -10,27 +10,6 @@ use JsonException;
 use Symfony\Component\Filesystem\Filesystem;
 use YtdPhp\Bootstrap\RuntimeBootstrap;
 
-use function array_filter;
-use function array_slice;
-use function array_unshift;
-use function array_values;
-use function basename;
-use function dirname;
-use function fclose;
-use function file_exists;
-use function file_get_contents;
-use function file_put_contents;
-use function flock;
-use function fopen;
-use function is_array;
-use function is_resource;
-use function json_decode;
-use function json_encode;
-use function rename;
-use function sprintf;
-use function unlink;
-use function uniqid;
-
 use const LOCK_EX;
 use const LOCK_UN;
 use const JSON_PRETTY_PRINT;
@@ -52,8 +31,8 @@ final readonly class NativeHostRecentDownloadsStore
     public function append(string $path, string $url, string $mode): array
     {
         $entry = [
-            'id' => 'download-' . uniqid(),
-            'name' => basename($path),
+            'id' => 'download-' . \uniqid(),
+            'name' => \basename($path),
             'path' => $path,
             'url' => $url,
             'mode' => $mode,
@@ -62,8 +41,8 @@ final readonly class NativeHostRecentDownloadsStore
 
         $this->withExclusiveLock(function () use ($entry): void {
             $items = $this->filterExistingItems($this->readAll());
-            array_unshift($items, $entry);
-            $this->writeAll(array_slice($items, 0, self::MAX_ITEMS));
+            \array_unshift($items, $entry);
+            $this->writeAll(\array_slice($items, 0, self::MAX_ITEMS));
         });
 
         return $entry;
@@ -105,7 +84,7 @@ final readonly class NativeHostRecentDownloadsStore
     public function remove(string $entryId): void
     {
         $this->withExclusiveLock(function () use ($entryId): void {
-            $items = array_values(array_filter(
+            $items = \array_values(\array_filter(
                 $this->filterExistingItems($this->readAll()),
                 static fn(array $item): bool => ($item['id'] ?? null) !== $entryId,
             ));
@@ -120,21 +99,21 @@ final readonly class NativeHostRecentDownloadsStore
     private function writeAll(array $items): void
     {
         $path = $this->bootstrap->getNativeHostRecentDownloadsPath();
-        (new Filesystem())->mkdir(dirname($path));
+        (new Filesystem())->mkdir(\dirname($path));
 
         try {
-            $encoded = json_encode($items, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . PHP_EOL;
+            $encoded = \json_encode($items, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . PHP_EOL;
         } catch (JsonException) {
             return;
         }
 
-        $tempPath = sprintf('%s.%s.tmp', $path, uniqid());
-        if (file_put_contents($tempPath, $encoded) === false) {
+        $tempPath = \sprintf('%s.%s.tmp', $path, \uniqid());
+        if (\file_put_contents($tempPath, $encoded) === false) {
             return;
         }
 
-        if (!rename($tempPath, $path) && file_exists($tempPath)) {
-            unlink($tempPath);
+        if (!\rename($tempPath, $path) && \file_exists($tempPath)) {
+            \unlink($tempPath);
         }
     }
 
@@ -144,17 +123,17 @@ final readonly class NativeHostRecentDownloadsStore
     private function readAll(): array
     {
         $path = $this->bootstrap->getNativeHostRecentDownloadsPath();
-        if (!file_exists($path)) {
+        if (!\file_exists($path)) {
             return [];
         }
 
         try {
-            $decoded = json_decode((string) file_get_contents($path), true, 512, JSON_THROW_ON_ERROR);
+            $decoded = \json_decode((string) \file_get_contents($path), true, 512, JSON_THROW_ON_ERROR);
         } catch (JsonException) {
             return [];
         }
 
-        return is_array($decoded) ? array_values(array_filter($decoded, 'is_array')) : [];
+        return \is_array($decoded) ? \array_values(\array_filter($decoded, 'is_array')) : [];
     }
 
     /**
@@ -163,12 +142,12 @@ final readonly class NativeHostRecentDownloadsStore
      */
     private function filterExistingItems(array $items): array
     {
-        return array_values(array_filter(
+        return \array_values(\array_filter(
             $items,
             static function (array $item): bool {
                 $path = $item['path'] ?? null;
 
-                return is_string($path) && $path !== '' && file_exists($path);
+                return is_string($path) && $path !== '' && \file_exists($path);
             },
         ));
     }
@@ -176,17 +155,17 @@ final readonly class NativeHostRecentDownloadsStore
     private function withExclusiveLock(Closure $callback): void
     {
         $lockPath = $this->bootstrap->getNativeHostRecentDownloadsPath() . '.lock';
-        (new Filesystem())->mkdir(dirname($lockPath));
+        (new Filesystem())->mkdir(\dirname($lockPath));
 
-        $handle = fopen($lockPath, 'c+');
-        if (!is_resource($handle)) {
+        $handle = \fopen($lockPath, 'c+');
+        if (!\is_resource($handle)) {
             $callback();
 
             return;
         }
 
         try {
-            if (!flock($handle, LOCK_EX)) {
+            if (!\flock($handle, LOCK_EX)) {
                 $callback();
 
                 return;
@@ -194,8 +173,8 @@ final readonly class NativeHostRecentDownloadsStore
 
             $callback();
         } finally {
-            flock($handle, LOCK_UN);
-            fclose($handle);
+            \flock($handle, LOCK_UN);
+            \fclose($handle);
         }
     }
 }

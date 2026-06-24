@@ -11,36 +11,6 @@ use YtdPhp\Bootstrap\RuntimeBootstrap;
 use YtdPhp\Dto\DownloadResult;
 use YtdPhp\Dto\FastStreamFormatPair;
 
-use function basename;
-use function dirname;
-use function file_exists;
-use function file_put_contents;
-use function filesize;
-use function floor;
-use function getenv;
-use function implode;
-use function intdiv;
-use function is_dir;
-use function is_file;
-use function is_array;
-use function is_string;
-use function json_decode;
-use function log;
-use function microtime;
-use function mkdir;
-use function number_format;
-use function pathinfo;
-use function preg_split;
-use function preg_replace;
-use function sprintf;
-use function str_contains;
-use function str_replace;
-use function sys_get_temp_dir;
-use function tempnam;
-use function trim;
-use function unlink;
-use function usleep;
-
 final readonly class DownloaderService
 {
     private const int DOWNLOAD_MAX_ATTEMPTS = 3;
@@ -62,10 +32,10 @@ final readonly class DownloaderService
         }
 
         $units = ['B', 'K', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y'];
-        $index = (int) floor(log((float) $sizeBytes, 1024));
+        $index = (int) \floor(\log((float) $sizeBytes, 1024));
         $power = 1024 ** $index;
-        $size = number_format($sizeBytes / $power, 2, '.', '');
-        $size = preg_replace('/\.00$/', '', (string) $size);
+        $size = \number_format($sizeBytes / $power, 2, '.', '');
+        $size = \preg_replace('/\.00$/', '', (string) $size);
 
         return $size . $units[$index];
     }
@@ -127,14 +97,14 @@ final readonly class DownloaderService
             return new DownloadResult('failed', $detail);
         }
 
-        $tempJsonPath = tempnam(sys_get_temp_dir(), 'ytd_');
+        $tempJsonPath = \tempnam(\sys_get_temp_dir(), 'ytd_');
         if ($tempJsonPath === false) {
             return new DownloadResult('failed', 'tempfile_failed');
         }
-        file_put_contents($tempJsonPath, $process->getOutput());
+        \file_put_contents($tempJsonPath, $process->getOutput());
 
-        $metadata = json_decode($process->getOutput(), true);
-        if (!is_array($metadata)) {
+        $metadata = \json_decode($process->getOutput(), true);
+        if (!\is_array($metadata)) {
             $metadata = [];
         }
 
@@ -151,16 +121,16 @@ final readonly class DownloaderService
                 $tempJsonPath,
                 $outputFormat,
             );
-            if (is_string($expectedFile) && $expectedFile !== '') {
+            if (\is_string($expectedFile) && $expectedFile !== '') {
                 $expectedFile = $this->bootstrap->sanitizeOutputFilename($expectedFile);
             }
 
             if ($dryRun) {
                 $this->logger->info('🧪 Режим dry-run: показываю результат preflight без загрузки.');
-                if (is_string($expectedFile) && $expectedFile !== '') {
+                if (\is_string($expectedFile) && $expectedFile !== '') {
                     $this->logOutputPath($expectedFile);
                 }
-                if (is_string($expectedFile) && file_exists($expectedFile)) {
+                if (\is_string($expectedFile) && \file_exists($expectedFile)) {
                     $this->logger->warning('⚠️ Файл уже существует: ' . $expectedFile);
                     $this->logger->info('↪️ В обычном режиме был бы показан вопрос о перезаписи.');
                 } else {
@@ -171,9 +141,9 @@ final readonly class DownloaderService
             }
 
             $forceOverwrites = false;
-            if (is_string($expectedFile) && $expectedFile !== '' && file_exists($expectedFile)) {
+            if (\is_string($expectedFile) && $expectedFile !== '' && \file_exists($expectedFile)) {
                 $this->logger->warning('⚠️ Файл уже существует: ' . $expectedFile);
-                $choice = strtolower(trim($this->prompter->ask('🔄 Перезаписать? [y/N]: ')));
+                $choice = strtolower(\trim($this->prompter->ask('🔄 Перезаписать? [y/N]: ')));
                 if ($choice !== 'y') {
                     $this->logExistingOutputTarget($expectedFile);
                     $this->logger->info('⏭️ Пропускаю загрузку по выбору пользователя.');
@@ -201,8 +171,8 @@ final readonly class DownloaderService
                 $progressDelta,
             );
         } finally {
-            if (file_exists($tempJsonPath)) {
-                unlink($tempJsonPath);
+            if (\file_exists($tempJsonPath)) {
+                \unlink($tempJsonPath);
             }
         }
     }
@@ -261,14 +231,14 @@ final readonly class DownloaderService
             return new DownloadResult('failed', $detail);
         }
 
-        $tempJsonPath = tempnam(sys_get_temp_dir(), 'ytd_');
+        $tempJsonPath = \tempnam(\sys_get_temp_dir(), 'ytd_');
         if ($tempJsonPath === false) {
             return new DownloadResult('failed', 'tempfile_failed');
         }
-        file_put_contents($tempJsonPath, $process->getOutput());
+        \file_put_contents($tempJsonPath, $process->getOutput());
 
-        $metadata = json_decode($process->getOutput(), true);
-        if (!is_array($metadata)) {
+        $metadata = \json_decode($process->getOutput(), true);
+        if (!\is_array($metadata)) {
             $metadata = [];
         }
 
@@ -312,11 +282,11 @@ final readonly class DownloaderService
             if ($dryRun) {
                 $this->logger->info('🧪 Режим dry-run: показываю результат preflight без загрузки.');
                 $this->logOutputPath($expectedFile);
-                if (file_exists($expectedFile)) {
+                if (\file_exists($expectedFile)) {
                     $this->logger->warning('⚠️ Файл уже существует: ' . $expectedFile);
                     $this->logger->info('↪️ В обычном режиме был бы показан вопрос о перезаписи.');
                 } else {
-                    $this->logger->info(sprintf(
+                    $this->logger->info(\sprintf(
                         '⬇️ Быстрый режим скачает video=%s и audio=%s параллельно.',
                         $pair->video->formatId,
                         $pair->audio->formatId,
@@ -327,9 +297,9 @@ final readonly class DownloaderService
             }
 
             $forceOverwrites = false;
-            if (file_exists($expectedFile)) {
+            if (\file_exists($expectedFile)) {
                 $this->logger->warning('⚠️ Файл уже существует: ' . $expectedFile);
-                $choice = strtolower(trim($this->prompter->ask('🔄 Перезаписать? [y/N]: ')));
+                $choice = strtolower(\trim($this->prompter->ask('🔄 Перезаписать? [y/N]: ')));
                 if ($choice !== 'y') {
                     $this->logExistingOutputTarget($expectedFile);
                     $this->logger->info('⏭️ Пропускаю загрузку по выбору пользователя.');
@@ -350,8 +320,8 @@ final readonly class DownloaderService
                 $progressDelta,
             );
         } finally {
-            if (file_exists($tempJsonPath)) {
-                unlink($tempJsonPath);
+            if (\file_exists($tempJsonPath)) {
+                \unlink($tempJsonPath);
             }
         }
     }
@@ -361,13 +331,13 @@ final readonly class DownloaderService
      */
     private function withElapsedRuntime(callable $operation, bool $emitElapsedRuntime): DownloadResult
     {
-        $startedAt = microtime(true);
+        $startedAt = \microtime(true);
 
         try {
             return $operation();
         } finally {
             if ($emitElapsedRuntime) {
-                $this->logger->info('⏱️ Время работы: ' . $this->formatElapsedRuntime(microtime(true) - $startedAt));
+                $this->logger->info('⏱️ Время работы: ' . $this->formatElapsedRuntime(\microtime(true) - $startedAt));
             }
         }
     }
@@ -375,23 +345,23 @@ final readonly class DownloaderService
     private function formatElapsedRuntime(float $seconds): string
     {
         if ($seconds < 1.0) {
-            return number_format($seconds, 2, '.', '') . 'с';
+            return \number_format($seconds, 2, '.', '') . 'с';
         }
 
-        $totalSeconds = (int) floor($seconds);
-        $hours = intdiv($totalSeconds, 3600);
-        $minutes = intdiv($totalSeconds % 3600, 60);
+        $totalSeconds = (int) \floor($seconds);
+        $hours = \intdiv($totalSeconds, 3600);
+        $minutes = \intdiv($totalSeconds % 3600, 60);
         $remainingSeconds = $totalSeconds % 60;
 
         if ($hours > 0) {
-            return sprintf('%dч %02dм %02dс', $hours, $minutes, $remainingSeconds);
+            return \sprintf('%dч %02dм %02dс', $hours, $minutes, $remainingSeconds);
         }
 
         if ($minutes > 0) {
-            return sprintf('%dм %02dс', $minutes, $remainingSeconds);
+            return \sprintf('%dм %02dс', $minutes, $remainingSeconds);
         }
 
-        return sprintf('%dс', $remainingSeconds);
+        return \sprintf('%dс', $remainingSeconds);
     }
 
     public function downloadFromInfoJson(
@@ -419,7 +389,7 @@ final readonly class DownloaderService
             $outputFormat,
         );
 
-        if (is_string($expectedFile) && $expectedFile !== '' && file_exists($expectedFile) && !$forceOverwrites) {
+        if (\is_string($expectedFile) && $expectedFile !== '' && \file_exists($expectedFile) && !$forceOverwrites) {
             if ($emitLogs) {
                 $this->logger->warning('⚠️ Файл уже существует: ' . $expectedFile);
                 $this->logExistingOutputTarget($expectedFile);
@@ -467,7 +437,7 @@ final readonly class DownloaderService
             }
 
             if ($emitLogs) {
-                $this->logger->warning(sprintf(
+                $this->logger->warning(\sprintf(
                     '🔁 HTTP 403 во время загрузки; повторяю попытку %d/%d с докачкой.',
                     $attempt + 1,
                     self::DOWNLOAD_MAX_ATTEMPTS,
@@ -520,7 +490,7 @@ final readonly class DownloaderService
         return $this->automaticFormatResolver->resolve(
             $formatCode,
             $metadata,
-            is_string($sourceUrl) && $sourceUrl !== '' && $this->bootstrap->isYoutubeUrl($sourceUrl),
+            \is_string($sourceUrl) && $sourceUrl !== '' && $this->bootstrap->isYoutubeUrl($sourceUrl),
             $outputFormat,
         );
     }
@@ -561,8 +531,8 @@ final readonly class DownloaderService
     public function finalizeProcessResult(Process $process, ?string $expectedFile, bool $emitLogs): DownloadResult
     {
         if ($process->isSuccessful()) {
-            if (is_string($expectedFile) && $expectedFile !== '' && file_exists($expectedFile) && $emitLogs) {
-                $size = filesize($expectedFile);
+            if (\is_string($expectedFile) && $expectedFile !== '' && \file_exists($expectedFile) && $emitLogs) {
+                $size = \filesize($expectedFile);
                 $this->logOutputPath($expectedFile, $size !== false ? $size : null);
                 $this->logOutputDirectory($expectedFile);
             }
@@ -606,8 +576,8 @@ final readonly class DownloaderService
         $audioPath = $tempDir . '/audio.' . $pair->audio->extension;
 
         try {
-            $filesystem->mkdir(dirname($expectedFile));
-            $this->logger->info(sprintf(
+            $filesystem->mkdir(\dirname($expectedFile));
+            $this->logger->info(\sprintf(
                 '🚀 Начинаю быструю загрузку потоков: video=%s, audio=%s',
                 $pair->video->formatId,
                 $pair->audio->formatId,
@@ -650,7 +620,7 @@ final readonly class DownloaderService
                 return new DownloadResult('failed', $detail);
             }
 
-            $size = filesize($expectedFile);
+            $size = \filesize($expectedFile);
             $this->logOutputPath($expectedFile, $size !== false ? $size : null);
             $this->logOutputDirectory($expectedFile);
             $this->logger->info('🎉 Ура! Загрузка завершена!');
@@ -767,7 +737,7 @@ final readonly class DownloaderService
     {
         $detail = $this->ytDlpClient->getProcessErrorDetail($process, '');
 
-        return str_contains($detail, 'HTTP Error 403') || str_contains($detail, 'HTTP 403');
+        return \str_contains($detail, 'HTTP Error 403') || \str_contains($detail, 'HTTP 403');
     }
 
     private function logFastStreamRetryWarnings(bool $retryVideo, bool $retryAudio, int $attempt): void
@@ -780,9 +750,9 @@ final readonly class DownloaderService
             $labels[] = 'video';
         }
 
-        $this->logger->warning(sprintf(
+        $this->logger->warning(\sprintf(
             '🔁 HTTP 403 на fast-потоке %s; повторяю попытку %d/%d с докачкой.',
-            implode('+', $labels),
+            \implode('+', $labels),
             $attempt,
             self::FAST_STREAM_MAX_ATTEMPTS,
         ));
@@ -800,7 +770,7 @@ final readonly class DownloaderService
             foreach ($processes as $label => $process) {
                 $this->flushProcessOutput($label, $process, $progress);
             }
-            usleep(100000);
+            \usleep(100000);
         }
 
         foreach ($processes as $label => $process) {
@@ -855,14 +825,14 @@ final readonly class DownloaderService
             return;
         }
 
-        $normalized = str_replace("\r", "\n", $chunk);
-        $lines = preg_split('/\n+/', $normalized);
-        if (!is_array($lines)) {
+        $normalized = \str_replace("\r", "\n", $chunk);
+        $lines = \preg_split('/\n+/', $normalized);
+        if (!\is_array($lines)) {
             return;
         }
 
         foreach ($lines as $line) {
-            $line = trim($line);
+            $line = \trim($line);
             if ($line !== '') {
                 $this->logger->info('[' . $label . '] ' . $line);
             }
@@ -879,7 +849,7 @@ final readonly class DownloaderService
             $details[] = 'audio: ' . $this->ytDlpClient->getProcessErrorDetail($audioProcess, 'audio_stream_failed');
         }
 
-        return $details !== [] ? implode("\n", $details) : 'fast_stream_download_failed';
+        return $details !== [] ? \implode("\n", $details) : 'fast_stream_download_failed';
     }
 
     private function runFfmpegMerge(string $videoPath, string $audioPath, string $expectedFile, bool $forceOverwrites): Process
@@ -911,7 +881,7 @@ final readonly class DownloaderService
 
     private function cleanupFailedDownloadArtifacts(?string $expectedFile): int
     {
-        if (!is_string($expectedFile) || $expectedFile === '') {
+        if (!\is_string($expectedFile) || $expectedFile === '') {
             return 0;
         }
 
@@ -923,7 +893,7 @@ final readonly class DownloaderService
         ];
 
         foreach ($candidates as $candidate) {
-            if (is_file($candidate) && @unlink($candidate)) {
+            if (\is_file($candidate) && @\unlink($candidate)) {
                 ++$removedCount;
             }
         }
@@ -933,16 +903,16 @@ final readonly class DownloaderService
 
     private function createTemporaryDirectory(): ?string
     {
-        $path = tempnam(sys_get_temp_dir(), 'ytd_fast_');
+        $path = \tempnam(\sys_get_temp_dir(), 'ytd_fast_');
         if ($path === false) {
             return null;
         }
 
-        if (file_exists($path)) {
-            unlink($path);
+        if (\file_exists($path)) {
+            \unlink($path);
         }
 
-        return mkdir($path, 0777, true) ? $path : null;
+        return \mkdir($path, 0777, true) ? $path : null;
     }
 
     /**
@@ -951,8 +921,8 @@ final readonly class DownloaderService
     private function buildFallbackExpectedOutputPath(array $metadata, string $basePath, string $outputFormat): string
     {
         $title = $metadata['title'] ?? $metadata['fulltitle'] ?? $metadata['id'] ?? 'video';
-        $filename = is_string($title) && trim($title) !== ''
-            ? trim($title)
+        $filename = \is_string($title) && \trim($title) !== ''
+            ? \trim($title)
             : 'video';
 
         return $basePath . '/' . $filename . '.' . $outputFormat;
@@ -960,13 +930,13 @@ final readonly class DownloaderService
 
     private function replaceOutputExtension(string $path, string $extension): string
     {
-        $info = pathinfo($path);
+        $info = \pathinfo($path);
         $directory = isset($info['dirname']) && $info['dirname'] !== '.'
             ? $info['dirname'] . '/'
             : '';
-        $filename = is_string($info['filename'] ?? null) && $info['filename'] !== ''
+        $filename = \is_string($info['filename'] ?? null) && $info['filename'] !== ''
             ? $info['filename']
-            : basename($path);
+            : \basename($path);
 
         return $directory . $filename . '.' . $extension;
     }
@@ -978,7 +948,7 @@ final readonly class DownloaderService
 
     private function resolveProgressDelta(?string $override): string
     {
-        return is_string($override) && $override !== ''
+        return \is_string($override) && $override !== ''
             ? $override
             : $this->bootstrap->getProgressDelta();
     }
@@ -997,12 +967,12 @@ final readonly class DownloaderService
 
     private function logOutputDirectory(string $expectedFile): void
     {
-        $this->logger->info('📂 Каталог: ' . dirname($expectedFile));
+        $this->logger->info('📂 Каталог: ' . \dirname($expectedFile));
     }
 
     private function logExistingOutputTarget(string $expectedFile): void
     {
-        $size = filesize($expectedFile);
+        $size = \filesize($expectedFile);
         $this->logOutputPath($expectedFile, $size !== false ? $size : null);
         $this->logOutputDirectory($expectedFile);
     }

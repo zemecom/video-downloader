@@ -9,22 +9,6 @@ use JsonException;
 use Symfony\Component\Filesystem\Filesystem;
 use YtdPhp\Bootstrap\RuntimeBootstrap;
 
-use function dirname;
-use function fclose;
-use function file_exists;
-use function file_get_contents;
-use function file_put_contents;
-use function flock;
-use function fopen;
-use function is_array;
-use function is_resource;
-use function json_decode;
-use function json_encode;
-use function rename;
-use function sprintf;
-use function unlink;
-use function uniqid;
-
 use const LOCK_EX;
 use const LOCK_SH;
 use const LOCK_UN;
@@ -45,23 +29,23 @@ final readonly class NativeHostJobStateStore
     public function write(string $jobId, array $state): void
     {
         $path = $this->statePath($jobId);
-        $directory = dirname($path);
+        $directory = \dirname($path);
         (new Filesystem())->mkdir($directory);
 
         try {
-            $encoded = json_encode($state, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . PHP_EOL;
+            $encoded = \json_encode($state, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . PHP_EOL;
         } catch (JsonException) {
             return;
         }
 
         $this->withStateLock($jobId, LOCK_EX, function () use ($path, $encoded): void {
-            $tempPath = sprintf('%s.%s.tmp', $path, uniqid());
-            if (file_put_contents($tempPath, $encoded) === false) {
+            $tempPath = \sprintf('%s.%s.tmp', $path, \uniqid());
+            if (\file_put_contents($tempPath, $encoded) === false) {
                 return;
             }
 
-            if (!rename($tempPath, $path) && file_exists($tempPath)) {
-                unlink($tempPath);
+            if (!\rename($tempPath, $path) && \file_exists($tempPath)) {
+                \unlink($tempPath);
             }
         });
     }
@@ -74,29 +58,29 @@ final readonly class NativeHostJobStateStore
         $path = $this->statePath($jobId);
 
         return $this->withStateLock($jobId, LOCK_SH, function () use ($path): ?array {
-            if (!file_exists($path)) {
+            if (!\file_exists($path)) {
                 return null;
             }
 
             try {
-                $decoded = json_decode((string) file_get_contents($path), true, 512, JSON_THROW_ON_ERROR);
+                $decoded = \json_decode((string) \file_get_contents($path), true, 512, JSON_THROW_ON_ERROR);
             } catch (JsonException) {
                 return null;
             }
 
-            return is_array($decoded) ? $decoded : null;
+            return \is_array($decoded) ? $decoded : null;
         });
     }
 
     public function requestCancel(string $jobId): void
     {
         (new Filesystem())->mkdir($this->bootstrap->getNativeHostJobsDirectoryPath());
-        file_put_contents($this->cancelPath($jobId), 'cancel');
+        \file_put_contents($this->cancelPath($jobId), 'cancel');
     }
 
     public function cancelRequested(string $jobId): bool
     {
-        return file_exists($this->cancelPath($jobId));
+        return \file_exists($this->cancelPath($jobId));
     }
 
     public function clearCancelRequest(string $jobId): void
@@ -127,22 +111,22 @@ final readonly class NativeHostJobStateStore
     private function withStateLock(string $jobId, int $operation, Closure $callback): mixed
     {
         $lockPath = $this->lockPath($jobId);
-        (new Filesystem())->mkdir(dirname($lockPath));
+        (new Filesystem())->mkdir(\dirname($lockPath));
 
-        $handle = fopen($lockPath, 'c+');
-        if (!is_resource($handle)) {
+        $handle = \fopen($lockPath, 'c+');
+        if (!\is_resource($handle)) {
             return $callback();
         }
 
         try {
-            if (!flock($handle, $operation)) {
+            if (!\flock($handle, $operation)) {
                 return $callback();
             }
 
             return $callback();
         } finally {
-            flock($handle, LOCK_UN);
-            fclose($handle);
+            \flock($handle, LOCK_UN);
+            \fclose($handle);
         }
     }
 }

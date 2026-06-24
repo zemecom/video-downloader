@@ -13,41 +13,28 @@ use YtdPhp\Service\InputPrompter;
 use YtdPhp\Service\YtDlpClient;
 use YtdPhp\Tests\Support\FakeDownloaderBinaries;
 
-use function chmod;
-use function file_exists;
-use function file_get_contents;
-use function file_put_contents;
-use function getcwd;
-use function getenv;
-use function json_decode;
-use function mkdir;
-use function sprintf;
-use function substr_count;
-use function str_replace;
-use function sys_get_temp_dir;
-
 final class DownloaderServiceTest extends TestCase
 {
     public function testDownloadVideoReplacesSpacesWithUnderscoresInOutputFilename(): void
     {
-        $root = sys_get_temp_dir() . '/ytd_php_downloader_' . uniqid();
+        $root = \sys_get_temp_dir() . '/ytd_php_downloader_' . uniqid();
         $binDir = $root . '/bin';
         $downloadDir = $root . '/downloads';
-        mkdir($binDir, 0777, true);
-        mkdir($downloadDir, 0777, true);
+        \mkdir($binDir, 0777, true);
+        \mkdir($downloadDir, 0777, true);
 
         $scriptPath = $binDir . '/yt-dlp';
-        file_put_contents($scriptPath, FakeDownloaderBinaries::ytDlp());
-        chmod($scriptPath, 0777);
+        \file_put_contents($scriptPath, FakeDownloaderBinaries::ytDlp());
+        \chmod($scriptPath, 0777);
 
-        $previousPath = getenv('PATH');
-        $previousDownloadDir = getenv('DOWNLOAD_DIR_GENERAL');
+        $previousPath = \getenv('PATH');
+        $previousDownloadDir = \getenv('DOWNLOAD_DIR_GENERAL');
 
         putenv('PATH=' . $binDir . PATH_SEPARATOR . ($previousPath !== false ? $previousPath : ''));
         putenv('DOWNLOAD_DIR_GENERAL=' . $downloadDir);
 
         try {
-            $bootstrap = new RuntimeBootstrap(getcwd() ?: null);
+            $bootstrap = new RuntimeBootstrap(\getcwd() ?: null);
             $output = new BufferedOutput();
             $logger = new ConsoleLogger($output);
             $prompter = new InputPrompter();
@@ -59,12 +46,12 @@ final class DownloaderServiceTest extends TestCase
 
             self::assertSame('completed', $result->status);
             self::assertFileExists($downloadDir . '/My_Cool_Video.mkv');
-            self::assertFalse(file_exists($downloadDir . '/My Cool Video.mkv'));
+            self::assertFalse(\file_exists($downloadDir . '/My Cool Video.mkv'));
             self::assertFileExists($root . '/last-info-json.txt');
 
-            $infoJsonPath = trim((string) file_get_contents($root . '/last-info-json.txt'));
+            $infoJsonPath = trim((string) \file_get_contents($root . '/last-info-json.txt'));
             self::assertNotSame('', $infoJsonPath);
-            self::assertFalse(file_exists($infoJsonPath));
+            self::assertFalse(\file_exists($infoJsonPath));
             self::assertStringContainsString('⏱️ Время работы:', $logs);
         } finally {
             if ($previousPath === false) {
@@ -83,29 +70,29 @@ final class DownloaderServiceTest extends TestCase
 
     public function testDownloadVideoUsesTerminalLinkSafeOutputFilename(): void
     {
-        $root = sys_get_temp_dir() . '/ytd_php_downloader_link_safe_' . uniqid();
+        $root = \sys_get_temp_dir() . '/ytd_php_downloader_link_safe_' . uniqid();
         $binDir = $root . '/bin';
         $downloadDir = $root . '/downloads';
-        mkdir($binDir, 0777, true);
-        mkdir($downloadDir, 0777, true);
+        \mkdir($binDir, 0777, true);
+        \mkdir($downloadDir, 0777, true);
 
         $scriptPath = $binDir . '/yt-dlp';
-        $scriptSource = str_replace(
+        $scriptSource = \str_replace(
             "'title' => 'My Cool Video'",
             "'title' => ' 100% [Real] Video： Test? '",
             FakeDownloaderBinaries::ytDlp(),
         );
-        file_put_contents($scriptPath, $scriptSource);
-        chmod($scriptPath, 0777);
+        \file_put_contents($scriptPath, $scriptSource);
+        \chmod($scriptPath, 0777);
 
-        $previousPath = getenv('PATH');
-        $previousDownloadDir = getenv('DOWNLOAD_DIR_GENERAL');
+        $previousPath = \getenv('PATH');
+        $previousDownloadDir = \getenv('DOWNLOAD_DIR_GENERAL');
 
         putenv('PATH=' . $binDir . PATH_SEPARATOR . ($previousPath !== false ? $previousPath : ''));
         putenv('DOWNLOAD_DIR_GENERAL=' . $downloadDir);
 
         try {
-            $bootstrap = new RuntimeBootstrap(getcwd() ?: null);
+            $bootstrap = new RuntimeBootstrap(\getcwd() ?: null);
             $output = new BufferedOutput();
             $logger = new ConsoleLogger($output);
             $prompter = new InputPrompter();
@@ -119,7 +106,7 @@ final class DownloaderServiceTest extends TestCase
             self::assertSame('completed', $result->status);
             self::assertFileExists($expectedFile);
             self::assertStringContainsString('📄 Файл: ' . $expectedFile, $logs);
-            self::assertFalse(file_exists($downloadDir . '/ 100% [Real] Video： Test? .mkv'));
+            self::assertFalse(\file_exists($downloadDir . '/ 100% [Real] Video： Test? .mkv'));
         } finally {
             if ($previousPath === false) {
                 putenv('PATH');
@@ -137,27 +124,27 @@ final class DownloaderServiceTest extends TestCase
 
     public function testDownloadVideoLogsExistingOutputPathWhenOverwriteIsDeclined(): void
     {
-        $root = sys_get_temp_dir() . '/ytd_php_downloader_skip_' . uniqid();
+        $root = \sys_get_temp_dir() . '/ytd_php_downloader_skip_' . uniqid();
         $binDir = $root . '/bin';
         $downloadDir = $root . '/downloads';
-        mkdir($binDir, 0777, true);
-        mkdir($downloadDir, 0777, true);
+        \mkdir($binDir, 0777, true);
+        \mkdir($downloadDir, 0777, true);
 
         $scriptPath = $binDir . '/yt-dlp';
-        file_put_contents($scriptPath, FakeDownloaderBinaries::ytDlp());
-        chmod($scriptPath, 0777);
+        \file_put_contents($scriptPath, FakeDownloaderBinaries::ytDlp());
+        \chmod($scriptPath, 0777);
 
         $existingFile = $downloadDir . '/My_Cool_Video.mkv';
-        file_put_contents($existingFile, 'video-bytes');
+        \file_put_contents($existingFile, 'video-bytes');
 
-        $previousPath = getenv('PATH');
-        $previousDownloadDir = getenv('DOWNLOAD_DIR_GENERAL');
+        $previousPath = \getenv('PATH');
+        $previousDownloadDir = \getenv('DOWNLOAD_DIR_GENERAL');
 
         putenv('PATH=' . $binDir . PATH_SEPARATOR . ($previousPath !== false ? $previousPath : ''));
         putenv('DOWNLOAD_DIR_GENERAL=' . $downloadDir);
 
         try {
-            $bootstrap = new RuntimeBootstrap(getcwd() ?: null);
+            $bootstrap = new RuntimeBootstrap(\getcwd() ?: null);
             $output = new BufferedOutput();
             $logger = new ConsoleLogger($output);
             $prompter = new InputPrompter();
@@ -188,33 +175,33 @@ final class DownloaderServiceTest extends TestCase
 
     public function testDownloadVideoEnablesLineBufferedProgressWhenRequestedByEnvironment(): void
     {
-        $root = sys_get_temp_dir() . '/ytd_php_downloader_progress_' . uniqid();
+        $root = \sys_get_temp_dir() . '/ytd_php_downloader_progress_' . uniqid();
         $binDir = $root . '/bin';
         $downloadDir = $root . '/downloads';
-        mkdir($binDir, 0777, true);
-        mkdir($downloadDir, 0777, true);
+        \mkdir($binDir, 0777, true);
+        \mkdir($downloadDir, 0777, true);
 
         $scriptPath = $binDir . '/yt-dlp';
-        file_put_contents($scriptPath, FakeDownloaderBinaries::ytDlp());
-        chmod($scriptPath, 0777);
+        \file_put_contents($scriptPath, FakeDownloaderBinaries::ytDlp());
+        \chmod($scriptPath, 0777);
 
-        $previousPath = getenv('PATH');
-        $previousDownloadDir = getenv('DOWNLOAD_DIR_GENERAL');
-        $previousProgressNewline = getenv('YTD_PROGRESS_NEWLINE');
+        $previousPath = \getenv('PATH');
+        $previousDownloadDir = \getenv('DOWNLOAD_DIR_GENERAL');
+        $previousProgressNewline = \getenv('YTD_PROGRESS_NEWLINE');
 
         putenv('PATH=' . $binDir . PATH_SEPARATOR . ($previousPath !== false ? $previousPath : ''));
         putenv('DOWNLOAD_DIR_GENERAL=' . $downloadDir);
         putenv('YTD_PROGRESS_NEWLINE=1');
 
         try {
-            $bootstrap = new RuntimeBootstrap(getcwd() ?: null);
+            $bootstrap = new RuntimeBootstrap(\getcwd() ?: null);
             $logger = new ConsoleLogger();
             $prompter = new InputPrompter();
             $client = new YtDlpClient($logger);
             $service = new DownloaderService($client, $bootstrap, $logger, $prompter);
 
             $result = $service->downloadVideo('https://example.com/video', 'best');
-            $lastDownloadArgs = json_decode((string) file_get_contents($root . '/last-download-args.json'), true);
+            $lastDownloadArgs = \json_decode((string) \file_get_contents($root . '/last-download-args.json'), true);
 
             self::assertSame('completed', $result->status);
             self::assertIsArray($lastDownloadArgs);
@@ -242,21 +229,21 @@ final class DownloaderServiceTest extends TestCase
 
     public function testDownloadVideoAllowsManualDirectoryAndProgressOverrides(): void
     {
-        $root = sys_get_temp_dir() . '/ytd_php_downloader_manual_' . uniqid();
+        $root = \sys_get_temp_dir() . '/ytd_php_downloader_manual_' . uniqid();
         $binDir = $root . '/bin';
         $downloadDir = $root . '/downloads-default';
         $customDir = $root . '/downloads-custom';
-        mkdir($binDir, 0777, true);
-        mkdir($downloadDir, 0777, true);
+        \mkdir($binDir, 0777, true);
+        \mkdir($downloadDir, 0777, true);
 
         $scriptPath = $binDir . '/yt-dlp';
-        file_put_contents($scriptPath, FakeDownloaderBinaries::ytDlp());
-        chmod($scriptPath, 0777);
+        \file_put_contents($scriptPath, FakeDownloaderBinaries::ytDlp());
+        \chmod($scriptPath, 0777);
 
-        $previousPath = getenv('PATH');
-        $previousDownloadDir = getenv('DOWNLOAD_DIR_GENERAL');
-        $previousProgressNewline = getenv('YTD_PROGRESS_NEWLINE');
-        $previousProgressDelta = getenv('YTD_PROGRESS_DELTA');
+        $previousPath = \getenv('PATH');
+        $previousDownloadDir = \getenv('DOWNLOAD_DIR_GENERAL');
+        $previousProgressNewline = \getenv('YTD_PROGRESS_NEWLINE');
+        $previousProgressDelta = \getenv('YTD_PROGRESS_DELTA');
 
         putenv('PATH=' . $binDir . PATH_SEPARATOR . ($previousPath !== false ? $previousPath : ''));
         putenv('DOWNLOAD_DIR_GENERAL=' . $downloadDir);
@@ -264,7 +251,7 @@ final class DownloaderServiceTest extends TestCase
         putenv('YTD_PROGRESS_DELTA');
 
         try {
-            $bootstrap = new RuntimeBootstrap(getcwd() ?: null);
+            $bootstrap = new RuntimeBootstrap(\getcwd() ?: null);
             $logger = new ConsoleLogger();
             $prompter = new InputPrompter();
             $client = new YtDlpClient($logger);
@@ -282,7 +269,7 @@ final class DownloaderServiceTest extends TestCase
                 true,
                 '1.75',
             );
-            $lastDownloadArgs = json_decode((string) file_get_contents($root . '/last-download-args.json'), true);
+            $lastDownloadArgs = \json_decode((string) \file_get_contents($root . '/last-download-args.json'), true);
 
             self::assertSame('completed', $result->status);
             self::assertFileExists($customDir . '/My_Cool_Video.mkv');
@@ -319,24 +306,24 @@ final class DownloaderServiceTest extends TestCase
 
     public function testDownloadVideoRendersProgressBarForMainMode(): void
     {
-        $root = sys_get_temp_dir() . '/ytd_php_downloader_main_progress_' . uniqid();
+        $root = \sys_get_temp_dir() . '/ytd_php_downloader_main_progress_' . uniqid();
         $binDir = $root . '/bin';
         $downloadDir = $root . '/downloads';
-        mkdir($binDir, 0777, true);
-        mkdir($downloadDir, 0777, true);
+        \mkdir($binDir, 0777, true);
+        \mkdir($downloadDir, 0777, true);
 
         $scriptPath = $binDir . '/yt-dlp';
-        file_put_contents($scriptPath, FakeDownloaderBinaries::ytDlp());
-        chmod($scriptPath, 0777);
+        \file_put_contents($scriptPath, FakeDownloaderBinaries::ytDlp());
+        \chmod($scriptPath, 0777);
 
-        $previousPath = getenv('PATH');
-        $previousDownloadDir = getenv('DOWNLOAD_DIR_GENERAL');
+        $previousPath = \getenv('PATH');
+        $previousDownloadDir = \getenv('DOWNLOAD_DIR_GENERAL');
 
         putenv('PATH=' . $binDir . PATH_SEPARATOR . ($previousPath !== false ? $previousPath : ''));
         putenv('DOWNLOAD_DIR_GENERAL=' . $downloadDir);
 
         try {
-            $bootstrap = new RuntimeBootstrap(getcwd() ?: null);
+            $bootstrap = new RuntimeBootstrap(\getcwd() ?: null);
             $output = new BufferedOutput();
             $logger = new ConsoleLogger($output);
             $prompter = new InputPrompter();
@@ -367,24 +354,24 @@ final class DownloaderServiceTest extends TestCase
 
     public function testDownloadVideoRetriesHttp403WithResume(): void
     {
-        $root = sys_get_temp_dir() . '/ytd_php_downloader_retry_' . uniqid();
+        $root = \sys_get_temp_dir() . '/ytd_php_downloader_retry_' . uniqid();
         $binDir = $root . '/bin';
         $downloadDir = $root . '/downloads';
-        mkdir($binDir, 0777, true);
-        mkdir($downloadDir, 0777, true);
+        \mkdir($binDir, 0777, true);
+        \mkdir($downloadDir, 0777, true);
 
         $scriptPath = $binDir . '/yt-dlp';
-        file_put_contents($scriptPath, FakeDownloaderBinaries::ytDlpWithTransient403());
-        chmod($scriptPath, 0777);
+        \file_put_contents($scriptPath, FakeDownloaderBinaries::ytDlpWithTransient403());
+        \chmod($scriptPath, 0777);
 
-        $previousPath = getenv('PATH');
-        $previousDownloadDir = getenv('DOWNLOAD_DIR_GENERAL');
+        $previousPath = \getenv('PATH');
+        $previousDownloadDir = \getenv('DOWNLOAD_DIR_GENERAL');
 
         putenv('PATH=' . $binDir . PATH_SEPARATOR . ($previousPath !== false ? $previousPath : ''));
         putenv('DOWNLOAD_DIR_GENERAL=' . $downloadDir);
 
         try {
-            $bootstrap = new RuntimeBootstrap(getcwd() ?: null);
+            $bootstrap = new RuntimeBootstrap(\getcwd() ?: null);
             $output = new BufferedOutput();
             $logger = new ConsoleLogger($output);
             $prompter = new InputPrompter();
@@ -393,12 +380,12 @@ final class DownloaderServiceTest extends TestCase
 
             $result = $service->downloadVideo('https://example.com/video', 'best');
             $logs = $output->fetch();
-            $lastDownloadArgs = json_decode((string) file_get_contents($root . '/last-download-args-2.json'), true);
+            $lastDownloadArgs = \json_decode((string) \file_get_contents($root . '/last-download-args-2.json'), true);
 
             self::assertSame('completed', $result->status);
             self::assertFileExists($downloadDir . '/My_Cool_Video.mkv');
-            self::assertFalse(file_exists($downloadDir . '/My_Cool_Video.mkv.part'));
-            self::assertSame('2', trim((string) file_get_contents($root . '/download-attempts.txt')));
+            self::assertFalse(\file_exists($downloadDir . '/My_Cool_Video.mkv.part'));
+            self::assertSame('2', trim((string) \file_get_contents($root . '/download-attempts.txt')));
             self::assertFileExists($root . '/download-resume-seen.txt');
             self::assertIsArray($lastDownloadArgs);
             self::assertContains('--continue', $lastDownloadArgs);
@@ -420,25 +407,25 @@ final class DownloaderServiceTest extends TestCase
 
     public function testDownloadVideoFastDownloadsSeparateStreamsAndMergesWithFfmpeg(): void
     {
-        $root = sys_get_temp_dir() . '/ytd_php_downloader_fast_' . uniqid();
+        $root = \sys_get_temp_dir() . '/ytd_php_downloader_fast_' . uniqid();
         $binDir = $root . '/bin';
         $downloadDir = $root . '/downloads';
-        mkdir($binDir, 0777, true);
-        mkdir($downloadDir, 0777, true);
+        \mkdir($binDir, 0777, true);
+        \mkdir($downloadDir, 0777, true);
 
-        file_put_contents($binDir . '/yt-dlp', FakeDownloaderBinaries::fastYtDlp());
-        chmod($binDir . '/yt-dlp', 0777);
-        file_put_contents($binDir . '/ffmpeg', FakeDownloaderBinaries::ffmpeg());
-        chmod($binDir . '/ffmpeg', 0777);
+        \file_put_contents($binDir . '/yt-dlp', FakeDownloaderBinaries::fastYtDlp());
+        \chmod($binDir . '/yt-dlp', 0777);
+        \file_put_contents($binDir . '/ffmpeg', FakeDownloaderBinaries::ffmpeg());
+        \chmod($binDir . '/ffmpeg', 0777);
 
-        $previousPath = getenv('PATH');
-        $previousDownloadDir = getenv('DOWNLOAD_DIR_GENERAL');
+        $previousPath = \getenv('PATH');
+        $previousDownloadDir = \getenv('DOWNLOAD_DIR_GENERAL');
 
         putenv('PATH=' . $binDir . PATH_SEPARATOR . ($previousPath !== false ? $previousPath : ''));
         putenv('DOWNLOAD_DIR_GENERAL=' . $downloadDir);
 
         try {
-            $bootstrap = new RuntimeBootstrap(getcwd() ?: null);
+            $bootstrap = new RuntimeBootstrap(\getcwd() ?: null);
             $output = new BufferedOutput();
             $logger = new ConsoleLogger($output);
             $prompter = new InputPrompter();
@@ -456,9 +443,9 @@ final class DownloaderServiceTest extends TestCase
             );
             $logs = $output->fetch();
 
-            $videoArgs = json_decode((string) file_get_contents($root . '/stream-137-args.json'), true);
-            $audioArgs = json_decode((string) file_get_contents($root . '/stream-140-args.json'), true);
-            $ffmpegArgs = json_decode((string) file_get_contents($root . '/last-ffmpeg-args.json'), true);
+            $videoArgs = \json_decode((string) \file_get_contents($root . '/stream-137-args.json'), true);
+            $audioArgs = \json_decode((string) \file_get_contents($root . '/stream-140-args.json'), true);
+            $ffmpegArgs = \json_decode((string) \file_get_contents($root . '/last-ffmpeg-args.json'), true);
 
             self::assertSame('completed', $result->status);
             self::assertFileExists($downloadDir . '/My_Cool_Video.mp4');
@@ -499,25 +486,25 @@ final class DownloaderServiceTest extends TestCase
 
     public function testDownloadVideoFastRetriesHttp403StreamsWithResume(): void
     {
-        $root = sys_get_temp_dir() . '/ytd_php_downloader_fast_retry_' . uniqid();
+        $root = \sys_get_temp_dir() . '/ytd_php_downloader_fast_retry_' . uniqid();
         $binDir = $root . '/bin';
         $downloadDir = $root . '/downloads';
-        mkdir($binDir, 0777, true);
-        mkdir($downloadDir, 0777, true);
+        \mkdir($binDir, 0777, true);
+        \mkdir($downloadDir, 0777, true);
 
-        file_put_contents($binDir . '/yt-dlp', FakeDownloaderBinaries::fastYtDlpWithTransientVideo403());
-        chmod($binDir . '/yt-dlp', 0777);
-        file_put_contents($binDir . '/ffmpeg', FakeDownloaderBinaries::ffmpeg());
-        chmod($binDir . '/ffmpeg', 0777);
+        \file_put_contents($binDir . '/yt-dlp', FakeDownloaderBinaries::fastYtDlpWithTransientVideo403());
+        \chmod($binDir . '/yt-dlp', 0777);
+        \file_put_contents($binDir . '/ffmpeg', FakeDownloaderBinaries::ffmpeg());
+        \chmod($binDir . '/ffmpeg', 0777);
 
-        $previousPath = getenv('PATH');
-        $previousDownloadDir = getenv('DOWNLOAD_DIR_GENERAL');
+        $previousPath = \getenv('PATH');
+        $previousDownloadDir = \getenv('DOWNLOAD_DIR_GENERAL');
 
         putenv('PATH=' . $binDir . PATH_SEPARATOR . ($previousPath !== false ? $previousPath : ''));
         putenv('DOWNLOAD_DIR_GENERAL=' . $downloadDir);
 
         try {
-            $bootstrap = new RuntimeBootstrap(getcwd() ?: null);
+            $bootstrap = new RuntimeBootstrap(\getcwd() ?: null);
             $output = new BufferedOutput();
             $logger = new ConsoleLogger($output);
             $prompter = new InputPrompter();
@@ -529,8 +516,8 @@ final class DownloaderServiceTest extends TestCase
 
             self::assertSame('completed', $result->status);
             self::assertFileExists($downloadDir . '/My_Cool_Video.mkv');
-            self::assertSame('2', trim((string) file_get_contents($root . '/stream-137-attempts.txt')));
-            self::assertSame('1', trim((string) file_get_contents($root . '/stream-140-attempts.txt')));
+            self::assertSame('2', trim((string) \file_get_contents($root . '/stream-137-attempts.txt')));
+            self::assertSame('1', trim((string) \file_get_contents($root . '/stream-140-attempts.txt')));
             self::assertFileExists($root . '/video-resume-seen.txt');
             self::assertStringContainsString('повторяю попытку 2/3 с докачкой', $logs);
         } finally {
@@ -550,23 +537,23 @@ final class DownloaderServiceTest extends TestCase
 
     public function testDownloadVideoFastFallsBackToNormalDownloadWhenSeparateStreamsAreUnavailable(): void
     {
-        $root = sys_get_temp_dir() . '/ytd_php_downloader_fast_fallback_' . uniqid();
+        $root = \sys_get_temp_dir() . '/ytd_php_downloader_fast_fallback_' . uniqid();
         $binDir = $root . '/bin';
         $downloadDir = $root . '/downloads';
-        mkdir($binDir, 0777, true);
-        mkdir($downloadDir, 0777, true);
+        \mkdir($binDir, 0777, true);
+        \mkdir($downloadDir, 0777, true);
 
-        file_put_contents($binDir . '/yt-dlp', FakeDownloaderBinaries::ytDlp());
-        chmod($binDir . '/yt-dlp', 0777);
+        \file_put_contents($binDir . '/yt-dlp', FakeDownloaderBinaries::ytDlp());
+        \chmod($binDir . '/yt-dlp', 0777);
 
-        $previousPath = getenv('PATH');
-        $previousDownloadDir = getenv('DOWNLOAD_DIR_GENERAL');
+        $previousPath = \getenv('PATH');
+        $previousDownloadDir = \getenv('DOWNLOAD_DIR_GENERAL');
 
         putenv('PATH=' . $binDir . PATH_SEPARATOR . ($previousPath !== false ? $previousPath : ''));
         putenv('DOWNLOAD_DIR_GENERAL=' . $downloadDir);
 
         try {
-            $bootstrap = new RuntimeBootstrap(getcwd() ?: null);
+            $bootstrap = new RuntimeBootstrap(\getcwd() ?: null);
             $output = new BufferedOutput();
             $logger = new ConsoleLogger($output);
             $prompter = new InputPrompter();
@@ -579,7 +566,7 @@ final class DownloaderServiceTest extends TestCase
             self::assertSame('completed', $result->status);
             self::assertFileExists($downloadDir . '/My_Cool_Video.mkv');
             self::assertStringContainsString('Не удалось подобрать отдельные video/audio потоки', $logs);
-            self::assertSame(1, substr_count($logs, '⏱️ Время работы:'));
+            self::assertSame(1, \substr_count($logs, '⏱️ Время работы:'));
         } finally {
             if ($previousPath === false) {
                 putenv('PATH');
@@ -597,25 +584,25 @@ final class DownloaderServiceTest extends TestCase
 
     public function testDownloadVideoFastFailsWhenFfmpegMergeFails(): void
     {
-        $root = sys_get_temp_dir() . '/ytd_php_downloader_fast_ffmpeg_' . uniqid();
+        $root = \sys_get_temp_dir() . '/ytd_php_downloader_fast_ffmpeg_' . uniqid();
         $binDir = $root . '/bin';
         $downloadDir = $root . '/downloads';
-        mkdir($binDir, 0777, true);
-        mkdir($downloadDir, 0777, true);
+        \mkdir($binDir, 0777, true);
+        \mkdir($downloadDir, 0777, true);
 
-        file_put_contents($binDir . '/yt-dlp', FakeDownloaderBinaries::fastYtDlp());
-        chmod($binDir . '/yt-dlp', 0777);
-        file_put_contents($binDir . '/ffmpeg', FakeDownloaderBinaries::failingFfmpeg());
-        chmod($binDir . '/ffmpeg', 0777);
+        \file_put_contents($binDir . '/yt-dlp', FakeDownloaderBinaries::fastYtDlp());
+        \chmod($binDir . '/yt-dlp', 0777);
+        \file_put_contents($binDir . '/ffmpeg', FakeDownloaderBinaries::failingFfmpeg());
+        \chmod($binDir . '/ffmpeg', 0777);
 
-        $previousPath = getenv('PATH');
-        $previousDownloadDir = getenv('DOWNLOAD_DIR_GENERAL');
+        $previousPath = \getenv('PATH');
+        $previousDownloadDir = \getenv('DOWNLOAD_DIR_GENERAL');
 
         putenv('PATH=' . $binDir . PATH_SEPARATOR . ($previousPath !== false ? $previousPath : ''));
         putenv('DOWNLOAD_DIR_GENERAL=' . $downloadDir);
 
         try {
-            $bootstrap = new RuntimeBootstrap(getcwd() ?: null);
+            $bootstrap = new RuntimeBootstrap(\getcwd() ?: null);
             $logger = new ConsoleLogger();
             $prompter = new InputPrompter();
             $client = new YtDlpClient($logger);
@@ -624,7 +611,7 @@ final class DownloaderServiceTest extends TestCase
             $result = $service->downloadVideoFast('https://example.com/video', 'best');
 
             self::assertSame('failed', $result->status);
-            self::assertFalse(file_exists($downloadDir . '/My_Cool_Video.mkv'));
+            self::assertFalse(\file_exists($downloadDir . '/My_Cool_Video.mkv'));
         } finally {
             if ($previousPath === false) {
                 putenv('PATH');

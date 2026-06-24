@@ -6,8 +6,6 @@ namespace YtdPhp\Service;
 
 use Symfony\Component\Console\Output\OutputInterface;
 
-use function fwrite;
-
 final class ConsoleLogger
 {
     public function __construct(
@@ -47,7 +45,7 @@ final class ConsoleLogger
             return;
         }
 
-        fwrite(STDOUT, $chunk);
+        \fwrite(STDOUT, $chunk);
     }
 
     private function write(string $message, bool $stderr = false): void
@@ -58,6 +56,6 @@ final class ConsoleLogger
             return;
         }
 
-        fwrite($stderr ? STDERR : STDOUT, strip_tags($message) . PHP_EOL);
+        \fwrite($stderr ? STDERR : STDOUT, strip_tags($message) . PHP_EOL);
     }
 }

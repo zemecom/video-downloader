@@ -11,18 +11,12 @@ use YtdPhp\Service\NativeHostPreviewRegistryService;
 use YtdPhp\Service\NativeHostRecentDownloadsStore;
 use YtdPhp\Service\NativeHostJobStateStore;
 
-use function file_put_contents;
-use function mkdir;
-use function touch;
-use function sys_get_temp_dir;
-use function uniqid;
-
 final class NativeHostJobManagerServiceTest extends TestCase
 {
     public function testStartDownloadCreatesJobStateAndReturnsAcceptedPayload(): void
     {
-        $root = sys_get_temp_dir() . '/ytd_native_jobs_' . uniqid();
-        mkdir($root, 0777, true);
+        $root = \sys_get_temp_dir() . '/ytd_native_jobs_' . \uniqid();
+        \mkdir($root, 0777, true);
         putenv('YTD_PROJECT_ROOT=' . $root);
 
         $spawned = null;
@@ -60,8 +54,8 @@ final class NativeHostJobManagerServiceTest extends TestCase
 
     public function testStartDownloadStoresAudioModeAndPassesItToWorker(): void
     {
-        $root = sys_get_temp_dir() . '/ytd_native_jobs_audio_' . uniqid();
-        mkdir($root, 0777, true);
+        $root = \sys_get_temp_dir() . '/ytd_native_jobs_audio_' . \uniqid();
+        \mkdir($root, 0777, true);
         putenv('YTD_PROJECT_ROOT=' . $root);
 
         $spawned = null;
@@ -89,8 +83,8 @@ final class NativeHostJobManagerServiceTest extends TestCase
 
     public function testStartDownloadMarksJobAsFailedWhenWorkerStartFails(): void
     {
-        $root = sys_get_temp_dir() . '/ytd_native_jobs_failed_' . uniqid();
-        mkdir($root, 0777, true);
+        $root = \sys_get_temp_dir() . '/ytd_native_jobs_failed_' . \uniqid();
+        \mkdir($root, 0777, true);
         putenv('YTD_PROJECT_ROOT=' . $root);
 
         try {
@@ -121,8 +115,8 @@ final class NativeHostJobManagerServiceTest extends TestCase
 
     public function testGetJobStatusReturnsStoredStatePayload(): void
     {
-        $root = sys_get_temp_dir() . '/ytd_native_status_' . uniqid();
-        mkdir($root, 0777, true);
+        $root = \sys_get_temp_dir() . '/ytd_native_status_' . \uniqid();
+        \mkdir($root, 0777, true);
         putenv('YTD_PROJECT_ROOT=' . $root);
 
         try {
@@ -157,8 +151,8 @@ final class NativeHostJobManagerServiceTest extends TestCase
 
     public function testGetJobStatusIncludesPreviewDetailsForCompletedVideoJob(): void
     {
-        $root = sys_get_temp_dir() . '/ytd_native_status_preview_' . uniqid();
-        mkdir($root, 0777, true);
+        $root = \sys_get_temp_dir() . '/ytd_native_status_preview_' . \uniqid();
+        \mkdir($root, 0777, true);
         putenv('YTD_PROJECT_ROOT=' . $root);
 
         try {
@@ -197,8 +191,8 @@ final class NativeHostJobManagerServiceTest extends TestCase
 
     public function testCancelDownloadMarksStateAsCancellingAndSignalsKnownPid(): void
     {
-        $root = sys_get_temp_dir() . '/ytd_native_cancel_' . uniqid();
-        mkdir($root, 0777, true);
+        $root = \sys_get_temp_dir() . '/ytd_native_cancel_' . \uniqid();
+        \mkdir($root, 0777, true);
         putenv('YTD_PROJECT_ROOT=' . $root);
 
         $signalled = [];
@@ -239,15 +233,15 @@ final class NativeHostJobManagerServiceTest extends TestCase
 
     public function testListRecentDownloadsReturnsStoredEntries(): void
     {
-        $root = sys_get_temp_dir() . '/ytd_native_recent_list_' . uniqid();
-        mkdir($root, 0777, true);
+        $root = \sys_get_temp_dir() . '/ytd_native_recent_list_' . \uniqid();
+        \mkdir($root, 0777, true);
         putenv('YTD_PROJECT_ROOT=' . $root);
 
         try {
             $bootstrap = new RuntimeBootstrap($root);
             $recentDownloads = new NativeHostRecentDownloadsStore($bootstrap);
             $filePath = $root . '/video-one.mkv';
-            touch($filePath);
+            \touch($filePath);
             $recentDownloads->append($filePath, 'https://example.com/1', 'video');
 
             $manager = new NativeHostJobManagerService(
@@ -269,8 +263,8 @@ final class NativeHostJobManagerServiceTest extends TestCase
 
     public function testOpenRecentDownloadUsesConfiguredOpener(): void
     {
-        $root = sys_get_temp_dir() . '/ytd_native_recent_open_' . uniqid();
-        mkdir($root, 0777, true);
+        $root = \sys_get_temp_dir() . '/ytd_native_recent_open_' . \uniqid();
+        \mkdir($root, 0777, true);
         putenv('YTD_PROJECT_ROOT=' . $root);
 
         $openedPaths = [];
@@ -279,7 +273,7 @@ final class NativeHostJobManagerServiceTest extends TestCase
             $bootstrap = new RuntimeBootstrap($root);
             $recentDownloads = new NativeHostRecentDownloadsStore($bootstrap);
             $filePath = $root . '/downloaded-video.mkv';
-            touch($filePath);
+            \touch($filePath);
             $entry = $recentDownloads->append($filePath, 'https://example.com/1', 'video');
 
             $manager = new NativeHostJobManagerService(
@@ -303,15 +297,15 @@ final class NativeHostJobManagerServiceTest extends TestCase
 
     public function testPreviewRecentDownloadReturnsLoopbackPreviewForVideoEntry(): void
     {
-        $root = sys_get_temp_dir() . '/ytd_native_recent_preview_' . uniqid();
-        mkdir($root, 0777, true);
+        $root = \sys_get_temp_dir() . '/ytd_native_recent_preview_' . \uniqid();
+        \mkdir($root, 0777, true);
         putenv('YTD_PROJECT_ROOT=' . $root);
 
         try {
             $bootstrap = new RuntimeBootstrap($root);
             $recentDownloads = new NativeHostRecentDownloadsStore($bootstrap);
             $filePath = $root . '/downloaded-video.mp4';
-            file_put_contents($filePath, 'preview');
+            \file_put_contents($filePath, 'preview');
             $entry = $recentDownloads->append($filePath, 'https://example.com/1', 'video');
 
             $manager = new NativeHostJobManagerService(
@@ -341,15 +335,15 @@ final class NativeHostJobManagerServiceTest extends TestCase
 
     public function testDeleteRecentDownloadRemovesFileAndHistoryEntry(): void
     {
-        $root = sys_get_temp_dir() . '/ytd_native_recent_delete_' . uniqid();
-        mkdir($root, 0777, true);
+        $root = \sys_get_temp_dir() . '/ytd_native_recent_delete_' . \uniqid();
+        \mkdir($root, 0777, true);
         putenv('YTD_PROJECT_ROOT=' . $root);
 
         try {
             $bootstrap = new RuntimeBootstrap($root);
             $recentDownloads = new NativeHostRecentDownloadsStore($bootstrap);
             $filePath = $root . '/delete-me-video.mp4';
-            file_put_contents($filePath, 'preview');
+            \file_put_contents($filePath, 'preview');
             $entry = $recentDownloads->append($filePath, 'https://example.com/1', 'video');
 
             $manager = new NativeHostJobManagerService(
@@ -371,8 +365,8 @@ final class NativeHostJobManagerServiceTest extends TestCase
 
     public function testRevealRecentDownloadPrunesMissingFileEntryFromHistory(): void
     {
-        $root = sys_get_temp_dir() . '/ytd_native_recent_reveal_' . uniqid();
-        mkdir($root, 0777, true);
+        $root = \sys_get_temp_dir() . '/ytd_native_recent_reveal_' . \uniqid();
+        \mkdir($root, 0777, true);
         putenv('YTD_PROJECT_ROOT=' . $root);
 
         try {
@@ -400,8 +394,8 @@ final class NativeHostJobManagerServiceTest extends TestCase
 
     public function testOpenRecentDownloadPrunesMissingFileEntryFromHistory(): void
     {
-        $root = sys_get_temp_dir() . '/ytd_native_recent_open_missing_' . uniqid();
-        mkdir($root, 0777, true);
+        $root = \sys_get_temp_dir() . '/ytd_native_recent_open_missing_' . \uniqid();
+        \mkdir($root, 0777, true);
         putenv('YTD_PROJECT_ROOT=' . $root);
 
         try {

@@ -11,17 +11,12 @@ use YtdPhp\Service\NativeHostJobManagerService;
 use YtdPhp\Service\NativeHostRecentDownloadsStore;
 use YtdPhp\Service\NativeHostJobStateStore;
 
-use function mkdir;
-use function touch;
-use function sys_get_temp_dir;
-use function uniqid;
-
 final class NativeHostHandlerServiceTest extends TestCase
 {
     public function testHandleAcceptsValidDownloadRequestAndStartsJob(): void
     {
-        $root = sys_get_temp_dir() . '/ytd_native_handler_' . uniqid();
-        mkdir($root, 0777, true);
+        $root = \sys_get_temp_dir() . '/ytd_native_handler_' . \uniqid();
+        \mkdir($root, 0777, true);
         putenv('YTD_PROJECT_ROOT=' . $root);
 
         try {
@@ -55,8 +50,8 @@ final class NativeHostHandlerServiceTest extends TestCase
 
     public function testHandlePassesAudioModeToJobStarter(): void
     {
-        $root = sys_get_temp_dir() . '/ytd_native_handler_audio_' . uniqid();
-        mkdir($root, 0777, true);
+        $root = \sys_get_temp_dir() . '/ytd_native_handler_audio_' . \uniqid();
+        \mkdir($root, 0777, true);
         putenv('YTD_PROJECT_ROOT=' . $root);
 
         try {
@@ -87,8 +82,8 @@ final class NativeHostHandlerServiceTest extends TestCase
 
     public function testHandleRejectsUnsupportedUrlScheme(): void
     {
-        $root = sys_get_temp_dir() . '/ytd_native_handler_url_' . uniqid();
-        mkdir($root, 0777, true);
+        $root = \sys_get_temp_dir() . '/ytd_native_handler_url_' . \uniqid();
+        \mkdir($root, 0777, true);
         putenv('YTD_PROJECT_ROOT=' . $root);
 
         try {
@@ -115,8 +110,8 @@ final class NativeHostHandlerServiceTest extends TestCase
 
     public function testHandleRejectsUnsupportedActionAsInvalidPayload(): void
     {
-        $root = sys_get_temp_dir() . '/ytd_native_handler_action_' . uniqid();
-        mkdir($root, 0777, true);
+        $root = \sys_get_temp_dir() . '/ytd_native_handler_action_' . \uniqid();
+        \mkdir($root, 0777, true);
         putenv('YTD_PROJECT_ROOT=' . $root);
 
         try {
@@ -143,8 +138,8 @@ final class NativeHostHandlerServiceTest extends TestCase
 
     public function testHandleReturnsSpawnFailedAndFailedStateWhenWorkerStartFails(): void
     {
-        $root = sys_get_temp_dir() . '/ytd_native_handler_spawn_' . uniqid();
-        mkdir($root, 0777, true);
+        $root = \sys_get_temp_dir() . '/ytd_native_handler_spawn_' . \uniqid();
+        \mkdir($root, 0777, true);
         putenv('YTD_PROJECT_ROOT=' . $root);
 
         try {
@@ -180,15 +175,15 @@ final class NativeHostHandlerServiceTest extends TestCase
 
     public function testHandleReturnsUnexpectedErrorWhenNonNativeHostExceptionEscapes(): void
     {
-        $root = sys_get_temp_dir() . '/ytd_native_handler_unexpected_' . uniqid();
-        mkdir($root, 0777, true);
+        $root = \sys_get_temp_dir() . '/ytd_native_handler_unexpected_' . \uniqid();
+        \mkdir($root, 0777, true);
         putenv('YTD_PROJECT_ROOT=' . $root);
 
         try {
             $bootstrap = new RuntimeBootstrap($root);
             $recentDownloads = new NativeHostRecentDownloadsStore($bootstrap);
             $filePath = $root . '/downloaded-video.mkv';
-            touch($filePath);
+            \touch($filePath);
             $entry = $recentDownloads->append($filePath, 'https://example.com/1', 'video');
             $manager = new NativeHostJobManagerService(
                 $bootstrap,

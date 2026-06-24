@@ -8,22 +8,14 @@ use PHPUnit\Framework\TestCase;
 use YtdPhp\Bootstrap\RuntimeBootstrap;
 use YtdPhp\Service\NativeHostRecentDownloadsStore;
 
-use function dirname;
-use function file_get_contents;
-use function file_put_contents;
-use function mkdir;
-use function sys_get_temp_dir;
-use function touch;
-use function uniqid;
-
 use const JSON_THROW_ON_ERROR;
 
 final class NativeHostRecentDownloadsStoreTest extends TestCase
 {
     public function testAppendCreatesNewestFirstListWithMetadata(): void
     {
-        $root = sys_get_temp_dir() . '/ytd_recent_downloads_' . uniqid();
-        mkdir($root, 0777, true);
+        $root = \sys_get_temp_dir() . '/ytd_recent_downloads_' . \uniqid();
+        \mkdir($root, 0777, true);
 
         putenv('YTD_PROJECT_ROOT=' . $root);
 
@@ -31,8 +23,8 @@ final class NativeHostRecentDownloadsStoreTest extends TestCase
             $store = new NativeHostRecentDownloadsStore(new RuntimeBootstrap($root));
             $firstPath = $root . '/video-one.mkv';
             $secondPath = $root . '/audio-two.opus';
-            touch($firstPath);
-            touch($secondPath);
+            \touch($firstPath);
+            \touch($secondPath);
             $first = $store->append($firstPath, 'https://example.com/1', 'video');
             $second = $store->append($secondPath, 'https://example.com/2', 'audio');
             $items = $store->list();
@@ -49,8 +41,8 @@ final class NativeHostRecentDownloadsStoreTest extends TestCase
 
     public function testRemoveDeletesEntryFromStore(): void
     {
-        $root = sys_get_temp_dir() . '/ytd_recent_downloads_remove_' . uniqid();
-        mkdir($root, 0777, true);
+        $root = \sys_get_temp_dir() . '/ytd_recent_downloads_remove_' . \uniqid();
+        \mkdir($root, 0777, true);
 
         putenv('YTD_PROJECT_ROOT=' . $root);
 
@@ -69,8 +61,8 @@ final class NativeHostRecentDownloadsStoreTest extends TestCase
 
     public function testAppendKeepsOnlyTwentyNewestEntries(): void
     {
-        $root = sys_get_temp_dir() . '/ytd_recent_downloads_limit_' . uniqid();
-        mkdir($root, 0777, true);
+        $root = \sys_get_temp_dir() . '/ytd_recent_downloads_limit_' . \uniqid();
+        \mkdir($root, 0777, true);
 
         putenv('YTD_PROJECT_ROOT=' . $root);
 
@@ -79,7 +71,7 @@ final class NativeHostRecentDownloadsStoreTest extends TestCase
 
             for ($index = 1; $index <= 21; ++$index) {
                 $path = $root . '/video-' . $index . '.mkv';
-                touch($path);
+                \touch($path);
                 $store->append($path, 'https://example.com/' . $index, 'video');
             }
 
@@ -95,8 +87,8 @@ final class NativeHostRecentDownloadsStoreTest extends TestCase
 
     public function testListPrunesMissingFilesAndPersistsCleanedHistory(): void
     {
-        $root = sys_get_temp_dir() . '/ytd_recent_downloads_prune_' . uniqid();
-        mkdir($root . '/downloads', 0777, true);
+        $root = \sys_get_temp_dir() . '/ytd_recent_downloads_prune_' . \uniqid();
+        \mkdir($root . '/downloads', 0777, true);
 
         putenv('YTD_PROJECT_ROOT=' . $root);
 
@@ -104,10 +96,10 @@ final class NativeHostRecentDownloadsStoreTest extends TestCase
             $bootstrap = new RuntimeBootstrap($root);
             $store = new NativeHostRecentDownloadsStore($bootstrap);
             $existingPath = $root . '/downloads/existing-video.mp4';
-            mkdir(dirname($bootstrap->getNativeHostRecentDownloadsPath()), 0777, true);
-            touch($existingPath);
+            \mkdir(\dirname($bootstrap->getNativeHostRecentDownloadsPath()), 0777, true);
+            \touch($existingPath);
 
-            file_put_contents(
+            \file_put_contents(
                 $bootstrap->getNativeHostRecentDownloadsPath(),
                 json_encode([
                     [
@@ -130,7 +122,7 @@ final class NativeHostRecentDownloadsStoreTest extends TestCase
             );
 
             $items = $store->list();
-            $persisted = json_decode((string) file_get_contents($bootstrap->getNativeHostRecentDownloadsPath()), true, 512, JSON_THROW_ON_ERROR);
+            $persisted = json_decode((string) \file_get_contents($bootstrap->getNativeHostRecentDownloadsPath()), true, 512, JSON_THROW_ON_ERROR);
 
             self::assertCount(1, $items);
             self::assertSame('download-existing', $items[0]['id']);

@@ -4,12 +4,6 @@ declare(strict_types=1);
 
 namespace YtdPhp\Service;
 
-use function in_array;
-use function ltrim;
-use function parse_url;
-use function str_ends_with;
-use function strtolower;
-
 final class YtDlpCommandBuilder
 {
     private const BEST_FORMAT = 'bestvideo+bestaudio/best';
@@ -182,7 +176,7 @@ final class YtDlpCommandBuilder
         }
         $command[] = '--concurrent-fragments';
         $command[] = (string) max(1, $concurrentFragments);
-        if (is_string($this->url) && $this->url !== '' && !in_array('--load-info-json', $command, true)) {
+        if (is_string($this->url) && $this->url !== '' && !\in_array('--load-info-json', $command, true)) {
             $command[] = $this->url;
         }
 
@@ -258,14 +252,14 @@ final class YtDlpCommandBuilder
             return false;
         }
 
-        $hostname = strtolower((string) (parse_url($videoUrl, PHP_URL_HOST) ?? ''));
+        $hostname = \strtolower((string) (\parse_url($videoUrl, PHP_URL_HOST) ?? ''));
         if ($hostname === '') {
-            $hostname = strtolower((string) (parse_url('//' . ltrim($videoUrl, '/'), PHP_URL_HOST) ?? ''));
+            $hostname = \strtolower((string) (\parse_url('//' . \ltrim($videoUrl, '/'), PHP_URL_HOST) ?? ''));
         }
 
         return $hostname === 'youtube.com'
             || $hostname === 'youtu.be'
-            || str_ends_with($hostname, '.youtube.com')
-            || str_ends_with($hostname, '.youtu.be');
+            || \str_ends_with($hostname, '.youtube.com')
+            || \str_ends_with($hostname, '.youtu.be');
     }
 }

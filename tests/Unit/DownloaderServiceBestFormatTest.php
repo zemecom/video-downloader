@@ -11,36 +11,28 @@ use YtdPhp\Service\DownloaderService;
 use YtdPhp\Service\InputPrompter;
 use YtdPhp\Service\YtDlpClient;
 
-use function chmod;
-use function file_exists;
-use function file_put_contents;
-use function getcwd;
-use function getenv;
-use function mkdir;
-use function sys_get_temp_dir;
-
 final class DownloaderServiceBestFormatTest extends TestCase
 {
     public function testDownloadVideoDoesNotUseYoutubeAv1FilterForNonYoutubeUrls(): void
     {
-        $root = sys_get_temp_dir() . '/ytd_php_best_format_' . uniqid();
+        $root = \sys_get_temp_dir() . '/ytd_php_best_format_' . uniqid();
         $binDir = $root . '/bin';
         $downloadDir = $root . '/downloads';
-        mkdir($binDir, 0777, true);
-        mkdir($downloadDir, 0777, true);
+        \mkdir($binDir, 0777, true);
+        \mkdir($downloadDir, 0777, true);
 
         $scriptPath = $binDir . '/yt-dlp';
-        file_put_contents($scriptPath, $this->fakeYtDlpScriptThatRejectsYoutubeOnlyBestFormat());
-        chmod($scriptPath, 0777);
+        \file_put_contents($scriptPath, $this->fakeYtDlpScriptThatRejectsYoutubeOnlyBestFormat());
+        \chmod($scriptPath, 0777);
 
-        $previousPath = getenv('PATH');
-        $previousDownloadDir = getenv('DOWNLOAD_DIR_GENERAL');
+        $previousPath = \getenv('PATH');
+        $previousDownloadDir = \getenv('DOWNLOAD_DIR_GENERAL');
 
         putenv('PATH=' . $binDir . PATH_SEPARATOR . ($previousPath !== false ? $previousPath : ''));
         putenv('DOWNLOAD_DIR_GENERAL=' . $downloadDir);
 
         try {
-            $bootstrap = new RuntimeBootstrap(getcwd() ?: null);
+            $bootstrap = new RuntimeBootstrap(\getcwd() ?: null);
             $logger = new ConsoleLogger();
             $prompter = new InputPrompter();
             $client = new YtDlpClient($logger);
@@ -50,7 +42,7 @@ final class DownloaderServiceBestFormatTest extends TestCase
 
             self::assertSame('completed', $result->status);
             self::assertFileExists($downloadDir . '/My_Cool_Video.mkv');
-            self::assertFalse(file_exists($downloadDir . '/My Cool Video.mkv'));
+            self::assertFalse(\file_exists($downloadDir . '/My Cool Video.mkv'));
         } finally {
             if ($previousPath === false) {
                 putenv('PATH');
@@ -68,24 +60,24 @@ final class DownloaderServiceBestFormatTest extends TestCase
 
     public function testDownloadVideoFallsBackSafelyForMediumQualityOnNonYoutubeUrls(): void
     {
-        $root = sys_get_temp_dir() . '/ytd_php_medium_format_' . uniqid();
+        $root = \sys_get_temp_dir() . '/ytd_php_medium_format_' . uniqid();
         $binDir = $root . '/bin';
         $downloadDir = $root . '/downloads';
-        mkdir($binDir, 0777, true);
-        mkdir($downloadDir, 0777, true);
+        \mkdir($binDir, 0777, true);
+        \mkdir($downloadDir, 0777, true);
 
         $scriptPath = $binDir . '/yt-dlp';
-        file_put_contents($scriptPath, $this->fakeYtDlpScriptThatRejectsYoutubeOnlyBestFormat());
-        chmod($scriptPath, 0777);
+        \file_put_contents($scriptPath, $this->fakeYtDlpScriptThatRejectsYoutubeOnlyBestFormat());
+        \chmod($scriptPath, 0777);
 
-        $previousPath = getenv('PATH');
-        $previousDownloadDir = getenv('DOWNLOAD_DIR_GENERAL');
+        $previousPath = \getenv('PATH');
+        $previousDownloadDir = \getenv('DOWNLOAD_DIR_GENERAL');
 
         putenv('PATH=' . $binDir . PATH_SEPARATOR . ($previousPath !== false ? $previousPath : ''));
         putenv('DOWNLOAD_DIR_GENERAL=' . $downloadDir);
 
         try {
-            $bootstrap = new RuntimeBootstrap(getcwd() ?: null);
+            $bootstrap = new RuntimeBootstrap(\getcwd() ?: null);
             $logger = new ConsoleLogger();
             $prompter = new InputPrompter();
             $client = new YtDlpClient($logger);
@@ -95,7 +87,7 @@ final class DownloaderServiceBestFormatTest extends TestCase
 
             self::assertSame('completed', $result->status);
             self::assertFileExists($downloadDir . '/My_Cool_Video.mkv');
-            self::assertFalse(file_exists($downloadDir . '/My Cool Video.mkv'));
+            self::assertFalse(\file_exists($downloadDir . '/My Cool Video.mkv'));
         } finally {
             if ($previousPath === false) {
                 putenv('PATH');

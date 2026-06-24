@@ -7,11 +7,6 @@ namespace YtdPhp\Tests\Unit;
 use PHPUnit\Framework\TestCase;
 use YtdPhp\Service\NativeMessagingProtocolService;
 
-use function json_encode;
-use function strlen;
-use function substr;
-use function unpack;
-
 final class NativeMessagingProtocolServiceTest extends TestCase
 {
     public function testEncodePrefixesJsonPayloadWithNativeLengthHeader(): void
@@ -23,12 +18,12 @@ final class NativeMessagingProtocolServiceTest extends TestCase
             'code' => 'accepted',
         ]);
 
-        $decodedHeader = unpack('Llength', substr($encoded, 0, 4));
-        $body = substr($encoded, 4);
+        $decodedHeader = \unpack('Llength', \substr($encoded, 0, 4));
+        $body = \substr($encoded, 4);
 
-        self::assertSame(strlen($body), $decodedHeader['length']);
+        self::assertSame(\strlen($body), $decodedHeader['length']);
         self::assertSame(
-            json_encode(['ok' => true, 'code' => 'accepted'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            \json_encode(['ok' => true, 'code' => 'accepted'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
             $body,
         );
     }

@@ -12,17 +12,6 @@ use YtdPhp\Exception\RoutingConfigException;
 use Symfony\Component\Yaml\Exception\ParseException;
 use Symfony\Component\Yaml\Yaml;
 
-use function array_diff;
-use function array_key_exists;
-use function array_values;
-use function count;
-use function is_array;
-use function is_string;
-use function parse_url;
-use function str_contains;
-use function strtolower;
-use function trim;
-
 final readonly class RoutingService
 {
     public const string ROUTE_DIRECT = 'direct';
@@ -43,16 +32,16 @@ final readonly class RoutingService
 
     public function getVideoHostname(string $videoUrl): string
     {
-        $parts = parse_url($videoUrl);
+        $parts = \parse_url($videoUrl);
         $hostname = $parts['host'] ?? null;
-        if (is_string($hostname) && $hostname !== '') {
-            return strtolower($hostname);
+        if (\is_string($hostname) && $hostname !== '') {
+            return \strtolower($hostname);
         }
 
-        $parts = parse_url('//' . $videoUrl);
+        $parts = \parse_url('//' . $videoUrl);
         $hostname = $parts['host'] ?? null;
 
-        return is_string($hostname) ? strtolower($hostname) : '';
+        return \is_string($hostname) ? \strtolower($hostname) : '';
     }
 
     public function loadRoutingConfig(?string $path = null): RoutingConfig
@@ -69,11 +58,11 @@ final readonly class RoutingService
         }
 
         $routingRaw = $parsed['routing'] ?? null;
-        if (!is_array($routingRaw)) {
+        if (!\is_array($routingRaw)) {
             throw new RoutingConfigException("В конфиге должен быть раздел 'routing'.");
         }
 
-        $unknownSections = array_diff(array_keys($routingRaw), self::ROUTING_SECTIONS);
+        $unknownSections = \array_diff(array_keys($routingRaw), self::ROUTING_SECTIONS);
         if ($unknownSections !== []) {
             throw new RoutingConfigException('Неизвестные разделы маршрутизации: ' . implode(', ', $unknownSections));
         }
@@ -83,17 +72,17 @@ final readonly class RoutingService
         $regularRules = [];
         foreach (self::ROUTING_SECTIONS as $section) {
             $patterns = $routingRaw[$section] ?? [];
-            if (!is_array($patterns)) {
+            if (!\is_array($patterns)) {
                 throw new RoutingConfigException(sprintf('Раздел routing.%s должен быть списком строк.', $section));
             }
 
             $routing[$section] = [];
             foreach ($patterns as $pattern) {
-                if (!is_string($pattern)) {
+                if (!\is_string($pattern)) {
                     throw new RoutingConfigException(sprintf('Раздел routing.%s должен содержать только строки.', $section));
                 }
 
-                $strippedPattern = trim($pattern);
+                $strippedPattern = \trim($pattern);
                 $normalizedPattern = $this->validatePattern($pattern, $path);
                 $routing[$section][] = $normalizedPattern;
                 $rule = new RoutingRule(
@@ -114,8 +103,8 @@ final readonly class RoutingService
 
     public function matchHostPattern(string $hostname, string $pattern): bool
     {
-        $normalizedHost = strtolower(trim($hostname));
-        $normalizedPattern = strtolower(trim($pattern));
+        $normalizedHost = \strtolower(\trim($hostname));
+        $normalizedPattern = \strtolower(\trim($pattern));
         if ($normalizedHost === '') {
             return false;
         }
@@ -126,7 +115,7 @@ final readonly class RoutingService
 
         if (str_starts_with($normalizedPattern, '*.')) {
             $rootDomain = substr($normalizedPattern, 2);
-            if (!str_contains($rootDomain, '.')) {
+            if (!\str_contains($rootDomain, '.')) {
                 return str_ends_with($normalizedHost, '.' . $rootDomain);
             }
 
@@ -143,7 +132,7 @@ final readonly class RoutingService
             throw new RoutingConfigException('Не удалось определить домен загрузки из URL: ' . $videoUrl);
         }
 
-        if (is_string($explicitProxy) && $explicitProxy !== '') {
+        if (\is_string($explicitProxy) && $explicitProxy !== '') {
             return new RouteDecision(
                 self::ROUTE_CUSTOM,
                 $explicitProxy,
@@ -197,9 +186,9 @@ final readonly class RoutingService
 
     private function validatePattern(string $pattern, string $path): string
     {
-        $normalized = strtolower(trim($pattern));
+        $normalized = \strtolower(\trim($pattern));
         if (str_ends_with($normalized, '!')) {
-            $normalized = trim(substr($normalized, 0, -1));
+            $normalized = \trim(substr($normalized, 0, -1));
         }
 
         if ($normalized === '') {
@@ -211,14 +200,14 @@ final readonly class RoutingService
         }
 
         if (str_starts_with($normalized, '*.')) {
-            if (str_contains(substr($normalized, 1), '*')) {
+            if (\str_contains(substr($normalized, 1), '*')) {
                 throw new RoutingConfigException(sprintf("Поддерживаются только точные хосты, шаблоны '*.' и глобальный '*' (%s)", $pattern));
             }
 
             return $normalized;
         }
 
-        if (str_contains($normalized, '*')) {
+        if (\str_contains($normalized, '*')) {
             throw new RoutingConfigException(sprintf("Поддерживаются только точные хосты, шаблоны '*.' и глобальный '*' (%s)", $pattern));
         }
 
@@ -238,7 +227,7 @@ final readonly class RoutingService
     private function requiredEnv(string $name): string
     {
         $value = getenv($name);
-        if (!is_string($value) || $value === '') {
+        if (!\is_string($value) || $value === '') {
             throw new RoutingConfigException(sprintf('Маршрут требует %s, но он не задан.', $name));
         }
 

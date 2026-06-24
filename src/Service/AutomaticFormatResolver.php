@@ -4,15 +4,6 @@ declare(strict_types=1);
 
 namespace YtdPhp\Service;
 
-use function count;
-use function is_array;
-use function is_float;
-use function is_int;
-use function str_contains;
-use function is_string;
-use function strtolower;
-use function str_starts_with;
-
 final class AutomaticFormatResolver
 {
     /**
@@ -107,7 +98,7 @@ final class AutomaticFormatResolver
         ?int $maxHeight = null,
         bool $requireBrowserSafeMp4 = false,
     ): ?string {
-        if (!is_array($formats)) {
+        if (!\is_array($formats)) {
             return null;
         }
 
@@ -117,7 +108,7 @@ final class AutomaticFormatResolver
         $bestMuxedScore = -1;
 
         foreach ($formats as $format) {
-            if (!is_array($format) || !$this->isMuxedFormat($format)) {
+            if (!\is_array($format) || !$this->isMuxedFormat($format)) {
                 continue;
             }
 
@@ -128,7 +119,7 @@ final class AutomaticFormatResolver
             }
 
             $formatId = $format['format_id'] ?? null;
-            if (!is_string($formatId) || $formatId === '') {
+            if (!\is_string($formatId) || $formatId === '') {
                 continue;
             }
 
@@ -154,13 +145,13 @@ final class AutomaticFormatResolver
         ?int $maxHeight = null,
         bool $requireBrowserSafeMp4 = false,
     ): ?string {
-        if (!is_array($requestedDownloads) || count($requestedDownloads) !== 1 || !is_array($requestedDownloads[0])) {
+        if (!\is_array($requestedDownloads) || \count($requestedDownloads) !== 1 || !\is_array($requestedDownloads[0])) {
             return null;
         }
 
         $recommendedDownload = $requestedDownloads[0];
         $recommendedFormatId = $recommendedDownload['format_id'] ?? null;
-        if (!is_string($recommendedFormatId) || $recommendedFormatId === '') {
+        if (!\is_string($recommendedFormatId) || $recommendedFormatId === '') {
             return null;
         }
 
@@ -192,10 +183,10 @@ final class AutomaticFormatResolver
         $audioCodec = $format['acodec'] ?? null;
         $videoCodec = $format['vcodec'] ?? null;
 
-        return is_string($audioCodec)
+        return \is_string($audioCodec)
             && $audioCodec !== ''
             && $audioCodec !== 'none'
-            && is_string($videoCodec)
+            && \is_string($videoCodec)
             && $videoCodec !== ''
             && $videoCodec !== 'none';
     }
@@ -207,7 +198,7 @@ final class AutomaticFormatResolver
     {
         $videoCodec = $format['vcodec'] ?? null;
 
-        return is_string($videoCodec)
+        return \is_string($videoCodec)
             && $videoCodec !== ''
             && $videoCodec !== 'none';
     }
@@ -219,9 +210,9 @@ final class AutomaticFormatResolver
     {
         $videoCodec = $format['vcodec'] ?? null;
 
-        return is_string($videoCodec)
+        return \is_string($videoCodec)
             && $videoCodec !== ''
-            && str_starts_with(strtolower($videoCodec), 'av01');
+            && \str_starts_with(\strtolower($videoCodec), 'av01');
     }
 
     /**
@@ -229,7 +220,7 @@ final class AutomaticFormatResolver
      */
     private function isBrowserSafeMp4Format(array $format): bool
     {
-        $extension = strtolower((string) ($format['ext'] ?? ''));
+        $extension = \strtolower((string) ($format['ext'] ?? ''));
 
         return ($extension === '' || $extension === 'mp4' || $extension === 'm4v')
             && $this->isBrowserSafeVideoCodec($format)
@@ -241,11 +232,11 @@ final class AutomaticFormatResolver
      */
     private function isBrowserSafeVideoCodec(array $format): bool
     {
-        $videoCodec = strtolower((string) ($format['vcodec'] ?? ''));
+        $videoCodec = \strtolower((string) ($format['vcodec'] ?? ''));
 
-        return str_starts_with($videoCodec, 'avc1')
-            || str_starts_with($videoCodec, 'h264')
-            || str_starts_with($videoCodec, 'h.264');
+        return \str_starts_with($videoCodec, 'avc1')
+            || \str_starts_with($videoCodec, 'h264')
+            || \str_starts_with($videoCodec, 'h.264');
     }
 
     /**
@@ -253,10 +244,10 @@ final class AutomaticFormatResolver
      */
     private function isBrowserSafeAudioCodec(array $format): bool
     {
-        $audioCodec = strtolower((string) ($format['acodec'] ?? ''));
+        $audioCodec = \strtolower((string) ($format['acodec'] ?? ''));
 
-        return str_starts_with($audioCodec, 'mp4a')
-            || str_starts_with($audioCodec, 'aac');
+        return \str_starts_with($audioCodec, 'mp4a')
+            || \str_starts_with($audioCodec, 'aac');
     }
 
     /**
@@ -265,12 +256,12 @@ final class AutomaticFormatResolver
      */
     private function findFormatById(string $formatId, mixed $formats): ?array
     {
-        if (!is_array($formats)) {
+        if (!\is_array($formats)) {
             return null;
         }
 
         foreach ($formats as $format) {
-            if (!is_array($format)) {
+            if (!\is_array($format)) {
                 continue;
             }
 
@@ -296,14 +287,14 @@ final class AutomaticFormatResolver
 
     private function normalizeNumber(mixed $value): int
     {
-        return is_int($value) || is_float($value)
+        return \is_int($value) || \is_float($value)
             ? (int) round($value)
             : 0;
     }
 
     private function isHlsProtocol(mixed $protocol): bool
     {
-        return is_string($protocol) && str_contains($protocol, 'm3u8');
+        return \is_string($protocol) && \str_contains($protocol, 'm3u8');
     }
 
     /**

@@ -8,30 +8,6 @@ use Normalizer;
 use Symfony\Component\Dotenv\Dotenv;
 use Symfony\Component\Dotenv\Exception\FormatException;
 
-use function array_key_exists;
-use function in_array;
-use function array_values;
-use function basename;
-use function count;
-use function dirname;
-use function explode;
-use function file_get_contents;
-use function getenv;
-use function is_dir;
-use function is_file;
-use function is_string;
-use function ltrim;
-use function max;
-use function preg_replace;
-use function putenv;
-use function realpath;
-use function str_contains;
-use function strtolower;
-use function strrpos;
-use function str_starts_with;
-use function substr;
-use function trim;
-
 final class RuntimeBootstrap
 {
     public const string LOCAL_PROXY_RULES_FILE = 'proxy_rules.yaml';
@@ -56,7 +32,7 @@ final class RuntimeBootstrap
 
     public function getPackageRoot(): string
     {
-        $root = $this->packageRoot ?? dirname(__DIR__, 2);
+        $root = $this->packageRoot ?? \dirname(__DIR__, 2);
 
         return $this->normalizePath($root);
     }
@@ -72,7 +48,7 @@ final class RuntimeBootstrap
             $normalized[] = self::MULTI_SHORT_REPLACEMENTS[$token] ?? $token;
         }
 
-        return array_values($normalized);
+        return \array_values($normalized);
     }
 
     public function normalizeGlobalArgv(): void
@@ -84,15 +60,15 @@ final class RuntimeBootstrap
 
         $normalized = $this->normalizeArgv($argv);
         $_SERVER['argv'] = $normalized;
-        $_SERVER['argc'] = count($normalized);
+        $_SERVER['argc'] = \count($normalized);
         $GLOBALS['argv'] = $normalized;
-        $GLOBALS['argc'] = count($normalized);
+        $GLOBALS['argc'] = \count($normalized);
     }
 
     public function ensureProjectRoot(): string
     {
         $projectRoot = $this->getProjectRoot();
-        if (getenv('YTD_PROJECT_ROOT') === false) {
+        if (\getenv('YTD_PROJECT_ROOT') === false) {
             $this->setEnvValue('YTD_PROJECT_ROOT', $projectRoot);
         }
 
@@ -101,8 +77,8 @@ final class RuntimeBootstrap
 
     public function getProjectRoot(): string
     {
-        $configuredRoot = getenv('YTD_PROJECT_ROOT');
-        if (is_string($configuredRoot) && $configuredRoot !== '') {
+        $configuredRoot = \getenv('YTD_PROJECT_ROOT');
+        if (\is_string($configuredRoot) && $configuredRoot !== '') {
             return $this->normalizePath($configuredRoot);
         }
 
@@ -117,12 +93,12 @@ final class RuntimeBootstrap
     public function loadEnvFile(string $filename): void
     {
         $envPath = $this->getProjectRoot() . DIRECTORY_SEPARATOR . $filename;
-        if (!is_file($envPath)) {
+        if (!\is_file($envPath)) {
             return;
         }
 
         foreach ($this->readEnvFileValues($envPath) as $key => $value) {
-            if (getenv($key) === false) {
+            if (\getenv($key) === false) {
                 $this->setEnvValue($key, $value);
             }
         }
@@ -130,9 +106,9 @@ final class RuntimeBootstrap
 
     public function getProxyEpilog(): string
     {
-        $proxy = getenv('PROXY_LOCAL');
+        $proxy = \getenv('PROXY_LOCAL');
 
-        return is_string($proxy) && $proxy !== '' ? $proxy : 'Не задан';
+        return \is_string($proxy) && $proxy !== '' ? $proxy : 'Не задан';
     }
 
     public function getProxyRulesPath(): string
@@ -201,48 +177,48 @@ final class RuntimeBootstrap
 
     public function getDownloadBasePath(string $videoUrl, ?string $overridePath = null): string
     {
-        if (is_string($overridePath) && trim($overridePath) !== '') {
-            return $this->expandPath(trim($overridePath));
+        if (\is_string($overridePath) && \trim($overridePath) !== '') {
+            return $this->expandPath(\trim($overridePath));
         }
 
         $envPath = $this->isYoutubeUrl($videoUrl)
-            ? (getenv('DOWNLOAD_DIR_YOUTUBE') ?: '~/Movies/Downloaded/Youtube')
-            : (getenv('DOWNLOAD_DIR_GENERAL') ?: '~/Movies/Downloaded');
+            ? (\getenv('DOWNLOAD_DIR_YOUTUBE') ?: '~/Movies/Downloaded/Youtube')
+            : (\getenv('DOWNLOAD_DIR_GENERAL') ?: '~/Movies/Downloaded');
 
         return $this->expandPath((string) $envPath);
     }
 
     public function getDefaultOutputFormat(): string
     {
-        $format = getenv('OUTPUT_FORMAT');
+        $format = \getenv('OUTPUT_FORMAT');
 
-        return $this->normalizeOutputFormat(is_string($format) ? $format : null);
+        return $this->normalizeOutputFormat(\is_string($format) ? $format : null);
     }
 
     public function normalizeOutputFormat(?string $format): string
     {
-        $normalized = strtolower(trim((string) $format));
+        $normalized = \strtolower(\trim((string) $format));
 
-        return in_array($normalized, ['mkv', 'mp4'], true) ? $normalized : 'mkv';
+        return \in_array($normalized, ['mkv', 'mp4'], true) ? $normalized : 'mkv';
     }
 
     public function getConcurrentDownloads(): int
     {
-        $value = getenv('CONCURRENT_DOWNLOADS');
+        $value = \getenv('CONCURRENT_DOWNLOADS');
 
-        return max(1, (int) (is_string($value) && $value !== '' ? $value : '1'));
+        return \max(1, (int) (\is_string($value) && $value !== '' ? $value : '1'));
     }
 
     public function getConcurrentFragments(): int
     {
-        $value = getenv('CONCURRENT_FRAGMENTS');
+        $value = \getenv('CONCURRENT_FRAGMENTS');
 
-        return max(1, (int) (is_string($value) && $value !== '' ? $value : '20'));
+        return \max(1, (int) (\is_string($value) && $value !== '' ? $value : '20'));
     }
 
     public function getProgressDelta(): string
     {
-        $value = trim((string) (getenv('YTD_PROGRESS_DELTA') ?: ''));
+        $value = \trim((string) (\getenv('YTD_PROGRESS_DELTA') ?: ''));
         if ($value === '') {
             return '0.5';
         }
@@ -252,21 +228,21 @@ final class RuntimeBootstrap
 
     public function shouldUseProgressNewline(): bool
     {
-        $value = getenv('YTD_PROGRESS_NEWLINE');
-        if (!is_string($value)) {
+        $value = \getenv('YTD_PROGRESS_NEWLINE');
+        if (!\is_string($value)) {
             return false;
         }
 
-        $normalized = strtolower(trim($value));
+        $normalized = \strtolower(\trim($value));
 
         return $normalized !== '' && $normalized !== '0' && $normalized !== 'false' && $normalized !== 'no';
     }
 
     public function isYoutubeUrl(string $videoUrl): bool
     {
-        $hostname = strtolower((string) (parse_url($videoUrl, PHP_URL_HOST) ?? ''));
+        $hostname = \strtolower((string) (parse_url($videoUrl, PHP_URL_HOST) ?? ''));
         if ($hostname === '') {
-            $hostname = strtolower((string) (parse_url('//' . ltrim($videoUrl, '/'), PHP_URL_HOST) ?? ''));
+            $hostname = \strtolower((string) (parse_url('//' . \ltrim($videoUrl, '/'), PHP_URL_HOST) ?? ''));
         }
 
         return $hostname === 'youtube.com'
@@ -278,24 +254,24 @@ final class RuntimeBootstrap
     public function looksLikePlaylistUrl(string $videoUrl): bool
     {
         $parts = parse_url($videoUrl);
-        $path = strtolower((string) ($parts['path'] ?? ''));
+        $path = \strtolower((string) ($parts['path'] ?? ''));
 
-        return str_contains($path, '/playlist')
-            || str_contains($path, '/playlists')
-            || str_contains($path, '/plst/')
+        return \str_contains($path, '/playlist')
+            || \str_contains($path, '/playlists')
+            || \str_contains($path, '/plst/')
             || str_ends_with($path, '/plst');
     }
 
     public function formatProxyForDisplay(string $proxyUrl): string
     {
-        if (str_contains($proxyUrl, '@')) {
-            $parts = explode('@', $proxyUrl);
+        if (\str_contains($proxyUrl, '@')) {
+            $parts = \explode('@', $proxyUrl);
 
             return (string) end($parts);
         }
 
-        if (str_contains($proxyUrl, '://')) {
-            $parts = explode('://', $proxyUrl, 2);
+        if (\str_contains($proxyUrl, '://')) {
+            $parts = \explode('://', $proxyUrl, 2);
 
             return $parts[1];
         }
@@ -305,8 +281,8 @@ final class RuntimeBootstrap
 
     public function sanitizePathComponent(string $value, string $fallback = 'playlist'): string
     {
-        $normalized = trim($value);
-        if (class_exists(Normalizer::class)) {
+        $normalized = \trim($value);
+        if (\class_exists(Normalizer::class)) {
             $normalized = Normalizer::normalize($normalized, Normalizer::FORM_C) ?: $normalized;
         }
 
@@ -315,19 +291,19 @@ final class RuntimeBootstrap
 
     public function sanitizeOutputFilename(string $path): string
     {
-        $separatorOffset = max(
-            strrpos($path, '/'),
-            strrpos($path, '\\'),
+        $separatorOffset = \max(
+            \strrpos($path, '/'),
+            \strrpos($path, '\\'),
         );
 
         $directory = $separatorOffset === false
             ? ''
-            : substr($path, 0, $separatorOffset + 1);
+            : \substr($path, 0, $separatorOffset + 1);
         $filename = $separatorOffset === false
             ? $path
-            : substr($path, $separatorOffset + 1);
+            : \substr($path, $separatorOffset + 1);
 
-        if (class_exists(Normalizer::class)) {
+        if (\class_exists(Normalizer::class)) {
             $filename = Normalizer::normalize($filename, Normalizer::FORM_C) ?: $filename;
         }
         $filename = $this->sanitizeTerminalLinkFilename($filename);
@@ -337,17 +313,17 @@ final class RuntimeBootstrap
 
     private function sanitizeTerminalLinkFilename(string $filename): string
     {
-        $extensionOffset = strrpos($filename, '.');
+        $extensionOffset = \strrpos($filename, '.');
         if (
             $extensionOffset === false
             || $extensionOffset === 0
-            || $extensionOffset === strlen($filename) - 1
+            || $extensionOffset === \strlen($filename) - 1
         ) {
             return $this->sanitizeTerminalLinkPathComponent($filename, 'download');
         }
 
-        $stem = substr($filename, 0, $extensionOffset);
-        $extension = substr($filename, $extensionOffset + 1);
+        $stem = \substr($filename, 0, $extensionOffset);
+        $extension = \substr($filename, $extensionOffset + 1);
         $safeStem = $this->sanitizeTerminalLinkPathComponent($stem, 'download');
         $safeExtension = $this->sanitizeFilenameExtension($extension);
 
@@ -356,17 +332,17 @@ final class RuntimeBootstrap
 
     private function sanitizeTerminalLinkPathComponent(string $value, string $fallback): string
     {
-        $normalized = preg_replace('/[^\\p{L}\\p{N}._-]+/u', '_', $value);
-        $normalized = trim((string) $normalized, '._-');
+        $normalized = \preg_replace('/[^\p{L}\p{N}._-]+/u', '_', $value);
+        $normalized = \trim((string) $normalized, '._-');
 
         return $normalized !== '' ? $normalized : $fallback;
     }
 
     private function sanitizeFilenameExtension(string $extension): string
     {
-        $normalized = preg_replace('/[^A-Za-z0-9]+/', '_', $extension);
+        $normalized = \preg_replace('/[^A-Za-z0-9]+/', '_', $extension);
 
-        return trim((string) $normalized, '._-');
+        return \trim((string) $normalized, '._-');
     }
 
     /**
@@ -383,8 +359,8 @@ final class RuntimeBootstrap
     public function readEnvFileValues(string $path): array
     {
         $values = [];
-        $contents = @file_get_contents($path);
-        if (!is_string($contents) || $contents === '') {
+        $contents = @\file_get_contents($path);
+        if (!\is_string($contents) || $contents === '') {
             return $values;
         }
 
@@ -395,7 +371,7 @@ final class RuntimeBootstrap
         }
 
         foreach ($parsed as $key => $value) {
-            if (is_string($value)) {
+            if (\is_string($value)) {
                 $values[$key] = $value;
             }
         }
@@ -431,13 +407,13 @@ final class RuntimeBootstrap
 
     private function resolveCommandDir(?string $path): ?string
     {
-        if (!is_string($path) || $path === '') {
+        if (!\is_string($path) || $path === '') {
             return null;
         }
 
         $expandedPath = $this->expandPath($path);
-        if ($this->isAbsolutePath($expandedPath) || str_contains($expandedPath, DIRECTORY_SEPARATOR)) {
-            return dirname($this->normalizePath($expandedPath));
+        if ($this->isAbsolutePath($expandedPath) || \str_contains($expandedPath, DIRECTORY_SEPARATOR)) {
+            return \dirname($this->normalizePath($expandedPath));
         }
 
         return null;
@@ -445,8 +421,8 @@ final class RuntimeBootstrap
 
     private function resolveRuntimePath(string $envKey, string $defaultRelativePath): string
     {
-        $configuredPath = getenv($envKey);
-        if (!is_string($configuredPath) || $configuredPath === '') {
+        $configuredPath = \getenv($envKey);
+        if (!\is_string($configuredPath) || $configuredPath === '') {
             return $this->normalizePath($this->getProjectRoot() . DIRECTORY_SEPARATOR . $defaultRelativePath);
         }
 
@@ -463,7 +439,7 @@ final class RuntimeBootstrap
      */
     private function iterCandidateRoots(?string $startDir): array
     {
-        if (!is_string($startDir) || $startDir === '') {
+        if (!\is_string($startDir) || $startDir === '') {
             return [];
         }
 
@@ -473,11 +449,11 @@ final class RuntimeBootstrap
             $roots[] = $current;
 
             $installProjectDir = $current . DIRECTORY_SEPARATOR . self::INSTALL_PROJECT_DIRNAME;
-            if (is_dir($installProjectDir)) {
+            if (\is_dir($installProjectDir)) {
                 $roots[] = $this->normalizePath($installProjectDir);
             }
 
-            $parent = dirname($current);
+            $parent = \dirname($current);
             if ($parent === $current) {
                 break;
             }
@@ -490,7 +466,7 @@ final class RuntimeBootstrap
     private function hasRuntimeMarker(string $path): bool
     {
         foreach (self::RUNTIME_MARKERS as $marker) {
-            if (is_file($path . DIRECTORY_SEPARATOR . $marker)) {
+            if (\is_file($path . DIRECTORY_SEPARATOR . $marker)) {
                 return true;
             }
         }
@@ -501,17 +477,17 @@ final class RuntimeBootstrap
     private function normalizePath(string $path): string
     {
         $expandedPath = $this->expandPath($path);
-        $realPath = realpath($expandedPath);
+        $realPath = \realpath($expandedPath);
 
         return $realPath !== false ? $realPath : $expandedPath;
     }
 
     private function expandPath(string $path): string
     {
-        if (str_starts_with($path, '~')) {
-            $home = getenv('HOME');
-            if (is_string($home) && $home !== '') {
-                $suffix = ltrim(substr($path, 1), DIRECTORY_SEPARATOR);
+        if (\str_starts_with($path, '~')) {
+            $home = \getenv('HOME');
+            if (\is_string($home) && $home !== '') {
+                $suffix = \ltrim(\substr($path, 1), DIRECTORY_SEPARATOR);
 
                 return $suffix === '' ? $home : $home . DIRECTORY_SEPARATOR . $suffix;
             }
@@ -522,12 +498,12 @@ final class RuntimeBootstrap
 
     private function isAbsolutePath(string $path): bool
     {
-        return str_starts_with($path, DIRECTORY_SEPARATOR) || (strlen($path) > 1 && ctype_alpha($path[0]) && $path[1] === ':');
+        return \str_starts_with($path, DIRECTORY_SEPARATOR) || (strlen($path) > 1 && ctype_alpha($path[0]) && $path[1] === ':');
     }
 
     private function setEnvValue(string $key, string $value): void
     {
-        putenv($key . '=' . $value);
+        \putenv($key . '=' . $value);
         $_ENV[$key] = $value;
         $_SERVER[$key] = $value;
     }

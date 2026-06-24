@@ -10,25 +10,6 @@ use JsonException;
 use Symfony\Component\Filesystem\Filesystem;
 use YtdPhp\Bootstrap\RuntimeBootstrap;
 
-use function bin2hex;
-use function dirname;
-use function fclose;
-use function file_exists;
-use function file_get_contents;
-use function file_put_contents;
-use function flock;
-use function fopen;
-use function is_array;
-use function is_resource;
-use function json_decode;
-use function json_encode;
-use function random_bytes;
-use function rawurlencode;
-use function rename;
-use function sprintf;
-use function unlink;
-use function uniqid;
-
 use const LOCK_EX;
 use const LOCK_UN;
 use const JSON_PRETTY_PRINT;
@@ -56,14 +37,14 @@ final readonly class NativeHostPreviewRegistryService
      */
     public function register(string $jobId, string $path, int $port): array
     {
-        $token = bin2hex(random_bytes(16));
+        $token = \bin2hex(\random_bytes(16));
         $now = $this->now();
         $entry = [
             'jobId' => $jobId,
             'path' => $path,
             'token' => $token,
             'createdAt' => $now->format(DATE_ATOM),
-            'expiresAt' => $now->modify(sprintf('+%d seconds', $this->ttlSeconds))->format(DATE_ATOM),
+            'expiresAt' => $now->modify(\sprintf('+%d seconds', $this->ttlSeconds))->format(DATE_ATOM),
         ];
 
         $this->withExclusiveLock(function () use ($jobId, $entry): void {
@@ -89,14 +70,14 @@ final readonly class NativeHostPreviewRegistryService
             $entries = $this->pruneExpiredEntries($this->readAll());
             $entry = $entries[$jobId] ?? null;
 
-            if (!is_array($entry) || ($entry['token'] ?? null) !== $token) {
+            if (!\is_array($entry) || ($entry['token'] ?? null) !== $token) {
                 $this->writeAll($entries);
 
                 return null;
             }
 
             $path = $entry['path'] ?? null;
-            if (!is_string($path) || $path === '' || !file_exists($path)) {
+            if (!is_string($path) || $path === '' || !\file_exists($path)) {
                 unset($entries[$jobId]);
                 $this->writeAll($entries);
 
@@ -119,7 +100,7 @@ final readonly class NativeHostPreviewRegistryService
         $active = [];
 
         foreach ($entries as $jobId => $entry) {
-            if (!is_array($entry)) {
+            if (!\is_array($entry)) {
                 continue;
             }
 
@@ -146,11 +127,11 @@ final readonly class NativeHostPreviewRegistryService
 
     private function buildPreviewUrl(string $jobId, string $token, int $port): string
     {
-        return sprintf(
+        return \sprintf(
             'http://127.0.0.1:%d/preview/%s?token=%s',
             $port,
-            rawurlencode($jobId),
-            rawurlencode($token),
+            \rawurlencode($jobId),
+            \rawurlencode($token),
         );
     }
 
@@ -160,17 +141,17 @@ final readonly class NativeHostPreviewRegistryService
     private function readAll(): array
     {
         $path = $this->bootstrap->getNativeHostPreviewRegistryPath();
-        if (!file_exists($path)) {
+        if (!\file_exists($path)) {
             return [];
         }
 
         try {
-            $decoded = json_decode((string) file_get_contents($path), true, 512, JSON_THROW_ON_ERROR);
+            $decoded = \json_decode((string) \file_get_contents($path), true, 512, JSON_THROW_ON_ERROR);
         } catch (JsonException) {
             return [];
         }
 
-        return is_array($decoded) ? $decoded : [];
+        return \is_array($decoded) ? $decoded : [];
     }
 
     /**
@@ -179,21 +160,21 @@ final readonly class NativeHostPreviewRegistryService
     private function writeAll(array $entries): void
     {
         $path = $this->bootstrap->getNativeHostPreviewRegistryPath();
-        (new Filesystem())->mkdir(dirname($path));
+        (new Filesystem())->mkdir(\dirname($path));
 
         try {
-            $encoded = json_encode($entries, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . PHP_EOL;
+            $encoded = \json_encode($entries, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . PHP_EOL;
         } catch (JsonException) {
             return;
         }
 
-        $tempPath = sprintf('%s.%s.tmp', $path, uniqid());
-        if (file_put_contents($tempPath, $encoded) === false) {
+        $tempPath = \sprintf('%s.%s.tmp', $path, \uniqid());
+        if (\file_put_contents($tempPath, $encoded) === false) {
             return;
         }
 
-        if (!rename($tempPath, $path) && file_exists($tempPath)) {
-            unlink($tempPath);
+        if (!\rename($tempPath, $path) && \file_exists($tempPath)) {
+            \unlink($tempPath);
         }
     }
 
@@ -205,22 +186,22 @@ final readonly class NativeHostPreviewRegistryService
     private function withExclusiveLock(Closure $callback): mixed
     {
         $lockPath = $this->bootstrap->getNativeHostPreviewRegistryPath() . '.lock';
-        (new Filesystem())->mkdir(dirname($lockPath));
+        (new Filesystem())->mkdir(\dirname($lockPath));
 
-        $handle = fopen($lockPath, 'c+');
-        if (!is_resource($handle)) {
+        $handle = \fopen($lockPath, 'c+');
+        if (!\is_resource($handle)) {
             return $callback();
         }
 
         try {
-            if (!flock($handle, LOCK_EX)) {
+            if (!\flock($handle, LOCK_EX)) {
                 return $callback();
             }
 
             return $callback();
         } finally {
-            flock($handle, LOCK_UN);
-            fclose($handle);
+            \flock($handle, LOCK_UN);
+            \fclose($handle);
         }
     }
 

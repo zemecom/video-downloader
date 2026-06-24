@@ -9,22 +9,17 @@ use PHPUnit\Framework\TestCase;
 use YtdPhp\Bootstrap\RuntimeBootstrap;
 use YtdPhp\Service\NativeHostPreviewRegistryService;
 
-use function file_put_contents;
-use function mkdir;
-use function sys_get_temp_dir;
-use function uniqid;
-
 final class NativeHostPreviewRegistryServiceTest extends TestCase
 {
     public function testRegisterReturnsTokenizedLoopbackPreviewUrlAndResolvesEntry(): void
     {
-        $root = sys_get_temp_dir() . '/ytd_native_preview_registry_' . uniqid();
-        mkdir($root, 0777, true);
+        $root = \sys_get_temp_dir() . '/ytd_native_preview_registry_' . \uniqid();
+        \mkdir($root, 0777, true);
         putenv('YTD_PROJECT_ROOT=' . $root);
 
         try {
             $filePath = $root . '/preview-video.mp4';
-            file_put_contents($filePath, 'preview');
+            \file_put_contents($filePath, 'preview');
 
             $registry = new NativeHostPreviewRegistryService(
                 new RuntimeBootstrap($root),
@@ -50,15 +45,15 @@ final class NativeHostPreviewRegistryServiceTest extends TestCase
 
     public function testResolveReturnsNullForExpiredPreviewAndPrunesIt(): void
     {
-        $root = sys_get_temp_dir() . '/ytd_native_preview_registry_expired_' . uniqid();
-        mkdir($root, 0777, true);
+        $root = \sys_get_temp_dir() . '/ytd_native_preview_registry_expired_' . \uniqid();
+        \mkdir($root, 0777, true);
         putenv('YTD_PROJECT_ROOT=' . $root);
 
         $now = new DateTimeImmutable('2026-05-30T12:00:00+00:00');
 
         try {
             $filePath = $root . '/preview-video.mp4';
-            file_put_contents($filePath, 'preview');
+            \file_put_contents($filePath, 'preview');
 
             $registry = new NativeHostPreviewRegistryService(
                 new RuntimeBootstrap($root),

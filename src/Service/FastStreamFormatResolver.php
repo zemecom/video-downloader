@@ -7,14 +7,6 @@ namespace YtdPhp\Service;
 use YtdPhp\Dto\FastStreamFormat;
 use YtdPhp\Dto\FastStreamFormatPair;
 
-use function is_array;
-use function is_float;
-use function is_int;
-use function is_string;
-use function round;
-use function str_starts_with;
-use function strtolower;
-
 final class FastStreamFormatResolver
 {
     /**
@@ -23,7 +15,7 @@ final class FastStreamFormatResolver
     public function resolve(string $qualityPreset, array $metadata, bool $preferNonAv1 = false, string $outputFormat = 'mkv'): ?FastStreamFormatPair
     {
         $formats = $metadata['formats'] ?? null;
-        if (!is_array($formats)) {
+        if (!\is_array($formats)) {
             return null;
         }
 
@@ -69,7 +61,7 @@ final class FastStreamFormatResolver
         $bestScore = -1;
 
         foreach ($formats as $format) {
-            if (!is_array($format) || !$this->isVideoOnlyFormat($format)) {
+            if (!\is_array($format) || !$this->isVideoOnlyFormat($format)) {
                 continue;
             }
 
@@ -104,7 +96,7 @@ final class FastStreamFormatResolver
         $bestScore = -1;
 
         foreach ($formats as $format) {
-            if (!is_array($format) || !$this->isAudioOnlyFormat($format)) {
+            if (!\is_array($format) || !$this->isAudioOnlyFormat($format)) {
                 continue;
             }
 
@@ -148,7 +140,7 @@ final class FastStreamFormatResolver
 
     private function hasCodec(mixed $codec): bool
     {
-        return is_string($codec) && $codec !== '' && $codec !== 'none';
+        return \is_string($codec) && $codec !== '' && $codec !== 'none';
     }
 
     /**
@@ -158,9 +150,9 @@ final class FastStreamFormatResolver
     {
         $videoCodec = $format['vcodec'] ?? null;
 
-        return is_string($videoCodec)
+        return \is_string($videoCodec)
             && $videoCodec !== ''
-            && str_starts_with(strtolower($videoCodec), 'av01');
+            && \str_starts_with(\strtolower($videoCodec), 'av01');
     }
 
     /**
@@ -169,13 +161,13 @@ final class FastStreamFormatResolver
     private function isMp4CompatibleVideo(array $format): bool
     {
         $extension = $this->extension($format);
-        $videoCodec = strtolower((string) ($format['vcodec'] ?? ''));
+        $videoCodec = \strtolower((string) ($format['vcodec'] ?? ''));
 
         return ($extension === 'mp4' || $extension === 'm4v')
             && ($videoCodec === ''
-                || str_starts_with($videoCodec, 'avc1')
-                || str_starts_with($videoCodec, 'h264')
-                || str_starts_with($videoCodec, 'h.264'));
+                || \str_starts_with($videoCodec, 'avc1')
+                || \str_starts_with($videoCodec, 'h264')
+                || \str_starts_with($videoCodec, 'h.264'));
     }
 
     /**
@@ -184,12 +176,12 @@ final class FastStreamFormatResolver
     private function isMp4CompatibleAudio(array $format): bool
     {
         $extension = $this->extension($format);
-        $audioCodec = strtolower((string) ($format['acodec'] ?? ''));
+        $audioCodec = \strtolower((string) ($format['acodec'] ?? ''));
 
         return ($extension === 'm4a' || $extension === 'mp4')
             && ($audioCodec === ''
-                || str_starts_with($audioCodec, 'mp4a')
-                || str_starts_with($audioCodec, 'aac'));
+                || \str_starts_with($audioCodec, 'mp4a')
+                || \str_starts_with($audioCodec, 'aac'));
     }
 
     /**
@@ -232,8 +224,8 @@ final class FastStreamFormatResolver
 
     private function normalizeNumber(mixed $value): int
     {
-        return is_int($value) || is_float($value)
-            ? (int) round($value)
+        return \is_int($value) || \is_float($value)
+            ? (int) \round($value)
             : 0;
     }
 
@@ -244,7 +236,7 @@ final class FastStreamFormatResolver
     {
         $formatId = $format['format_id'] ?? null;
 
-        return is_string($formatId) && $formatId !== '' ? $formatId : null;
+        return \is_string($formatId) && $formatId !== '' ? $formatId : null;
     }
 
     /**
@@ -253,10 +245,10 @@ final class FastStreamFormatResolver
     private function extension(array $format): ?string
     {
         $extension = $format['ext'] ?? null;
-        if (!is_string($extension) || $extension === '') {
+        if (!\is_string($extension) || $extension === '') {
             return null;
         }
 
-        return strtolower($extension);
+        return \strtolower($extension);
     }
 }

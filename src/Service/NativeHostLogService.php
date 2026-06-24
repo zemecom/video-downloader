@@ -8,10 +8,6 @@ use Symfony\Component\Filesystem\Filesystem;
 use Throwable;
 use YtdPhp\Bootstrap\RuntimeBootstrap;
 
-use function date;
-use function dirname;
-use function sprintf;
-
 final readonly class NativeHostLogService
 {
     public function __construct(
@@ -22,8 +18,8 @@ final readonly class NativeHostLogService
     {
         $path = $this->bootstrap->getNativeHostLogPath();
         $filesystem = new Filesystem();
-        $filesystem->mkdir(dirname($path));
-        $filesystem->appendToFile($path, sprintf("[%s] %s\n", date('c'), $message));
+        $filesystem->mkdir(\dirname($path));
+        $filesystem->appendToFile($path, \sprintf("[%s] %s\n", \date('c'), $message));
     }
 
     public function appendException(Throwable $error): void

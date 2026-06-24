@@ -6,35 +6,6 @@ namespace YtdPhp\Service;
 
 use Throwable;
 
-use function array_keys;
-use function explode;
-use function fclose;
-use function feof;
-use function fopen;
-use function fwrite;
-use function getmypid;
-use function is_array;
-use function is_int;
-use function is_resource;
-use function is_string;
-use function max;
-use function min;
-use function preg_split;
-use function sprintf;
-use function stream_get_contents;
-use function stream_select;
-use function stream_set_blocking;
-use function stream_socket_accept;
-use function stream_socket_get_name;
-use function stream_socket_server;
-use function strlen;
-use function str_contains;
-use function strrpos;
-use function strtoupper;
-use function substr;
-use function trim;
-use function fseek;
-
 final readonly class NativeHostPreviewServerService
 {
     public function __construct(
@@ -44,16 +15,16 @@ final readonly class NativeHostPreviewServerService
 
     public function run(): int
     {
-        $server = stream_socket_server('tcp://127.0.0.1:0', $errno, $error);
-        if (!is_resource($server)) {
+        $server = \stream_socket_server('tcp://127.0.0.1:0', $errno, $error);
+        if (!\is_resource($server)) {
             throw new \RuntimeException($error !== '' ? $error : 'Failed to bind preview server.');
         }
 
-        stream_set_blocking($server, false);
-        $address = (string) stream_socket_get_name($server, false);
-        $separator = strrpos($address, ':');
-        $port = $separator === false ? 0 : (int) substr($address, $separator + 1);
-        $this->stateStore->write((int) getmypid(), $port);
+        \stream_set_blocking($server, false);
+        $address = (string) \stream_socket_get_name($server, false);
+        $separator = \strrpos($address, ':');
+        $port = $separator === false ? 0 : (int) \substr($address, $separator + 1);
+        $this->stateStore->write((int) \getmypid(), $port);
 
         /** @var array<int, array{
          *   socket: resource,
@@ -86,7 +57,7 @@ final readonly class NativeHostPreviewServerService
                 $except = null;
                 $readyRead = $read;
                 $readyWrite = $write;
-                $selected = @stream_select($readyRead, $readyWrite, $except, null);
+                $selected = @\stream_select($readyRead, $readyWrite, $except, null);
                 if ($selected === false) {
                     continue;
                 }
@@ -123,7 +94,7 @@ final readonly class NativeHostPreviewServerService
                     }
                 }
 
-                foreach (array_keys($clients) as $clientId) {
+                foreach (\array_keys($clients) as $clientId) {
                     if (!($clients[$clientId]['done'] ?? false)) {
                         continue;
                     }
@@ -137,7 +108,7 @@ final readonly class NativeHostPreviewServerService
                 $this->closeClient($clientState);
             }
 
-            fclose($server);
+            \fclose($server);
             $this->stateStore->clear();
         }
 
@@ -159,8 +130,8 @@ final readonly class NativeHostPreviewServerService
      */
     private function acceptClients($server, array &$clients): void
     {
-        while (($client = @stream_socket_accept($server, 0)) !== false) {
-            stream_set_blocking($client, false);
+        while (($client = @\stream_socket_accept($server, 0)) !== false) {
+            \stream_set_blocking($client, false);
             $clients[(int) $client] = [
                 'socket' => $client,
                 'requestBuffer' => '',
@@ -192,9 +163,9 @@ final readonly class NativeHostPreviewServerService
             return;
         }
 
-        $chunk = stream_get_contents($clientState['socket']);
-        if (!is_string($chunk) || $chunk === '') {
-            if (feof($clientState['socket'])) {
+        $chunk = \stream_get_contents($clientState['socket']);
+        if (!\is_string($chunk) || $chunk === '') {
+            if (\feof($clientState['socket'])) {
                 $clientState['done'] = true;
             }
 
@@ -202,7 +173,7 @@ final readonly class NativeHostPreviewServerService
         }
 
         $clientState['requestBuffer'] .= $chunk;
-        if (!str_contains($clientState['requestBuffer'], "\r\n\r\n") && !str_contains($clientState['requestBuffer'], "\n\n")) {
+        if (!\str_contains($clientState['requestBuffer'], "\r\n\r\n") && !\str_contains($clientState['requestBuffer'], "\n\n")) {
             return;
         }
 
@@ -212,22 +183,22 @@ final readonly class NativeHostPreviewServerService
         $clientState['responseReady'] = true;
         $clientState['pendingWrite'] = $this->formatResponseHead($response);
 
-        if (strtoupper($request['method']) !== 'GET' || !is_string($response['filePath'] ?? null)) {
-            if (is_string($response['body'] ?? null) && $response['body'] !== '') {
+        if (\strtoupper($request['method']) !== 'GET' || !\is_string($response['filePath'] ?? null)) {
+            if (\is_string($response['body'] ?? null) && $response['body'] !== '') {
                 $clientState['pendingWrite'] .= $response['body'];
             }
 
             return;
         }
 
-        $fileHandle = fopen((string) $response['filePath'], 'rb');
-        if (!is_resource($fileHandle)) {
+        $fileHandle = \fopen((string) $response['filePath'], 'rb');
+        if (!\is_resource($fileHandle)) {
             $clientState['done'] = true;
 
             return;
         }
 
-        fseek($fileHandle, (int) ($response['rangeStart'] ?? 0));
+        \fseek($fileHandle, (int) ($response['rangeStart'] ?? 0));
         $clientState['fileHandle'] = $fileHandle;
         $clientState['remainingBytes'] = (int) ($response['rangeLength'] ?? 0);
     }
@@ -250,10 +221,10 @@ final readonly class NativeHostPreviewServerService
             return;
         }
 
-        if ($clientState['pendingWrite'] === '' && is_resource($clientState['fileHandle']) && $clientState['remainingBytes'] > 0) {
-            $chunk = stream_get_contents($clientState['fileHandle'], min(8192, $clientState['remainingBytes']));
-            if (!is_string($chunk) || $chunk === '') {
-                fclose($clientState['fileHandle']);
+        if ($clientState['pendingWrite'] === '' && \is_resource($clientState['fileHandle']) && $clientState['remainingBytes'] > 0) {
+            $chunk = \stream_get_contents($clientState['fileHandle'], \min(8192, $clientState['remainingBytes']));
+            if (!\is_string($chunk) || $chunk === '') {
+                \fclose($clientState['fileHandle']);
                 $clientState['fileHandle'] = null;
                 $clientState['remainingBytes'] = 0;
             } else {
@@ -270,29 +241,29 @@ final readonly class NativeHostPreviewServerService
             return;
         }
 
-        $written = @fwrite($clientState['socket'], $clientState['pendingWrite']);
-        if (!is_int($written) || $written < 0) {
+        $written = @\fwrite($clientState['socket'], $clientState['pendingWrite']);
+        if (!\is_int($written) || $written < 0) {
             $clientState['done'] = true;
 
             return;
         }
 
         if ($written === 0) {
-            if (feof($clientState['socket'])) {
+            if (\feof($clientState['socket'])) {
                 $clientState['done'] = true;
             }
 
             return;
         }
 
-        $clientState['pendingWrite'] = substr($clientState['pendingWrite'], $written);
+        $clientState['pendingWrite'] = \substr($clientState['pendingWrite'], $written);
         if ($clientState['pendingWriteFromFile']) {
-            $clientState['remainingBytes'] = max(0, $clientState['remainingBytes'] - $written);
+            $clientState['remainingBytes'] = \max(0, $clientState['remainingBytes'] - $written);
 
             if ($clientState['pendingWrite'] === '') {
                 $clientState['pendingWriteFromFile'] = false;
-                if ($clientState['remainingBytes'] <= 0 && is_resource($clientState['fileHandle'])) {
-                    fclose($clientState['fileHandle']);
+                if ($clientState['remainingBytes'] <= 0 && \is_resource($clientState['fileHandle'])) {
+                    \fclose($clientState['fileHandle']);
                     $clientState['fileHandle'] = null;
                 }
             }
@@ -317,12 +288,12 @@ final readonly class NativeHostPreviewServerService
      */
     private function closeClient(array $clientState): void
     {
-        if (is_resource($clientState['fileHandle'])) {
-            fclose($clientState['fileHandle']);
+        if (\is_resource($clientState['fileHandle'])) {
+            \fclose($clientState['fileHandle']);
         }
 
-        if (is_resource($clientState['socket'])) {
-            fclose($clientState['socket']);
+        if (\is_resource($clientState['socket'])) {
+            \fclose($clientState['socket']);
         }
     }
 
@@ -331,30 +302,30 @@ final readonly class NativeHostPreviewServerService
      */
     private function parseRequest(string $buffer): array
     {
-        $headerBlock = explode("\r\n\r\n", $buffer, 2)[0];
+        $headerBlock = \explode("\r\n\r\n", $buffer, 2)[0];
         if ($headerBlock === $buffer) {
-            $headerBlock = explode("\n\n", $buffer, 2)[0];
+            $headerBlock = \explode("\n\n", $buffer, 2)[0];
         }
 
-        $lines = preg_split("/\r\n|\n|\r/", $headerBlock) ?: [];
-        $requestLine = trim((string) array_shift($lines));
-        $parts = explode(' ', $requestLine, 3);
+        $lines = \preg_split("/\r\n|\n|\r/", $headerBlock) ?: [];
+        $requestLine = \trim((string) array_shift($lines));
+        $parts = \explode(' ', $requestLine, 3);
         $method = $parts[0] ?? 'GET';
         $target = $parts[1] ?? '/';
         $headers = [];
 
         foreach ($lines as $line) {
-            $trimmed = trim($line);
+            $trimmed = \trim($line);
             if ($trimmed === '') {
                 continue;
             }
 
-            $headerParts = explode(':', $trimmed, 2);
+            $headerParts = \explode(':', $trimmed, 2);
             if (count($headerParts) !== 2) {
                 continue;
             }
 
-            $headers[strtolower(trim($headerParts[0]))] = trim($headerParts[1]);
+            $headers[strtolower(\trim($headerParts[0]))] = \trim($headerParts[1]);
         }
 
         return [
@@ -370,8 +341,8 @@ final readonly class NativeHostPreviewServerService
     private function formatResponseHead(array $response): string
     {
         $status = (int) ($response['status'] ?? 500);
-        $headers = is_array($response['headers'] ?? null) ? $response['headers'] : [];
-        $head = sprintf("HTTP/1.1 %d %s\r\n", $status, $this->reasonPhrase($status));
+        $headers = \is_array($response['headers'] ?? null) ? $response['headers'] : [];
+        $head = \sprintf("HTTP/1.1 %d %s\r\n", $status, $this->reasonPhrase($status));
         $head .= "Connection: close\r\n";
 
         foreach ($headers as $name => $value) {

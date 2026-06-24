@@ -10,25 +10,16 @@ use YtdPhp\Bootstrap\RuntimeBootstrap;
 use YtdPhp\Service\NativeHostPreviewServerCoordinator;
 use YtdPhp\Service\NativeHostPreviewServerStateStore;
 
-use function file_exists;
-use function file_get_contents;
-use function getmypid;
-use function mkdir;
-use function sprintf;
-use function sys_get_temp_dir;
-use function uniqid;
-use function usleep;
-
 final class NativeHostPreviewServerCoordinatorTest extends TestCase
 {
     public function testEnsureRunningRestartsWhenStatePointsToDeadProcess(): void
     {
-        $root = sys_get_temp_dir() . '/ytd_native_preview_coordinator_' . uniqid();
-        mkdir($root, 0777, true);
+        $root = \sys_get_temp_dir() . '/ytd_native_preview_coordinator_' . \uniqid();
+        \mkdir($root, 0777, true);
         putenv('YTD_PROJECT_ROOT=' . $root);
 
         $portFile = $root . '/health-port.txt';
-        $serverScript = sprintf(
+        $serverScript = \sprintf(
             <<<'PHP'
 $portFile = %s;
 $server = stream_socket_server('tcp://127.0.0.1:0', $errno, $error);
@@ -65,7 +56,7 @@ PHP,
                 $stateStore,
                 function () use (&$startCount, $stateStore, $port): void {
                     ++$startCount;
-                    $stateStore->write(getmypid(), $port);
+                    $stateStore->write(\getmypid(), $port);
                 },
             );
 
@@ -81,14 +72,14 @@ PHP,
     private function waitForPort(string $portFile): int
     {
         for ($attempt = 0; $attempt < 50; ++$attempt) {
-            if (file_exists($portFile)) {
-                $port = (int) file_get_contents($portFile);
+            if (\file_exists($portFile)) {
+                $port = (int) \file_get_contents($portFile);
                 if ($port > 0) {
                     return $port;
                 }
             }
 
-            usleep(100_000);
+            \usleep(100_000);
         }
 
         self::fail('Timed out waiting for health server port.');

@@ -9,11 +9,6 @@ use RuntimeException;
 use Symfony\Component\Filesystem\Filesystem;
 use YtdPhp\Bootstrap\RuntimeBootstrap;
 
-use function dirname;
-use function fclose;
-use function is_resource;
-use function proc_open;
-
 final class NativeHostLauncherService
 {
     /**
@@ -45,9 +40,9 @@ final class NativeHostLauncherService
     private function makeDefaultStarter(): Closure
     {
         return function (array $command, string $logPath): void {
-            (new Filesystem())->mkdir(dirname($logPath));
+            (new Filesystem())->mkdir(\dirname($logPath));
 
-            $process = proc_open(
+            $process = \proc_open(
                 $command,
                 [
                     0 => ['file', '/dev/null', 'r'],
@@ -60,13 +55,13 @@ final class NativeHostLauncherService
                 ['create_new_console' => true],
             );
 
-            if (!is_resource($process)) {
+            if (!\is_resource($process)) {
                 throw new RuntimeException('Failed to start native host command.');
             }
 
             foreach ($pipes as $pipe) {
-                if (is_resource($pipe)) {
-                    fclose($pipe);
+                if (\is_resource($pipe)) {
+                    \fclose($pipe);
                 }
             }
         };
