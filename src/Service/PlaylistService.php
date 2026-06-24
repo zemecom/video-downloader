@@ -5,9 +5,8 @@ declare(strict_types=1);
 namespace YtdPhp\Service;
 
 use Symfony\Component\Filesystem\Filesystem;
-use Symfony\Component\Process\Process;
 use YtdPhp\Bootstrap\RuntimeBootstrap;
-use YtdPhp\Dto\DownloadResult;
+use YtdPhp\Dto\PlaylistDownloadWorkItem;
 use YtdPhp\Dto\PlaylistInfo;
 use YtdPhp\Dto\PlaylistItem;
 use YtdPhp\Dto\PlaylistSelectionSummary;
@@ -20,13 +19,46 @@ final readonly class PlaylistService
     public const string OVERWRITE_OVERWRITE_ALL = 'overwrite_all';
     public const string OVERWRITE_CANCEL = 'cancel';
 
+    private RuntimeBootstrap $bootstrap;
+    private DownloaderService $downloader;
+    private ConsoleLogger $logger;
+    private InputPrompter $prompter;
+    private PlaylistSelectionParser $selectionParser;
+    private PlaylistDownloadQueueRunner $downloadQueueRunner;
+    private PlaylistMetadataService $playlistMetadataService;
+    private PlaylistItemPreflightService $itemPreflightService;
+
     public function __construct(
-        private YtDlpClient $ytDlpClient,
-        private RuntimeBootstrap $bootstrap,
-        private DownloaderService $downloader,
-        private ConsoleLogger $logger,
-        private InputPrompter $prompter,
-    ) {}
+        YtDlpClient $ytDlpClient,
+        RuntimeBootstrap $bootstrap,
+        DownloaderService $downloader,
+        ConsoleLogger $logger,
+        InputPrompter $prompter,
+        PlaylistSelectionParser $selectionParser = new PlaylistSelectionParser(),
+        ?PlaylistDownloadQueueRunner $downloadQueueRunner = null,
+        ?PlaylistPayloadMapper $playlistPayloadMapper = null,
+        ?PlaylistMetadataService $playlistMetadataService = null,
+        ?PlaylistItemPreflightService $itemPreflightService = null,
+    ) {
+        $this->bootstrap = $bootstrap;
+        $this->downloader = $downloader;
+        $this->logger = $logger;
+        $this->prompter = $prompter;
+        $this->selectionParser = $selectionParser;
+        $this->downloadQueueRunner = $downloadQueueRunner ?? new PlaylistDownloadQueueRunner($downloader, $logger);
+        $payloadMapper = $playlistPayloadMapper ?? new PlaylistPayloadMapper();
+        $this->playlistMetadataService = $playlistMetadataService ?? new PlaylistMetadataService(
+            $ytDlpClient,
+            $logger,
+            $payloadMapper,
+        );
+        $this->itemPreflightService = $itemPreflightService ?? new PlaylistItemPreflightService(
+            $ytDlpClient,
+            $bootstrap,
+            $downloader,
+            $payloadMapper,
+        );
+    }
 
     public function shouldTreatAsPlaylist(string $videoUrl, RuntimeOptions $options): bool
     {
@@ -37,7 +69,7 @@ final readonly class PlaylistService
             return false;
         }
 
-        return $this->probePlaylistPayloadType($videoUrl, $options) === 'playlist';
+        return $this->playlistMetadataService->probePlaylistPayloadType($videoUrl, $options) === 'playlist';
     }
 
     public function fetchAndPreparePlaylist(string $videoUrl, RuntimeOptions $options): ?PlaylistSelectionSummary
@@ -75,50 +107,7 @@ final readonly class PlaylistService
 
     public function fetchPlaylistInfo(string $videoUrl, RuntimeOptions $options): ?PlaylistInfo
     {
-        $builder = new YtDlpCommandBuilder($videoUrl, true);
-        $builder->setProxy($options->currentProxy)->setInsecure($options->insecure);
-        $this->logger->info('⏳ Получаю метаданные плейлиста...');
-        $process = $this->ytDlpClient->runCaptured($builder->buildForPlaylistMetadata());
-        if (!$process->isSuccessful()) {
-            $detail = $this->ytDlpClient->getProcessErrorDetail($process, 'playlist_metadata_failed');
-            $this->logger->error('😭 Не удалось прочитать плейлист.');
-            $this->logger->error('❌ Подробности: ' . $detail);
-
-            return null;
-        }
-
-        $payload = $this->decodePlaylistPayload($process->getOutput());
-        if ($payload === null) {
-            $this->logger->error('😭 Не удалось прочитать плейлист.');
-            $this->logger->error('❌ Подробности: yt-dlp вернул неожиданный JSON для плейлиста.');
-
-            return null;
-        }
-
-        $playlistId = \trim((string) ($payload['id'] ?? ''));
-        $playlistTitle = \trim((string) ($payload['title'] ?? $payload['playlist_title'] ?? $playlistId ?: 'playlist'));
-        $entries = $payload['entries'] ?? [];
-        if (!\is_array($entries)) {
-            $entries = [];
-        }
-
-        $items = [];
-        foreach ($entries as $index => $entry) {
-            $items[] = $this->normalizePlaylistEntry(\is_array($entry) ? $entry : null, $index + 1);
-        }
-
-        $totalCount = $this->coerceInt($payload['playlist_count'] ?? null) ?? \count($items);
-        if ($totalCount === 0 && $items !== []) {
-            $totalCount = \count($items);
-        }
-
-        return new PlaylistInfo(
-            $playlistId !== '' ? $playlistId : 'playlist',
-            $playlistTitle,
-            $videoUrl,
-            $items,
-            $totalCount,
-        );
+        return $this->playlistMetadataService->fetchPlaylistInfo($videoUrl, $options);
     }
 
     /**
@@ -127,65 +116,7 @@ final readonly class PlaylistService
      */
     public function parsePlaylistSelection(string $rawValue, array $items): array
     {
-        $cleaned = \strtolower(\trim($rawValue));
-        $selectableIndexes = [];
-        $maxIndex = 0;
-        foreach ($items as $item) {
-            $maxIndex = \max($maxIndex, $item->playlistIndex);
-            if ($item->selectable) {
-                $selectableIndexes[] = $item->playlistIndex;
-            }
-        }
-
-        if ($cleaned === '') {
-            throw new \InvalidArgumentException('Пустой выбор.');
-        }
-        if ($cleaned === 'all') {
-            sort($selectableIndexes);
-
-            return $selectableIndexes;
-        }
-
-        $indexes = [];
-        $tokens = \array_filter(\array_map('trim', explode(',', $cleaned)), static fn(string $value): bool => $value !== '');
-        if ($tokens === []) {
-            throw new \InvalidArgumentException('Пустой выбор.');
-        }
-
-        foreach ($tokens as $token) {
-            if (\str_contains($token, '-')) {
-                $parts = explode('-', $token);
-                if (\count($parts) !== 2 || $parts[0] === '' || $parts[1] === '') {
-                    throw new \InvalidArgumentException('Поддерживаются только диапазоны вида 5-8.');
-                }
-                $start = (int) $parts[0];
-                $end = (int) $parts[1];
-                if ($start > $end) {
-                    throw new \InvalidArgumentException('Начало диапазона не может быть больше конца.');
-                }
-                for ($number = $start; $number <= $end; ++$number) {
-                    $this->validateSelectedNumber($number, $maxIndex, $selectableIndexes);
-                    $indexes[$number] = true;
-                }
-                continue;
-            }
-
-            if (!ctype_digit($token)) {
-                throw new \InvalidArgumentException('Непонятный выбор: ' . $token);
-            }
-            $number = (int) $token;
-            $this->validateSelectedNumber($number, $maxIndex, $selectableIndexes);
-            $indexes[$number] = true;
-        }
-
-        if ($indexes === []) {
-            throw new \InvalidArgumentException('Не выбрано ни одного ролика.');
-        }
-
-        $result = \array_map('intval', array_keys($indexes));
-        sort($result);
-
-        return $result;
+        return $this->selectionParser->parse($rawValue, $items);
     }
 
     /**
@@ -323,58 +254,16 @@ final readonly class PlaylistService
             return true;
         }
 
-        $queue = $workItems;
-        $running = [];
-        $hasErrors = false;
-        while ($queue !== [] || $running !== []) {
-            while ($queue !== [] && \count($running) < $options->concurrentDownloads) {
-                $item = array_shift($queue);
-                if (!\is_array($item)) {
-                    continue;
-                }
-                $position = $item['position'];
-                /** @var SelectedItemMetadata $metadata */
-                $metadata = $item['item'];
-                $this->logger->info(\sprintf('Старт [%d/%d]: %s', $position, \count($summary->selectedItems), $metadata->playlistItem->title));
-                $process = $this->downloader->createPlaylistDownloadProcess(
-                    $metadata->infoJsonPath,
-                    $metadata->expectedPath,
-                    $options->currentProxy,
-                    $options->insecure,
-                    $metadata->resolvedFormatCode,
-                    $options->outputFormat,
-                    $overwritePolicy === self::OVERWRITE_OVERWRITE_ALL,
-                    $metadata->playlistItem->url !== '' ? $metadata->playlistItem->url : $summary->playlist->sourceUrl,
-                    $options->concurrentFragments,
-                    $options->progressNewline,
-                    $options->progressDelta,
-                );
-                $process->start();
-                $running[] = ['position' => $position, 'item' => $metadata, 'process' => $process];
-            }
-
-            foreach ($running as $index => $runningItem) {
-                /** @var Process $process */
-                $process = $runningItem['process'];
-                if ($process->isRunning()) {
-                    continue;
-                }
-                /** @var SelectedItemMetadata $metadata */
-                $metadata = $runningItem['item'];
-                $position = $runningItem['position'];
-                $result = $this->downloader->finalizeProcessResult($process, $metadata->expectedPath, false);
-                unset($running[$index]);
-                $running = \array_values($running);
-                $hasErrors = $hasErrors || $result->status === 'failed';
-                $this->reportQueueResult($position, \count($summary->selectedItems), $metadata, $result);
-            }
-
-            \usleep(100000);
-        }
+        $success = $this->downloadQueueRunner->run(
+            $summary,
+            $options,
+            $overwritePolicy === self::OVERWRITE_OVERWRITE_ALL,
+            $workItems,
+        );
 
         $this->cleanupPlaylistSummary($summary);
 
-        return !$hasErrors;
+        return $success;
     }
 
     public function cleanupPlaylistSummary(PlaylistSelectionSummary $summary): void
@@ -386,25 +275,8 @@ final readonly class PlaylistService
         }
     }
 
-    private function reportQueueResult(int $position, int $total, SelectedItemMetadata $item, DownloadResult $result): void
-    {
-        $title = $item->playlistItem->title;
-        if ($result->status === 'completed') {
-            $this->logger->info(\sprintf('Готово [%d/%d]: %s (%s)', $position, $total, $title, $item->expectedPath));
-
-            return;
-        }
-        if ($result->status === 'skipped') {
-            $this->logger->info(\sprintf('Пропущено [%d/%d]: %s (%s)', $position, $total, $title, $result->detail ?? 'skipped'));
-
-            return;
-        }
-
-        $this->logger->error(\sprintf('Ошибка [%d/%d]: %s (%s)', $position, $total, $title, $result->detail ?? 'download_failed'));
-    }
-
     /**
-     * @return list<array{position:int,item:SelectedItemMetadata}>
+     * @return list<PlaylistDownloadWorkItem>
      */
     private function filterWorkItems(PlaylistSelectionSummary $summary, string $overwritePolicy): array
     {
@@ -419,31 +291,10 @@ final readonly class PlaylistService
                 continue;
             }
 
-            $workItems[] = [
-                'position' => $position + 1,
-                'item' => $item,
-            ];
+            $workItems[] = new PlaylistDownloadWorkItem($position + 1, $item);
         }
 
         return $workItems;
-    }
-
-    private function probePlaylistPayloadType(string $videoUrl, RuntimeOptions $options): ?string
-    {
-        $builder = new YtDlpCommandBuilder($videoUrl, true);
-        $builder->setProxy($options->currentProxy)->setInsecure($options->insecure);
-        $process = $this->ytDlpClient->runCaptured($builder->buildForPlaylistMetadata());
-        if (!$process->isSuccessful()) {
-            return null;
-        }
-        $payload = $this->decodePlaylistPayload($process->getOutput());
-        if ($payload === null) {
-            return null;
-        }
-
-        $payloadType = \strtolower(\trim((string) ($payload['_type'] ?? '')));
-
-        return $payloadType !== '' ? $payloadType : null;
     }
 
     private function looksLikeExplicitSingleVideoUrl(string $videoUrl): bool
@@ -462,66 +313,6 @@ final readonly class PlaylistService
             || \str_contains($path, '/shorts/');
     }
 
-    /**
-     * @return array<mixed>|null
-     */
-    private function decodePlaylistPayload(string $output): ?array
-    {
-        $payload = \json_decode(\trim($output), true);
-        if (\is_array($payload)) {
-            if (array_is_list($payload) && \count($payload) === 1 && \is_array($payload[0])) {
-                return $payload[0];
-            }
-
-            return $payload;
-        }
-
-        return null;
-    }
-
-    private function normalizePlaylistEntry(?array $entry, int $index): PlaylistItem
-    {
-        [$status, $selectable] = $this->detectItemStatus($entry);
-        $title = '';
-        $url = '';
-        if (\is_array($entry)) {
-            $title = \trim((string) ($entry['title'] ?? $entry['fulltitle'] ?? $entry['id'] ?? ''));
-            $url = \trim((string) ($entry['webpage_url'] ?? $entry['url'] ?? ''));
-        }
-        if ($title === '') {
-            $title = 'Видео ' . $index;
-        }
-
-        return new PlaylistItem($index, $title, $url, $status, $selectable);
-    }
-
-    /**
-     * @return array{0:string,1:bool}
-     */
-    private function detectItemStatus(?array $entry): array
-    {
-        if (!\is_array($entry)) {
-            return ['unavailable', false];
-        }
-
-        $availability = \strtolower(\trim((string) ($entry['availability'] ?? '')));
-        $title = \strtolower(\trim((string) ($entry['title'] ?? '')));
-        if (\str_contains($availability, 'private') || \str_contains($title, 'private')) {
-            return ['private', false];
-        }
-        if (\str_contains($availability, 'deleted') || \str_contains($title, 'deleted')) {
-            return ['deleted', false];
-        }
-        if (\str_contains($availability, 'unavailable') || \str_contains($title, 'not available')) {
-            return ['unavailable', false];
-        }
-        if ($availability !== '') {
-            return [$availability, true];
-        }
-
-        return ['available', true];
-    }
-
     private function enrichPlaylistWithSizes(PlaylistInfo $playlist, RuntimeOptions $options): PlaylistInfo
     {
         $updatedItems = [];
@@ -532,7 +323,7 @@ final readonly class PlaylistService
                 $updatedItems[] = $item;
                 continue;
             }
-            $enrichedItem = $this->buildPlaylistItemSize($item, $playlist, $options);
+            $enrichedItem = $this->itemPreflightService->buildPlaylistItemSize($item, $playlist, $options);
             $updatedItems[] = $enrichedItem;
             $size = $enrichedItem->filesize ?? $enrichedItem->filesizeApprox;
             if ($size !== null) {
@@ -554,31 +345,6 @@ final readonly class PlaylistService
         );
     }
 
-    private function buildPlaylistItemSize(PlaylistItem $item, PlaylistInfo $playlist, RuntimeOptions $options): PlaylistItem
-    {
-        $process = $this->probeItemProcess($item, $playlist, $options);
-        if (!$process->isSuccessful()) {
-            return $item;
-        }
-        $metadata = $this->decodePlaylistPayload($process->getOutput());
-        if ($metadata === null) {
-            return $item;
-        }
-
-        [$filesize, $filesizeApprox] = $this->estimateItemSize($metadata);
-
-        return new PlaylistItem(
-            $item->playlistIndex,
-            $item->title,
-            $item->url,
-            $item->status,
-            $item->selectable,
-            $filesize,
-            $filesizeApprox,
-            $filesize !== null || $filesizeApprox !== null,
-        );
-    }
-
     /**
      * @param list<PlaylistItem> $selectedItems
      */
@@ -591,7 +357,7 @@ final readonly class PlaylistService
     ): ?PlaylistSelectionSummary {
         $selectedMetadata = [];
         foreach ($selectedItems as $item) {
-            $selectedMetadata[] = $this->buildItemMetadata($playlist, $item, $options, $targetDir);
+            $selectedMetadata[] = $this->itemPreflightService->buildItemMetadata($playlist, $item, $options, $targetDir);
         }
 
         $knownTotalSize = 0;
@@ -626,144 +392,6 @@ final readonly class PlaylistService
         );
     }
 
-    private function buildItemMetadata(
-        PlaylistInfo $playlist,
-        PlaylistItem $item,
-        RuntimeOptions $options,
-        string $targetDir,
-    ): SelectedItemMetadata {
-        $requestedFormatCode = $this->requestedFormatCode($options);
-        $usedDirectItemProbe = $this->canProbeItemDirectly($item);
-        $process = $this->probeItemProcess($item, $playlist, $options);
-        if (!$process->isSuccessful()) {
-            $detail = $this->ytDlpClient->getProcessErrorDetail($process, 'playlist_item_metadata_failed');
-
-            return $this->failedItemMetadata($item, $detail);
-        }
-
-        $metadata = $this->decodePlaylistPayload($process->getOutput());
-        if ($metadata === null) {
-            return $this->failedItemMetadata($item, 'playlist_item_metadata_failed');
-        }
-
-        $metadata['playlist_index'] ??= $item->playlistIndex;
-        $sourceUrl = $item->url !== '' ? $item->url : $playlist->sourceUrl;
-        $resolvedFormatCode = $this->downloader->resolveRequestedFormatCode(
-            $requestedFormatCode,
-            $metadata,
-            $sourceUrl,
-            $options->outputFormat,
-        );
-        $tempJsonPath = $this->writePlaylistItemMetadataJson($metadata);
-        if ($tempJsonPath === null) {
-            return $this->failedItemMetadata($item, 'playlist_item_tempfile_failed');
-        }
-
-        $expectedPath = $resolvedFormatCode === 'bestaudio'
-            ? ($this->ytDlpClient->getExpectedFilename(
-                null,
-                $resolvedFormatCode,
-                $this->playlistOutputTemplate($targetDir),
-                $options->currentProxy,
-                $options->insecure,
-                $tempJsonPath,
-                $options->outputFormat,
-            ) ?: $this->fallbackExpectedPath(
-                $targetDir,
-                $metadata,
-                $item->playlistIndex,
-                $options->outputFormat,
-                $resolvedFormatCode,
-            ))
-            : ($usedDirectItemProbe
-                ? $this->fallbackExpectedPath(
-                    $targetDir,
-                    $metadata,
-                    $item->playlistIndex,
-                    $options->outputFormat,
-                    $resolvedFormatCode,
-                )
-                : ($this->ytDlpClient->getExpectedFilename(
-                    null,
-                    $resolvedFormatCode,
-                    $this->playlistOutputTemplate($targetDir),
-                    $options->currentProxy,
-                    $options->insecure,
-                    $tempJsonPath,
-                    $options->outputFormat,
-                ) ?: $this->fallbackExpectedPath(
-                    $targetDir,
-                    $metadata,
-                    $item->playlistIndex,
-                    $options->outputFormat,
-                    $resolvedFormatCode,
-                )));
-        $expectedPath = $this->bootstrap->sanitizeOutputFilename($expectedPath);
-
-        [$filesize, $filesizeApprox] = $this->estimateItemSize($metadata);
-
-        return new SelectedItemMetadata(
-            $item,
-            $tempJsonPath,
-            $expectedPath,
-            $resolvedFormatCode,
-            \file_exists($expectedPath),
-            $filesize,
-            $filesizeApprox,
-            $filesize !== null || $filesizeApprox !== null,
-        );
-    }
-
-    /**
-     * @param array<mixed> $metadata
-     */
-    private function writePlaylistItemMetadataJson(array $metadata): ?string
-    {
-        $tempJson = \tempnam(\sys_get_temp_dir(), 'ytd_playlist_');
-        if ($tempJson === false) {
-            return null;
-        }
-
-        $tempJsonPath = $tempJson . '.json';
-        @\unlink($tempJson);
-
-        $encoded = \json_encode($metadata, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
-        if (!\is_string($encoded) || \file_put_contents($tempJsonPath, $encoded) === false) {
-            if (\file_exists($tempJsonPath)) {
-                @\unlink($tempJsonPath);
-            }
-
-            return null;
-        }
-
-        return $tempJsonPath;
-    }
-
-    private function failedItemMetadata(PlaylistItem $item, string $errorMessage): SelectedItemMetadata
-    {
-        return new SelectedItemMetadata($item, '', '', 'best', false, null, null, false, $errorMessage);
-    }
-
-    private function probeItemProcess(PlaylistItem $item, PlaylistInfo $playlist, RuntimeOptions $options): Process
-    {
-        if ($this->canProbeItemDirectly($item)) {
-            $builder = new YtDlpCommandBuilder($item->url);
-            $builder->setProxy($options->currentProxy)->setInsecure($options->insecure);
-
-            return $this->ytDlpClient->runCaptured($builder->buildForMetadata());
-        }
-
-        $builder = new YtDlpCommandBuilder($playlist->sourceUrl, true);
-        $builder->setProxy($options->currentProxy)->setInsecure($options->insecure);
-
-        return $this->ytDlpClient->runCaptured($builder->buildForPlaylistItemMetadata($item->playlistIndex));
-    }
-
-    private function canProbeItemDirectly(PlaylistItem $item): bool
-    {
-        return \str_starts_with($item->url, 'http://') || \str_starts_with($item->url, 'https://');
-    }
-
     private function buildPlaylistTargetDir(string $sourceUrl, string $playlistTitle, string $playlistId, ?string $downloadDir = null): string
     {
         $baseDir = $this->bootstrap->getDownloadBasePath($sourceUrl, $downloadDir);
@@ -771,86 +399,6 @@ final readonly class PlaylistService
         $safeName = $this->bootstrap->sanitizePathComponent($rawName, 'playlist_' . ($playlistId !== '' ? $playlistId : 'items'));
 
         return $baseDir . DIRECTORY_SEPARATOR . $safeName;
-    }
-
-    private function playlistOutputTemplate(string $targetDir): string
-    {
-        return $targetDir . '/%(playlist_index)03d - %(title)s [%(id)s].%(ext)s';
-    }
-
-    /**
-     * @param array<mixed> $metadata
-     * @return array{0:?int,1:?int}
-     */
-    private function estimateItemSize(array $metadata): array
-    {
-        $filesize = $this->coerceInt($metadata['filesize'] ?? null);
-        if ($filesize !== null) {
-            return [$filesize, null];
-        }
-
-        $filesizeApprox = $this->coerceInt($metadata['filesize_approx'] ?? null);
-        if ($filesizeApprox !== null) {
-            return [$filesizeApprox, $filesizeApprox];
-        }
-
-        $requestedFormats = $metadata['requested_formats'] ?? null;
-        if (\is_array($requestedFormats) && $requestedFormats !== []) {
-            $sizes = [];
-            foreach ($requestedFormats as $format) {
-                if (!\is_array($format)) {
-                    return [null, null];
-                }
-                $formatSize = $this->coerceInt($format['filesize'] ?? null) ?? $this->coerceInt($format['filesize_approx'] ?? null);
-                if ($formatSize === null) {
-                    return [null, null];
-                }
-                $sizes[] = $formatSize;
-            }
-
-            return [array_sum($sizes), null];
-        }
-
-        return [null, null];
-    }
-
-    private function coerceInt(mixed $value): ?int
-    {
-        if (\is_int($value)) {
-            return $value;
-        }
-        if (\is_string($value) && ctype_digit($value)) {
-            return (int) $value;
-        }
-
-        return null;
-    }
-
-    /**
-     * @param array<mixed> $metadata
-     */
-    private function fallbackExpectedPath(
-        string $targetDir,
-        array $metadata,
-        int $index,
-        string $outputFormat,
-        string $formatCode = 'best',
-    ): string {
-        $title = \trim((string) ($metadata['title'] ?? $metadata['fulltitle'] ?? 'video_' . $index));
-        $safeTitle = $this->bootstrap->sanitizePathComponent($title, 'video_' . $index);
-        $videoId = \trim((string) ($metadata['id'] ?? ''));
-        $safeVideoId = $videoId !== ''
-            ? $this->bootstrap->sanitizePathComponent($videoId, 'item_' . $index)
-            : 'item_' . $index;
-        $defaultExtension = $formatCode === 'bestaudio' ? 'opus' : $outputFormat;
-        $ext = \trim((string) ($metadata['ext'] ?? $defaultExtension)) ?: $defaultExtension;
-
-        return \sprintf('%s/%03d - %s [%s].%s', $targetDir, $index, $safeTitle, $safeVideoId, $ext);
-    }
-
-    private function requestedFormatCode(RuntimeOptions $options): string
-    {
-        return $options->audioOnly ? 'bestaudio' : $options->qualityPreset;
     }
 
     private function printPlaylistItems(PlaylistInfo $playlist, bool $showSizes): void
@@ -885,16 +433,4 @@ final readonly class PlaylistService
         return $this->downloader->formatSize($size);
     }
 
-    /**
-     * @param list<int> $selectableIndexes
-     */
-    private function validateSelectedNumber(int $number, int $maxIndex, array $selectableIndexes): void
-    {
-        if ($number < 1 || $number > $maxIndex) {
-            throw new \InvalidArgumentException('Номер ' . $number . ' вне диапазона.');
-        }
-        if (!\in_array($number, $selectableIndexes, true)) {
-            throw new \InvalidArgumentException('Ролик ' . $number . ' нельзя выбрать.');
-        }
-    }
 }
