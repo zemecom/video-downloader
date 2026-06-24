@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace YtdPhp\Diagnostics;
 
 use Symfony\Component\Process\Process;
-use YtdPhp\Download\YtDlpClient;
+use YtdPhp\Runtime\ProcessEnvironment;
 use YtdPhp\Runtime\RuntimeBootstrap;
 use YtdPhp\Routing\RoutingConfigException;
 use YtdPhp\Routing\RoutingService;
@@ -178,7 +178,7 @@ final readonly class DoctorService
     private function checkBinary(string $binary, string $installHint): DoctorResult
     {
         $process = new Process([$binary, '--version']);
-        $process->setEnv(YtDlpClient::buildProcessEnv());
+        $process->setEnv(ProcessEnvironment::build());
         $process->run();
         if ($process->isSuccessful()) {
             $details = \trim($process->getOutput());

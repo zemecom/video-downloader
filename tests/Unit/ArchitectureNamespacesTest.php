@@ -26,6 +26,17 @@ final class ArchitectureNamespacesTest extends TestCase
         'Shared',
     ];
 
+    /** @var array<string, list<string>> */
+    private const array FORBIDDEN_CONTEXT_DEPENDENCIES = [
+        'Shared' => ['Command', 'Diagnostics', 'Download', 'NativeHost', 'Playlist', 'Routing', 'Runtime'],
+        'Runtime' => ['Command', 'Diagnostics', 'Download', 'NativeHost', 'Playlist', 'Routing', 'Shared'],
+        'Routing' => ['Command', 'Diagnostics', 'Download', 'NativeHost', 'Playlist'],
+        'Download' => ['Command', 'Diagnostics', 'NativeHost', 'Playlist', 'Routing'],
+        'Playlist' => ['Command', 'Diagnostics', 'NativeHost', 'Routing'],
+        'NativeHost' => ['Command', 'Diagnostics', 'Download', 'Playlist', 'Routing'],
+        'Diagnostics' => ['Command', 'Download', 'NativeHost', 'Playlist'],
+    ];
+
     public function testSourceFilesDeclareNamespaceMatchingTheirContextDirectory(): void
     {
         foreach ($this->sourceFiles() as $file) {
@@ -61,6 +72,26 @@ final class ArchitectureNamespacesTest extends TestCase
                 $legacyNamespace = 'YtdPhp\\' . $bucket;
                 self::assertStringNotContainsString('namespace ' . $legacyNamespace, $contents, $file->getPathname());
                 self::assertStringNotContainsString('use ' . $legacyNamespace . '\\', $contents, $file->getPathname());
+            }
+        }
+    }
+
+    public function testDomainDependenciesPointInAllowedDirections(): void
+    {
+        foreach ($this->sourceFiles() as $file) {
+            $relativePath = $this->relativePath($file->getPathname(), $this->srcRoot());
+            $context = \explode(DIRECTORY_SEPARATOR, $relativePath)[0];
+            if (!isset(self::FORBIDDEN_CONTEXT_DEPENDENCIES[$context])) {
+                continue;
+            }
+
+            $dependencies = $this->internalContextDependencies($file->getPathname());
+            foreach (self::FORBIDDEN_CONTEXT_DEPENDENCIES[$context] as $forbiddenContext) {
+                self::assertNotContains(
+                    $forbiddenContext,
+                    $dependencies,
+                    \sprintf('%s must not depend on YtdPhp\\%s.', $relativePath, $forbiddenContext),
+                );
             }
         }
     }
@@ -150,6 +181,22 @@ final class ArchitectureNamespacesTest extends TestCase
         }
 
         return \trim($matches[1]);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function internalContextDependencies(string $path): array
+    {
+        $contents = \file_get_contents($path);
+        self::assertIsString($contents);
+
+        \preg_match_all('/(?:use\s+|\\\\)YtdPhp\\\\([A-Za-z]+)\\\\/', $contents, $matches);
+        if (($matches[1] ?? []) === []) {
+            return [];
+        }
+
+        return \array_values(\array_unique($matches[1]));
     }
 
     private function relativePath(string $path, string $root): string

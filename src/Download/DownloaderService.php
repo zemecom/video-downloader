@@ -11,7 +11,7 @@ use YtdPhp\Shared\InputPrompter;
 
 final readonly class DownloaderService
 {
-    private YtDlpClient $ytDlpClient;
+    private YtDlpGateway $ytDlpClient;
     private RuntimeBootstrap $bootstrap;
     private ConsoleLogger $logger;
     private InputPrompter $prompter;
@@ -26,7 +26,7 @@ final readonly class DownloaderService
     private FastStreamDownloadService $fastStreamDownloadService;
 
     public function __construct(
-        YtDlpClient $ytDlpClient,
+        YtDlpGateway $ytDlpClient,
         RuntimeBootstrap $bootstrap,
         ConsoleLogger $logger,
         InputPrompter $prompter,

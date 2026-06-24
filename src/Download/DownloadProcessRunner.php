@@ -6,6 +6,7 @@ namespace YtdPhp\Download;
 
 use LogicException;
 use Symfony\Component\Process\Process;
+use YtdPhp\Runtime\ProcessEnvironment;
 use YtdPhp\Shared\ConsoleLogger;
 
 final readonly class DownloadProcessRunner
@@ -13,7 +14,7 @@ final readonly class DownloadProcessRunner
     private const int DOWNLOAD_MAX_ATTEMPTS = 3;
 
     public function __construct(
-        private YtDlpClient $ytDlpClient,
+        private YtDlpGateway $ytDlpClient,
         private ConsoleLogger $logger,
     ) {}
 
@@ -24,7 +25,7 @@ final readonly class DownloadProcessRunner
     {
         $process = new Process($command);
         $process->setTimeout(null);
-        $process->setEnv(YtDlpClient::buildProcessEnv());
+        $process->setEnv(ProcessEnvironment::build());
 
         return $process;
     }

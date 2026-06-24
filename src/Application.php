@@ -16,6 +16,7 @@ use YtdPhp\Playlist\PlaylistService;
 use YtdPhp\Routing\RoutingService;
 use YtdPhp\Download\SingleVideoFlowService;
 use YtdPhp\Download\YtDlpClient;
+use YtdPhp\Download\YtDlpGateway;
 
 final class Application
 {
@@ -25,7 +26,7 @@ final class Application
         private readonly InputPrompter $prompter,
         private readonly DoctorService $doctorService,
         private readonly RoutingService $routingService,
-        private readonly YtDlpClient $ytDlpClient,
+        private readonly YtDlpGateway $ytDlpClient,
         private readonly DownloaderService $downloaderService,
         private readonly PlaylistService $playlistService,
         private readonly SingleVideoFlowService $singleVideoFlowService,

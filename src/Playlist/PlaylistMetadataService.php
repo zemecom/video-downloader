@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace YtdPhp\Playlist;
 
-use YtdPhp\Download\YtDlpClient;
+use YtdPhp\Download\YtDlpGateway;
 use YtdPhp\Download\YtDlpCommandBuilder;
 use YtdPhp\Runtime\RuntimeOptions;
 use YtdPhp\Shared\ConsoleLogger;
@@ -12,7 +12,7 @@ use YtdPhp\Shared\ConsoleLogger;
 final readonly class PlaylistMetadataService
 {
     public function __construct(
-        private YtDlpClient $ytDlpClient,
+        private YtDlpGateway $ytDlpClient,
         private ConsoleLogger $logger,
         private PlaylistPayloadMapper $payloadMapper,
     ) {}

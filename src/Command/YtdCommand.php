@@ -19,7 +19,7 @@ use YtdPhp\Playlist\PlaylistFlowService;
 use YtdPhp\Playlist\PlaylistService;
 use YtdPhp\Routing\RoutingService;
 use YtdPhp\Download\SingleVideoFlowService;
-use YtdPhp\Download\YtDlpClient;
+use YtdPhp\Download\YtDlpGateway;
 
 final class YtdCommand extends Command
 {
@@ -30,7 +30,7 @@ final class YtdCommand extends Command
         private readonly ConsoleLogger $logger,
         private readonly DoctorService $doctorService,
         private readonly RoutingService $routingService,
-        private readonly YtDlpClient $ytDlpClient,
+        private readonly YtDlpGateway $ytDlpClient,
         private readonly PlaylistService $playlistService,
         private readonly SingleVideoFlowService $singleVideoFlowService,
         private readonly PlaylistFlowService $playlistFlowService,

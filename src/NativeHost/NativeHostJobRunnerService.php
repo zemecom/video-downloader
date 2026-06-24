@@ -7,7 +7,7 @@ namespace YtdPhp\NativeHost;
 use DateTimeImmutable;
 use RuntimeException;
 use Symfony\Component\Process\Process;
-use YtdPhp\Download\YtDlpClient;
+use YtdPhp\Runtime\ProcessEnvironment;
 use YtdPhp\Runtime\RuntimeBootstrap;
 
 final readonly class NativeHostJobRunnerService
@@ -73,7 +73,7 @@ final readonly class NativeHostJobRunnerService
             ],
             $pipes,
             $this->bootstrap->getPackageRoot(),
-            \array_merge(YtDlpClient::buildProcessEnv(), ['YTD_PROGRESS_NEWLINE' => '1']),
+            \array_merge(ProcessEnvironment::build(), ['YTD_PROGRESS_NEWLINE' => '1']),
         );
 
         if (!\is_resource($process)) {

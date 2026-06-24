@@ -15,7 +15,7 @@ final readonly class FastStreamDownloadService
     private const int FAST_STREAM_MAX_ATTEMPTS = 3;
 
     public function __construct(
-        private YtDlpClient $ytDlpClient,
+        private YtDlpGateway $ytDlpClient,
         private RuntimeBootstrap $bootstrap,
         private ConsoleLogger $logger,
         private DownloadProcessRunner $processRunner,

@@ -9,7 +9,7 @@ use YtdPhp\Shared\ConsoleLogger;
 final readonly class DownloadMetadataService
 {
     public function __construct(
-        private YtDlpClient $ytDlpClient,
+        private YtDlpGateway $ytDlpClient,
         private ConsoleLogger $logger,
         private DownloadTemporaryStorage $temporaryStorage,
     ) {}

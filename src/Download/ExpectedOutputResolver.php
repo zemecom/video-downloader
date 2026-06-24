@@ -9,7 +9,7 @@ use YtdPhp\Runtime\RuntimeBootstrap;
 final readonly class ExpectedOutputResolver
 {
     public function __construct(
-        private YtDlpClient $ytDlpClient,
+        private YtDlpGateway $ytDlpClient,
         private RuntimeBootstrap $bootstrap,
     ) {}
 

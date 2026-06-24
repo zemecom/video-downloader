@@ -17,7 +17,7 @@ final readonly class SingleVideoFlowService
     public function __construct(
         private ConsoleLogger $logger,
         private InputPrompter $prompter,
-        private YtDlpClient $ytDlpClient,
+        private YtDlpGateway $ytDlpClient,
         private DownloaderService $downloaderService,
     ) {}
 

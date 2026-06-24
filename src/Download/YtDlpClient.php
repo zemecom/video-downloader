@@ -6,48 +6,23 @@ namespace YtdPhp\Download;
 
 use Symfony\Component\Process\Exception\ProcessFailedException;
 use Symfony\Component\Process\Process;
+use YtdPhp\Runtime\ProcessEnvironment;
 use YtdPhp\Shared\ConsoleLogger;
 use YtdPhp\Shared\UserFacingException;
 
-final readonly class YtDlpClient
+final readonly class YtDlpClient implements YtDlpGateway
 {
     /**
      * @return array<string, string>
      */
     public static function buildProcessEnv(): array
     {
-        return [
-            'PATH' => self::buildAugmentedPath(),
-        ];
+        return ProcessEnvironment::build();
     }
 
     public static function buildAugmentedPath(): string
     {
-        $existingPath = \getenv('PATH');
-        $home = \getenv('HOME');
-
-        $segments = \is_string($existingPath) && $existingPath !== ''
-            ? \explode(PATH_SEPARATOR, $existingPath)
-            : [];
-
-        $preferred = \array_filter([
-            \is_string($home) && $home !== '' ? $home . '/.local/bin' : null,
-            '/opt/homebrew/bin',
-            '/usr/local/bin',
-            '/usr/bin',
-            '/bin',
-        ]);
-
-        $ordered = [];
-        foreach (\array_merge($preferred, $segments) as $segment) {
-            if (!\is_string($segment) || $segment === '' || isset($ordered[$segment])) {
-                continue;
-            }
-
-            $ordered[$segment] = true;
-        }
-
-        return \implode(PATH_SEPARATOR, array_keys($ordered));
+        return ProcessEnvironment::buildAugmentedPath();
     }
 
     public function __construct(
@@ -57,7 +32,7 @@ final readonly class YtDlpClient
     public function checkBinary(): void
     {
         $process = new Process(['yt-dlp', '--version']);
-        $process->setEnv(self::buildProcessEnv());
+        $process->setEnv(ProcessEnvironment::build());
         $process->run();
         if ($process->isSuccessful()) {
             return;
@@ -78,7 +53,7 @@ final readonly class YtDlpClient
     public function runJson(array $command): array
     {
         $process = new Process($command);
-        $process->setEnv(self::buildProcessEnv());
+        $process->setEnv(ProcessEnvironment::build());
         $process->mustRun();
         $output = \trim($process->getOutput());
         if ($output === '') {
@@ -100,7 +75,7 @@ final readonly class YtDlpClient
     {
         $process = new Process($command);
         $process->setTimeout(null);
-        $process->setEnv(self::buildProcessEnv());
+        $process->setEnv(ProcessEnvironment::build());
         $process->run(function (string $type, string $buffer) use ($passthrough): void {
             if ($passthrough) {
                 $this->logger->raw($buffer);
@@ -117,7 +92,7 @@ final readonly class YtDlpClient
     {
         $process = new Process($command);
         $process->setTimeout(null);
-        $process->setEnv(self::buildProcessEnv());
+        $process->setEnv(ProcessEnvironment::build());
         $process->run();
 
         return $process;
@@ -170,7 +145,7 @@ final readonly class YtDlpClient
         }
 
         $process = new Process($command);
-        $process->setEnv(self::buildProcessEnv());
+        $process->setEnv(ProcessEnvironment::build());
         $process->run();
         if (!$process->isSuccessful()) {
             return null;

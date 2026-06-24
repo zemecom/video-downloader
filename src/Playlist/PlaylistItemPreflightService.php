@@ -6,7 +6,7 @@ namespace YtdPhp\Playlist;
 
 use Symfony\Component\Process\Process;
 use YtdPhp\Download\DownloaderService;
-use YtdPhp\Download\YtDlpClient;
+use YtdPhp\Download\YtDlpGateway;
 use YtdPhp\Download\YtDlpCommandBuilder;
 use YtdPhp\Runtime\RuntimeBootstrap;
 use YtdPhp\Runtime\RuntimeOptions;
@@ -14,7 +14,7 @@ use YtdPhp\Runtime\RuntimeOptions;
 final readonly class PlaylistItemPreflightService
 {
     public function __construct(
-        private YtDlpClient $ytDlpClient,
+        private YtDlpGateway $ytDlpClient,
         private RuntimeBootstrap $bootstrap,
         private DownloaderService $downloader,
         private PlaylistPayloadMapper $payloadMapper,
