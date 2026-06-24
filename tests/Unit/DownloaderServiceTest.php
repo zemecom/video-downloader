@@ -81,6 +81,60 @@ final class DownloaderServiceTest extends TestCase
         }
     }
 
+    public function testDownloadVideoUsesTerminalLinkSafeOutputFilename(): void
+    {
+        $root = sys_get_temp_dir() . '/ytd_php_downloader_link_safe_' . uniqid();
+        $binDir = $root . '/bin';
+        $downloadDir = $root . '/downloads';
+        mkdir($binDir, 0777, true);
+        mkdir($downloadDir, 0777, true);
+
+        $scriptPath = $binDir . '/yt-dlp';
+        $scriptSource = str_replace(
+            "'title' => 'My Cool Video'",
+            "'title' => ' 100% [Real] Video： Test? '",
+            FakeDownloaderBinaries::ytDlp(),
+        );
+        file_put_contents($scriptPath, $scriptSource);
+        chmod($scriptPath, 0777);
+
+        $previousPath = getenv('PATH');
+        $previousDownloadDir = getenv('DOWNLOAD_DIR_GENERAL');
+
+        putenv('PATH=' . $binDir . PATH_SEPARATOR . ($previousPath !== false ? $previousPath : ''));
+        putenv('DOWNLOAD_DIR_GENERAL=' . $downloadDir);
+
+        try {
+            $bootstrap = new RuntimeBootstrap(getcwd() ?: null);
+            $output = new BufferedOutput();
+            $logger = new ConsoleLogger($output);
+            $prompter = new InputPrompter();
+            $client = new YtDlpClient($logger);
+            $service = new DownloaderService($client, $bootstrap, $logger, $prompter);
+
+            $result = $service->downloadVideo('https://example.com/video', 'best');
+            $logs = $output->fetch();
+            $expectedFile = $downloadDir . '/100_Real_Video_Test.mkv';
+
+            self::assertSame('completed', $result->status);
+            self::assertFileExists($expectedFile);
+            self::assertStringContainsString('📄 Файл: ' . $expectedFile, $logs);
+            self::assertFalse(file_exists($downloadDir . '/ 100% [Real] Video： Test? .mkv'));
+        } finally {
+            if ($previousPath === false) {
+                putenv('PATH');
+            } else {
+                putenv('PATH=' . $previousPath);
+            }
+
+            if ($previousDownloadDir === false) {
+                putenv('DOWNLOAD_DIR_GENERAL');
+            } else {
+                putenv('DOWNLOAD_DIR_GENERAL=' . $previousDownloadDir);
+            }
+        }
+    }
+
     public function testDownloadVideoLogsExistingOutputPathWhenOverwriteIsDeclined(): void
     {
         $root = sys_get_temp_dir() . '/ytd_php_downloader_skip_' . uniqid();

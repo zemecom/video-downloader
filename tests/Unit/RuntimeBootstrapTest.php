@@ -208,31 +208,46 @@ ENV,
         self::assertFalse($bootstrap->isYoutubeUrl('https://example.com/youtu.be/abc123'));
     }
 
-    public function testSanitizeOutputFilenameReplacesWhitespaceOnlyInFileName(): void
+    public function testSanitizeOutputFilenameMakesFileNameTerminalLinkSafe(): void
     {
         $bootstrap = new RuntimeBootstrap('/tmp/project');
 
         self::assertSame(
-            '/tmp/My Dir/My_Cool_Video_[abc_123].mkv',
+            '/tmp/My Dir/My_Cool_Video_abc_123.mkv',
             $bootstrap->sanitizeOutputFilename('/tmp/My Dir/My Cool Video [abc 123].mkv'),
         );
         self::assertSame(
-            '/tmp/My Dir/My_Cool_Video_[abc_123].mkv',
+            '/tmp/My Dir/My_Cool_Video_abc_123.mkv',
             $bootstrap->sanitizeOutputFilename('/tmp/My Dir/My  Cool Video [abc  123].mkv'),
         );
         self::assertSame(
             '/tmp/My Dir/Already__Separated_Title.mkv',
             $bootstrap->sanitizeOutputFilename('/tmp/My Dir/Already__Separated Title.mkv'),
         );
+        self::assertSame(
+            '/tmp/My Dir/My_Cool_Video.mkv',
+            $bootstrap->sanitizeOutputFilename('/tmp/My Dir/  My： Cool⧸Video？  .mkv'),
+        );
     }
 
-    public function testSanitizeOutputFilenamePreservesPunctuationAndReplacesOnlyUnicodeWhitespace(): void
+    public function testSanitizeOutputFilenamePreservesUnicodeLettersAndReplacesTerminalUnsafeCharacters(): void
     {
         $bootstrap = new RuntimeBootstrap('/tmp/project');
 
         self::assertSame(
-            '/tmp/Абстрактный：_Тестовый_сюжет_до_ноября_или_еще_2-3_года？.opus',
+            '/tmp/Абстрактный_Тестовый_сюжет_до_ноября_или_еще_2-3_года.opus',
             $bootstrap->sanitizeOutputFilename("/tmp/Абстрактныи\u{0306}：\u{00A0}Тестовыи\u{0306}\u{202F}сюжет\u{200B}до_ноября_или_еще_2-3_года？.opus"),
         );
+    }
+
+    public function testSanitizePathComponentMakesGeneratedDirectoriesTerminalLinkSafe(): void
+    {
+        $bootstrap = new RuntimeBootstrap('/tmp/project');
+
+        self::assertSame(
+            'My_Cool_Playlist_abc_123',
+            $bootstrap->sanitizePathComponent(' My Cool Playlist [abc 123] '),
+        );
+        self::assertSame('playlist', $bootstrap->sanitizePathComponent(' :?* '));
     }
 }

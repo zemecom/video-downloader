@@ -305,11 +305,12 @@ final class RuntimeBootstrap
 
     public function sanitizePathComponent(string $value, string $fallback = 'playlist'): string
     {
-        $normalized = preg_replace('/[\\\\\\/:*?"<>|\\x00-\\x1f]+/u', '_', trim($value));
-        $normalized = preg_replace('/\\s+/u', ' ', (string) $normalized);
-        $normalized = trim((string) $normalized, " ._");
+        $normalized = trim($value);
+        if (class_exists(Normalizer::class)) {
+            $normalized = Normalizer::normalize($normalized, Normalizer::FORM_C) ?: $normalized;
+        }
 
-        return $normalized !== '' ? $normalized : $fallback;
+        return $this->sanitizeTerminalLinkPathComponent($normalized, $fallback);
     }
 
     public function sanitizeOutputFilename(string $path): string
@@ -329,18 +330,43 @@ final class RuntimeBootstrap
         if (class_exists(Normalizer::class)) {
             $filename = Normalizer::normalize($filename, Normalizer::FORM_C) ?: $filename;
         }
-        $filename = $this->normalizeFilenameWhitespace($filename);
+        $filename = $this->sanitizeTerminalLinkFilename($filename);
 
         return $directory . $filename;
     }
 
-    private function normalizeFilenameWhitespace(string $filename): string
+    private function sanitizeTerminalLinkFilename(string $filename): string
     {
-        return (string) preg_replace(
-            '/(?:\\s|\\p{Z}|\\x{00A0}|\\x{1680}|\\x{180E}|[\\x{2000}-\\x{200B}]|\\x{2028}|\\x{2029}|\\x{202F}|\\x{205F}|\\x{3000}|\\x{FEFF})+/u',
-            '_',
-            $filename,
-        );
+        $extensionOffset = strrpos($filename, '.');
+        if (
+            $extensionOffset === false
+            || $extensionOffset === 0
+            || $extensionOffset === strlen($filename) - 1
+        ) {
+            return $this->sanitizeTerminalLinkPathComponent($filename, 'download');
+        }
+
+        $stem = substr($filename, 0, $extensionOffset);
+        $extension = substr($filename, $extensionOffset + 1);
+        $safeStem = $this->sanitizeTerminalLinkPathComponent($stem, 'download');
+        $safeExtension = $this->sanitizeFilenameExtension($extension);
+
+        return $safeExtension !== '' ? $safeStem . '.' . $safeExtension : $safeStem;
+    }
+
+    private function sanitizeTerminalLinkPathComponent(string $value, string $fallback): string
+    {
+        $normalized = preg_replace('/[^\\p{L}\\p{N}._-]+/u', '_', $value);
+        $normalized = trim((string) $normalized, '._-');
+
+        return $normalized !== '' ? $normalized : $fallback;
+    }
+
+    private function sanitizeFilenameExtension(string $extension): string
+    {
+        $normalized = preg_replace('/[^A-Za-z0-9]+/', '_', $extension);
+
+        return trim((string) $normalized, '._-');
     }
 
     /**
