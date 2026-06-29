@@ -44,7 +44,6 @@ final readonly class NativeHostPreviewRegistryService
             'path' => $path,
             'token' => $token,
             'createdAt' => $now->format(DATE_ATOM),
-            'expiresAt' => $now->modify(\sprintf('+%d seconds', $this->ttlSeconds))->format(DATE_ATOM),
         ];
 
         $this->withExclusiveLock(function () use ($jobId, $entry): void {
@@ -96,7 +95,6 @@ final readonly class NativeHostPreviewRegistryService
      */
     private function pruneExpiredEntries(array $entries): array
     {
-        $now = $this->now();
         $active = [];
 
         foreach ($entries as $jobId => $entry) {
@@ -104,18 +102,8 @@ final readonly class NativeHostPreviewRegistryService
                 continue;
             }
 
-            $expiresAt = $entry['expiresAt'] ?? null;
-            if (!is_string($expiresAt) || $expiresAt === '') {
-                continue;
-            }
-
-            try {
-                $expiry = new DateTimeImmutable($expiresAt);
-            } catch (\Exception) {
-                continue;
-            }
-
-            if ($expiry <= $now) {
+            $path = $entry['path'] ?? null;
+            if (!is_string($path) || $path === '' || !\file_exists($path)) {
                 continue;
             }
 
