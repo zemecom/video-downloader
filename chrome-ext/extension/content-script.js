@@ -159,6 +159,7 @@
       <div class="actions">
         <button class="button button-secondary close-action" type="button">Скрыть</button>
         <button class="button button-primary cancel-action" type="button">Отменить</button>
+        <button class="button button-primary play-action" type="button" style="display: none;">Смотреть</button>
       </div>
     </section>
   `;
@@ -170,6 +171,16 @@
   const percentNode = shadowRoot.querySelector('.percent');
   const closeButtons = shadowRoot.querySelectorAll('.close, .close-action');
   const cancelButton = shadowRoot.querySelector('.cancel-action');
+  const playButton = shadowRoot.querySelector('.play-action');
+
+  playButton.addEventListener('click', () => {
+    const url = playButton.dataset.previewUrl;
+    const recentId = playButton.dataset.recentDownloadId;
+    const filePath = playButton.dataset.filePath;
+    if (url) {
+      void requestPreviewPage(url, recentId, filePath);
+    }
+  });
 
   closeButtons.forEach((button) => {
     button.addEventListener('click', () => {
@@ -333,13 +344,8 @@
       ? payload.recentDownloadId
       : null;
 
-    if (status === 'completed' && previewReady) {
-      void requestPreviewPage(nextPreviewUrl, recentDownloadId, nextFilePath);
-      return;
-    }
-
     if (status === 'completed') {
-      startAutoHide(3000);
+      startAutoHide(8000);
     } else if (status === 'cancelled') {
       startAutoHide(1000);
     } else {
@@ -354,6 +360,18 @@
 
     if (isTerminalStatus(status)) {
       cancelButton.disabled = true;
+      cancelButton.style.display = 'none';
+    } else {
+      cancelButton.style.display = '';
+    }
+
+    if (status === 'completed' && previewReady) {
+      playButton.style.display = '';
+      playButton.dataset.previewUrl = nextPreviewUrl || '';
+      playButton.dataset.recentDownloadId = recentDownloadId || '';
+      playButton.dataset.filePath = nextFilePath || '';
+    } else {
+      playButton.style.display = 'none';
     }
 
     if (progressPercent === null || status === 'starting' || status === 'cancelling') {
