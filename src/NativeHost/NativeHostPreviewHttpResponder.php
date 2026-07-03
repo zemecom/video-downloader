@@ -66,6 +66,9 @@ final readonly class NativeHostPreviewHttpResponder
             return $this->response(416, [
                 'Accept-Ranges' => 'bytes',
                 'Content-Range' => \sprintf('bytes */%d', $size),
+                'Access-Control-Allow-Origin' => '*',
+                'Access-Control-Allow-Headers' => 'Range',
+                'Access-Control-Expose-Headers' => 'Content-Range, Accept-Ranges, Content-Length, Content-Type',
             ], '');
         }
 
@@ -79,6 +82,9 @@ final readonly class NativeHostPreviewHttpResponder
             'Cache-Control' => 'no-store',
             'Content-Length' => (string) $length,
             'Content-Type' => $this->guessContentType($filePath),
+            'Access-Control-Allow-Origin' => '*',
+            'Access-Control-Allow-Headers' => 'Range',
+            'Access-Control-Expose-Headers' => 'Content-Range, Accept-Ranges, Content-Length, Content-Type',
         ];
 
         if ($status === 206) {

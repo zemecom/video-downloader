@@ -143,6 +143,8 @@ final class YtDlpCommandBuilder
         $command = $this->applyFormatArgs($command, $formatCode, $outputFormat);
         $command[] = '--downloader-args';
         $command[] = 'ffmpeg_i:-http_persistent 0';
+        $command[] = '--postprocessor-args';
+        $command[] = 'ffmpeg:-movflags faststart';
         $command[] = '--continue';
         $command[] = '--progress';
         $command[] = '--progress-delta';

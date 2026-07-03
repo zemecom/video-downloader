@@ -96,6 +96,7 @@ final readonly class NativeHostPreviewRegistryService
     private function pruneExpiredEntries(array $entries): array
     {
         $active = [];
+        $now = $this->now()->getTimestamp();
 
         foreach ($entries as $jobId => $entry) {
             if (!\is_array($entry)) {
@@ -104,6 +105,20 @@ final readonly class NativeHostPreviewRegistryService
 
             $path = $entry['path'] ?? null;
             if (!is_string($path) || $path === '' || !\file_exists($path)) {
+                continue;
+            }
+
+            $createdAtStr = $entry['createdAt'] ?? null;
+            if (!\is_string($createdAtStr)) {
+                continue;
+            }
+
+            $createdAt = DateTimeImmutable::createFromFormat(DATE_ATOM, $createdAtStr);
+            if (!$createdAt instanceof DateTimeImmutable) {
+                continue;
+            }
+
+            if ($now - $createdAt->getTimestamp() > $this->ttlSeconds) {
                 continue;
             }
 

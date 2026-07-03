@@ -141,6 +141,7 @@ final readonly class NativeHostPreviewServerService
                 'fileHandle' => null,
                 'remainingBytes' => 0,
                 'done' => false,
+                'keepAlive' => false,
             ];
         }
     }
@@ -178,10 +179,14 @@ final readonly class NativeHostPreviewServerService
         }
 
         $request = $this->parseRequest($clientState['requestBuffer']);
+        $protocol = $request['protocol'] ?? 'HTTP/1.1';
+        $connHeader = \strtolower($request['headers']['connection'] ?? '');
+        $clientState['keepAlive'] = $connHeader === 'keep-alive' || ($connHeader !== 'close' && $protocol === 'HTTP/1.1');
+        
         $response = $this->responder->respond($request['method'], $request['target'], $request['headers'], false);
 
         $clientState['responseReady'] = true;
-        $clientState['pendingWrite'] = $this->formatResponseHead($response);
+        $clientState['pendingWrite'] = $this->formatResponseHead($response, $clientState['keepAlive']);
 
         if (\strtoupper($request['method']) !== 'GET' || !\is_string($response['filePath'] ?? null)) {
             if (\is_string($response['body'] ?? null) && $response['body'] !== '') {
@@ -270,7 +275,12 @@ final readonly class NativeHostPreviewServerService
         }
 
         if ($clientState['pendingWrite'] === '' && $clientState['fileHandle'] === null && $clientState['remainingBytes'] <= 0) {
-            $clientState['done'] = true;
+            if ($clientState['keepAlive']) {
+                $clientState['responseReady'] = false;
+                $clientState['requestBuffer'] = '';
+            } else {
+                $clientState['done'] = true;
+            }
         }
     }
 
@@ -312,6 +322,7 @@ final readonly class NativeHostPreviewServerService
         $parts = \explode(' ', $requestLine, 3);
         $method = $parts[0] ?? 'GET';
         $target = $parts[1] ?? '/';
+        $protocol = $parts[2] ?? 'HTTP/1.1';
         $headers = [];
 
         foreach ($lines as $line) {
@@ -331,6 +342,7 @@ final readonly class NativeHostPreviewServerService
         return [
             'method' => $method,
             'target' => $target,
+            'protocol' => $protocol,
             'headers' => $headers,
         ];
     }
@@ -338,12 +350,12 @@ final readonly class NativeHostPreviewServerService
     /**
      * @param array<string, mixed> $response
      */
-    private function formatResponseHead(array $response): string
+    private function formatResponseHead(array $response, bool $keepAlive): string
     {
         $status = (int) ($response['status'] ?? 500);
         $headers = \is_array($response['headers'] ?? null) ? $response['headers'] : [];
         $head = \sprintf("HTTP/1.1 %d %s\r\n", $status, $this->reasonPhrase($status));
-        $head .= "Connection: close\r\n";
+        $head .= $keepAlive ? "Connection: keep-alive\r\n" : "Connection: close\r\n";
 
         foreach ($headers as $name => $value) {
             $head .= $name . ': ' . $value . "\r\n";
