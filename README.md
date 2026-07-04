@@ -72,13 +72,21 @@ make init
 make install
 ```
 
-По умолчанию этот target добавляет alias `ytdphp` в `~/.zshrc`.
+По умолчанию этот target добавляет alias `ytd` в `~/.zshrc`.
 
 Если ты хочешь другой alias, можно передать имя явно:
 
 ```bash
 make install PHP_ALIAS_NAME=ytd
 ```
+
+Либо ты можешь добавить алиас вручную, дописав в `~/.zshrc`:
+
+```bash
+alias ytd="php /абсолютный/путь/к/video-downloader/bin/ytd"
+```
+
+*(Затем выполни `source ~/.zshrc`, чтобы применить изменения)*
 
 ### Вариант 2. Ручная установка без Makefile
 
@@ -150,7 +158,7 @@ php bin/ytd https://youtu.be/example
 Если ты уже добавил alias, можно запускать так:
 
 ```bash
-ytdphp https://youtu.be/example
+ytd https://youtu.be/example
 ```
 
 ## Chrome Extension
@@ -255,7 +263,7 @@ php ytd.php URL
 Если установлен alias:
 
 ```bash
-ytdphp URL
+ytd URL
 ```
 
 ### CLI-флаги

@@ -2,7 +2,7 @@
 
 PHP ?= php
 COMPOSER ?= composer
-PHP_ALIAS_NAME ?= ytdphp
+PHP_ALIAS_NAME ?= ytd
 CHROME_EXT_DIR ?= chrome-ext
 CHROME_EXT_EXTENSION_DIR ?= $(CHROME_EXT_DIR)/extension
 CHROME_EXT_NATIVE_HOST_DIR ?= $(CHROME_EXT_DIR)/native-host
