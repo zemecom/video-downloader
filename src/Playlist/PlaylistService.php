@@ -353,7 +353,7 @@ final readonly class PlaylistService
         RuntimeOptions $options,
         string $targetDir,
         int $concurrentDownloads,
-    ): ?PlaylistSelectionSummary {
+    ): PlaylistSelectionSummary {
         $selectedMetadata = [];
         foreach ($selectedItems as $item) {
             $selectedMetadata[] = $this->itemPreflightService->buildItemMetadata($playlist, $item, $options, $targetDir);

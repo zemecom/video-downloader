@@ -23,11 +23,9 @@ final class Application
     public function __construct(
         private readonly RuntimeBootstrap $bootstrap,
         private readonly ConsoleLogger $logger,
-        private readonly InputPrompter $prompter,
         private readonly DoctorService $doctorService,
         private readonly RoutingService $routingService,
         private readonly YtDlpGateway $ytDlpClient,
-        private readonly DownloaderService $downloaderService,
         private readonly PlaylistService $playlistService,
         private readonly SingleVideoFlowService $singleVideoFlowService,
         private readonly PlaylistFlowService $playlistFlowService,
@@ -48,11 +46,9 @@ final class Application
         return new self(
             $bootstrap,
             $logger,
-            $prompter,
             $doctorService,
             $routingService,
             $ytDlpClient,
-            $downloaderService,
             $playlistService,
             $singleVideoFlowService,
             $playlistFlowService,

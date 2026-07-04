@@ -192,7 +192,7 @@ final class ArchitectureNamespacesTest extends TestCase
         self::assertIsString($contents);
 
         \preg_match_all('/(?:use\s+|\\\\)YtdPhp\\\\([A-Za-z]+)\\\\/', $contents, $matches);
-        if (($matches[1] ?? []) === []) {
+        if ($matches[1] === []) {
             return [];
         }
 

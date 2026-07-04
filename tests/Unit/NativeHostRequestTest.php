@@ -17,9 +17,9 @@ final class NativeHostRequestTest extends TestCase
             'url' => 'https://example.com/watch?v=42',
         ]);
 
+        self::assertInstanceOf(\YtdPhp\NativeHost\Request\StartDownloadRequest::class, $request);
         self::assertSame('start_download', $request->action);
         self::assertSame('https://example.com/watch?v=42', $request->url);
-        self::assertNull($request->jobId);
         self::assertSame('video', $request->mode);
     }
 
@@ -31,6 +31,7 @@ final class NativeHostRequestTest extends TestCase
             'mode' => 'audio',
         ]);
 
+        self::assertInstanceOf(\YtdPhp\NativeHost\Request\StartDownloadRequest::class, $request);
         self::assertSame('audio', $request->mode);
     }
 
@@ -41,9 +42,9 @@ final class NativeHostRequestTest extends TestCase
             'jobId' => 'job-123',
         ]);
 
+        self::assertInstanceOf(\YtdPhp\NativeHost\Request\JobActionRequest::class, $request);
         self::assertSame('get_job_status', $request->action);
         self::assertSame('job-123', $request->jobId);
-        self::assertNull($request->url);
     }
 
     public function testFromPayloadAcceptsListRecentDownloadsAction(): void
@@ -52,6 +53,7 @@ final class NativeHostRequestTest extends TestCase
             'action' => 'list_recent_downloads',
         ]);
 
+        self::assertInstanceOf(\YtdPhp\NativeHost\Request\ListRecentDownloadsRequest::class, $request);
         self::assertSame('list_recent_downloads', $request->action);
     }
 
@@ -62,6 +64,7 @@ final class NativeHostRequestTest extends TestCase
             'entryId' => 'download-123',
         ]);
 
+        self::assertInstanceOf(\YtdPhp\NativeHost\Request\EntryActionRequest::class, $request);
         self::assertSame('open_recent_download', $request->action);
         self::assertSame('download-123', $request->entryId);
     }
@@ -73,6 +76,7 @@ final class NativeHostRequestTest extends TestCase
             'entryId' => 'download-123',
         ]);
 
+        self::assertInstanceOf(\YtdPhp\NativeHost\Request\EntryActionRequest::class, $request);
         self::assertSame('preview_recent_download', $request->action);
         self::assertSame('download-123', $request->entryId);
     }
@@ -84,6 +88,7 @@ final class NativeHostRequestTest extends TestCase
             'entryId' => 'download-123',
         ]);
 
+        self::assertInstanceOf(\YtdPhp\NativeHost\Request\EntryActionRequest::class, $request);
         self::assertSame('delete_recent_download', $request->action);
         self::assertSame('download-123', $request->entryId);
     }

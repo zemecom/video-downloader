@@ -40,6 +40,7 @@ final readonly class NativeHostPreviewServerService
         $clients = [];
 
         try {
+            /** @phpstan-ignore while.alwaysTrue */
             while (true) {
                 $read = [$server];
                 $write = [];
@@ -112,6 +113,7 @@ final readonly class NativeHostPreviewServerService
             $this->stateStore->clear();
         }
 
+        /** @phpstan-ignore deadCode.unreachable */
         return 0;
     }
 
@@ -125,7 +127,8 @@ final readonly class NativeHostPreviewServerService
      *   pendingWriteFromFile: bool,
      *   fileHandle: resource|null,
      *   remainingBytes: int,
-     *   done: bool
+     *   done: bool,
+     *   keepAlive: bool
      * }> $clients
      */
     private function acceptClients($server, array &$clients): void
@@ -155,7 +158,8 @@ final readonly class NativeHostPreviewServerService
      *   pendingWriteFromFile: bool,
      *   fileHandle: resource|null,
      *   remainingBytes: int,
-     *   done: bool
+     *   done: bool,
+     *   keepAlive: bool
      * } $clientState
      */
     private function readClient(array &$clientState): void
@@ -182,7 +186,7 @@ final readonly class NativeHostPreviewServerService
         $protocol = $request['protocol'] ?? 'HTTP/1.1';
         $connHeader = \strtolower($request['headers']['connection'] ?? '');
         $clientState['keepAlive'] = $connHeader === 'keep-alive' || ($connHeader !== 'close' && $protocol === 'HTTP/1.1');
-        
+
         $response = $this->responder->respond($request['method'], $request['target'], $request['headers'], false);
 
         $clientState['responseReady'] = true;
@@ -217,7 +221,8 @@ final readonly class NativeHostPreviewServerService
      *   pendingWriteFromFile: bool,
      *   fileHandle: resource|null,
      *   remainingBytes: int,
-     *   done: bool
+     *   done: bool,
+     *   keepAlive: bool
      * } $clientState
      */
     private function writeClient(array &$clientState): void
@@ -247,7 +252,7 @@ final readonly class NativeHostPreviewServerService
         }
 
         $written = @\fwrite($clientState['socket'], $clientState['pendingWrite']);
-        if (!\is_int($written) || $written < 0) {
+        if ($written === false) {
             $clientState['done'] = true;
 
             return;
@@ -293,7 +298,8 @@ final readonly class NativeHostPreviewServerService
      *   pendingWriteFromFile: bool,
      *   fileHandle: resource|null,
      *   remainingBytes: int,
-     *   done: bool
+     *   done: bool,
+     *   keepAlive: bool
      * } $clientState
      */
     private function closeClient(array $clientState): void

@@ -86,11 +86,9 @@ final readonly class NativeHostJobRunnerService
         }
 
         $status = \proc_get_status($process);
-        if (\is_array($status) && isset($status['pid']) && is_int($status['pid'])) {
-            $state['downloadPid'] = $status['pid'];
-            $state['updatedAt'] = $this->now();
-            $this->store->write($jobId, $state);
-        }
+        $state['downloadPid'] = $status['pid'];
+        $state['updatedAt'] = $this->now();
+        $this->store->write($jobId, $state);
 
         foreach ([1, 2] as $index) {
             if (isset($pipes[$index]) && \is_resource($pipes[$index])) {
@@ -144,7 +142,7 @@ final readonly class NativeHostJobRunnerService
             }
 
             $running = \proc_get_status($process);
-            if (!\is_array($running) || !($running['running'] ?? false)) {
+            if (!$running['running']) {
                 break;
             }
         }
@@ -160,7 +158,7 @@ final readonly class NativeHostJobRunnerService
         }
 
         foreach ([1, 2] as $index) {
-            $state = $this->consumeParsedOutput($jobId, $state, $buffers[$index] ?? '');
+            $state = $this->consumeParsedOutput($jobId, $state, $buffers[$index]);
         }
 
         $exitCode = \proc_close($process);

@@ -8,6 +8,11 @@ use Throwable;
 use YtdPhp\NativeHost\NativeHostRequest;
 use YtdPhp\NativeHost\NativeHostResponse;
 use YtdPhp\NativeHost\NativeHostException;
+use YtdPhp\NativeHost\Request\StartDownloadRequest;
+use YtdPhp\NativeHost\Request\JobActionRequest;
+use YtdPhp\NativeHost\Request\ListRecentDownloadsRequest;
+use YtdPhp\NativeHost\Request\EntryActionRequest;
+use YtdPhp\NativeHost\Request\LogClientErrorRequest;
 
 final readonly class NativeHostHandlerService
 {
@@ -24,17 +29,21 @@ final readonly class NativeHostHandlerService
         try {
             $request = NativeHostRequest::fromPayload($payload);
 
-            return match ($request->action) {
-                NativeHostRequest::START_DOWNLOAD => $this->manager->startDownload((string) $request->url, (string) $request->mode),
-                NativeHostRequest::GET_JOB_STATUS => $this->manager->getJobStatus((string) $request->jobId),
-                NativeHostRequest::CANCEL_DOWNLOAD => $this->manager->cancelDownload((string) $request->jobId),
-                NativeHostRequest::FORCE_CANCEL_DOWNLOAD => $this->manager->forceCancelDownload((string) $request->jobId),
-                NativeHostRequest::LIST_RECENT_DOWNLOADS => $this->manager->listRecentDownloads(),
-                NativeHostRequest::PREVIEW_RECENT_DOWNLOAD => $this->manager->previewRecentDownload((string) $request->entryId),
-                NativeHostRequest::OPEN_RECENT_DOWNLOAD => $this->manager->openRecentDownload((string) $request->entryId),
-                NativeHostRequest::REVEAL_RECENT_DOWNLOAD => $this->manager->revealRecentDownload((string) $request->entryId),
-                NativeHostRequest::DELETE_RECENT_DOWNLOAD => $this->manager->deleteRecentDownload((string) $request->entryId),
-                NativeHostRequest::LOG_CLIENT_ERROR => $this->logClientError((string) $request->errorMessage, $request->errorStack),
+            return match (true) {
+                $request instanceof StartDownloadRequest => $this->manager->startDownload($request->url, $request->mode),
+                $request instanceof JobActionRequest => match ($request->action) {
+                    NativeHostRequest::GET_JOB_STATUS => $this->manager->getJobStatus($request->jobId),
+                    NativeHostRequest::CANCEL_DOWNLOAD => $this->manager->cancelDownload($request->jobId),
+                    NativeHostRequest::FORCE_CANCEL_DOWNLOAD => $this->manager->forceCancelDownload($request->jobId),
+                },
+                $request instanceof ListRecentDownloadsRequest => $this->manager->listRecentDownloads(),
+                $request instanceof EntryActionRequest => match ($request->action) {
+                    NativeHostRequest::PREVIEW_RECENT_DOWNLOAD => $this->manager->previewRecentDownload($request->entryId),
+                    NativeHostRequest::OPEN_RECENT_DOWNLOAD => $this->manager->openRecentDownload($request->entryId),
+                    NativeHostRequest::REVEAL_RECENT_DOWNLOAD => $this->manager->revealRecentDownload($request->entryId),
+                    NativeHostRequest::DELETE_RECENT_DOWNLOAD => $this->manager->deleteRecentDownload($request->entryId),
+                },
+                $request instanceof LogClientErrorRequest => $this->logClientError($request->errorMessage, $request->errorStack),
                 default => NativeHostResponse::error('invalid_payload', 'Invalid native host payload.'),
             };
         } catch (NativeHostException $exception) {

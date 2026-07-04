@@ -10,6 +10,7 @@ use YtdPhp\NativeHost\NativeHostHandlerService;
 use YtdPhp\NativeHost\NativeHostJobManagerService;
 use YtdPhp\NativeHost\NativeHostRecentDownloadsStore;
 use YtdPhp\NativeHost\NativeHostJobStateStore;
+use YtdPhp\NativeHost\NativeHostLogService;
 
 final class NativeHostHandlerServiceTest extends TestCase
 {
@@ -30,7 +31,7 @@ final class NativeHostHandlerServiceTest extends TestCase
                 },
                 static function (): void {},
             );
-            $service = new NativeHostHandlerService($manager);
+            $service = new NativeHostHandlerService($manager, new NativeHostLogService($bootstrap));
 
             $response = $service->handle([
                 'action' => 'start_download',
@@ -65,7 +66,7 @@ final class NativeHostHandlerServiceTest extends TestCase
                 },
                 static function (): void {},
             );
-            $service = new NativeHostHandlerService($manager);
+            $service = new NativeHostHandlerService($manager, new NativeHostLogService($bootstrap));
 
             $response = $service->handle([
                 'action' => 'start_download',
@@ -94,7 +95,7 @@ final class NativeHostHandlerServiceTest extends TestCase
                 static function (): void {},
                 static function (): void {},
             );
-            $service = new NativeHostHandlerService($manager);
+            $service = new NativeHostHandlerService($manager, new NativeHostLogService($bootstrap));
 
             $response = $service->handle([
                 'action' => 'start_download',
@@ -122,7 +123,7 @@ final class NativeHostHandlerServiceTest extends TestCase
                 static function (): void {},
                 static function (): void {},
             );
-            $service = new NativeHostHandlerService($manager);
+            $service = new NativeHostHandlerService($manager, new NativeHostLogService($bootstrap));
 
             $response = $service->handle([
                 'action' => 'download_playlist',
@@ -153,7 +154,7 @@ final class NativeHostHandlerServiceTest extends TestCase
                 },
                 static function (): void {},
             );
-            $service = new NativeHostHandlerService($manager);
+            $service = new NativeHostHandlerService($manager, new NativeHostLogService($bootstrap));
 
             $response = $service->handle([
                 'action' => 'start_download',
@@ -196,7 +197,7 @@ final class NativeHostHandlerServiceTest extends TestCase
                 },
                 revealer: static function (): void {},
             );
-            $service = new NativeHostHandlerService($manager);
+            $service = new NativeHostHandlerService($manager, new NativeHostLogService($bootstrap));
 
             $response = $service->handle([
                 'action' => 'open_recent_download',
@@ -205,6 +206,40 @@ final class NativeHostHandlerServiceTest extends TestCase
 
             self::assertFalse($response->ok);
             self::assertSame('unexpected_error', $response->code);
+        } finally {
+            putenv('YTD_PROJECT_ROOT');
+        }
+    }
+
+    public function testHandleLogsClientError(): void
+    {
+        $root = \sys_get_temp_dir() . '/ytd_native_handler_log_' . \uniqid();
+        \mkdir($root, 0777, true);
+        putenv('YTD_PROJECT_ROOT=' . $root);
+
+        try {
+            $bootstrap = new RuntimeBootstrap($root);
+            $manager = new NativeHostJobManagerService(
+                $bootstrap,
+                new NativeHostJobStateStore($bootstrap),
+                static function (): void {},
+                static function (): void {},
+            );
+            $service = new NativeHostHandlerService($manager, new NativeHostLogService($bootstrap));
+
+            $response = $service->handle([
+                'action' => 'log_client_error',
+                'errorMessage' => 'TypeError: something is undefined',
+                'errorStack' => 'at popup.js:42',
+            ]);
+
+            self::assertTrue($response->ok);
+
+            $logPath = $bootstrap->getNativeHostLogPath();
+            self::assertFileExists($logPath);
+            $logContent = \file_get_contents($logPath);
+            self::assertStringContainsString('[CLIENT ERROR] TypeError: something is undefined', (string) $logContent);
+            self::assertStringContainsString('[CLIENT ERROR STACK] at popup.js:42', (string) $logContent);
         } finally {
             putenv('YTD_PROJECT_ROOT');
         }

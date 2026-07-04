@@ -5,10 +5,15 @@ declare(strict_types=1);
 namespace YtdPhp\NativeHost;
 
 use YtdPhp\NativeHost\NativeHostException;
+use YtdPhp\NativeHost\Request\StartDownloadRequest;
+use YtdPhp\NativeHost\Request\JobActionRequest;
+use YtdPhp\NativeHost\Request\ListRecentDownloadsRequest;
+use YtdPhp\NativeHost\Request\EntryActionRequest;
+use YtdPhp\NativeHost\Request\LogClientErrorRequest;
 
 use const FILTER_VALIDATE_URL;
 
-final readonly class NativeHostRequest
+abstract readonly class NativeHostRequest
 {
     private const string LEGACY_DOWNLOAD_CURRENT_TAB = 'download_current_tab';
     public const string MODE_VIDEO = 'video';
@@ -24,16 +29,6 @@ final readonly class NativeHostRequest
     public const string DELETE_RECENT_DOWNLOAD = 'delete_recent_download';
     public const string LOG_CLIENT_ERROR = 'log_client_error';
 
-    public function __construct(
-        public string $action,
-        public ?string $url = null,
-        public ?string $jobId = null,
-        public ?string $mode = null,
-        public ?string $entryId = null,
-        public ?string $errorMessage = null,
-        public ?string $errorStack = null,
-    ) {}
-
     /**
      * @param array<string, mixed> $payload
      */
@@ -43,6 +38,7 @@ final readonly class NativeHostRequest
         $url = $payload['url'] ?? null;
         $jobId = $payload['jobId'] ?? null;
         $mode = $payload['mode'] ?? null;
+        $entryId = $payload['entryId'] ?? null;
         $errorMessage = $payload['errorMessage'] ?? null;
         $errorStack = $payload['errorStack'] ?? null;
 
@@ -55,11 +51,11 @@ final readonly class NativeHostRequest
         }
 
         return match ($action) {
-            self::START_DOWNLOAD => new self($action, self::validateUrl($url), null, self::validateMode($mode)),
-            self::GET_JOB_STATUS, self::CANCEL_DOWNLOAD, self::FORCE_CANCEL_DOWNLOAD => new self($action, null, self::validateJobId($jobId), null),
-            self::LIST_RECENT_DOWNLOADS => new self($action),
-            self::PREVIEW_RECENT_DOWNLOAD, self::OPEN_RECENT_DOWNLOAD, self::REVEAL_RECENT_DOWNLOAD, self::DELETE_RECENT_DOWNLOAD => new self($action, null, null, null, self::validateEntryId($entryId)),
-            self::LOG_CLIENT_ERROR => new self($action, null, null, null, null, \is_string($errorMessage) ? $errorMessage : 'Unknown JS error', \is_string($errorStack) ? $errorStack : null),
+            self::START_DOWNLOAD => new StartDownloadRequest($action, self::validateUrl($url), self::validateMode($mode)),
+            self::GET_JOB_STATUS, self::CANCEL_DOWNLOAD, self::FORCE_CANCEL_DOWNLOAD => new JobActionRequest($action, self::validateJobId($jobId)),
+            self::LIST_RECENT_DOWNLOADS => new ListRecentDownloadsRequest($action),
+            self::PREVIEW_RECENT_DOWNLOAD, self::OPEN_RECENT_DOWNLOAD, self::REVEAL_RECENT_DOWNLOAD, self::DELETE_RECENT_DOWNLOAD => new EntryActionRequest($action, self::validateEntryId($entryId)),
+            self::LOG_CLIENT_ERROR => new LogClientErrorRequest($action, \is_string($errorMessage) ? $errorMessage : 'Unknown JS error', \is_string($errorStack) ? $errorStack : null),
             default => throw new NativeHostException('invalid_payload', 'Invalid native host payload.'),
         };
     }

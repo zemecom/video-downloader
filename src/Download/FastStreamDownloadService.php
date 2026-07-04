@@ -234,7 +234,7 @@ final readonly class FastStreamDownloadService
         foreach ($processes as $label => $process) {
             $this->flushProcessOutput($label, $process, $progress);
         }
-        
+
         if ($progress !== null) {
             $progress->finish();
         }

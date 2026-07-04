@@ -154,7 +154,7 @@ final class NativeHostJobManagerService
                 (new Process(['kill', '-9', (string) $workerPid]))->run();
             }
         }
-        
+
         $this->store->requestCancel($jobId);
 
         return NativeHostResponse::success('cancel_forced', 'Download forcibly cancelled.', (string) ($state['url'] ?? null), $this->stateDetails($state));

@@ -57,7 +57,7 @@ final readonly class NativeHostPreviewHttpResponder
         }
 
         $size = \filesize($filePath);
-        if (!\is_int($size) || $size < 0) {
+        if ($size === false) {
             return $this->response(404, [], 'Not found.');
         }
 

@@ -55,10 +55,6 @@ final readonly class DownloadProcessRunner
             }
         }
 
-        if (!$process instanceof Process) {
-            throw new LogicException('Download process was not initialized.');
-        }
-
         return $process;
     }
 
