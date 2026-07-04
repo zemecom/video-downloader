@@ -111,7 +111,7 @@ cp .env.example .env
 cp proxy_rules.example.yaml proxy_rules.yaml
 ```
 
-2. Заполни `.env` и при необходимости поправь `proxy_rules.yaml`.
+1. Заполни `.env` и при необходимости поправь `proxy_rules.yaml`.
 
 Минимум, что обычно нужно проверить:
 
@@ -123,7 +123,7 @@ cp proxy_rules.example.yaml proxy_rules.yaml
 - `CONCURRENT_DOWNLOADS`
 - `CONCURRENT_FRAGMENTS`
 
-3. Проверь окружение:
+1. Проверь окружение:
 
 ```bash
 make doctor
@@ -135,13 +135,13 @@ make doctor
 php bin/ytd --doctor
 ```
 
-4. Убедись, что команда доступна:
+1. Убедись, что команда доступна:
 
 ```bash
 php bin/ytd --help
 ```
 
-5. Скачай видео:
+1. Скачай видео:
 
 ```bash
 php bin/ytd https://youtu.be/example
