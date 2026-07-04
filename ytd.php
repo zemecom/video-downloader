@@ -21,7 +21,7 @@ if (! function_exists('ytd_run')) {
 
             return $application->run();
         } catch (Throwable $error) {
-            $errorLogPath = (new ErrorLogService($bootstrap))->appendExceptionTraceback($error);
+            $errorLogPath = new ErrorLogService($bootstrap)->appendExceptionTraceback($error);
             fwrite(STDERR, "💥 Необработанная ошибка: {$error->getMessage()}\n");
             fwrite(STDERR, "🧾 Полный traceback записан в: {$errorLogPath}\n");
 

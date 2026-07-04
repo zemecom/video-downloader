@@ -4,10 +4,10 @@
 declare(strict_types=1);
 
 use YtdPhp\Runtime\RuntimeBootstrap;
-use YtdPhp\NativeHost\NativeHostPreviewHttpResponder;
-use YtdPhp\NativeHost\NativeHostPreviewRegistryService;
-use YtdPhp\NativeHost\NativeHostPreviewServerService;
-use YtdPhp\NativeHost\NativeHostPreviewServerStateStore;
+use YtdPhp\NativeHost\Preview\NativeHostPreviewHttpResponder;
+use YtdPhp\NativeHost\Preview\NativeHostPreviewRegistryService;
+use YtdPhp\NativeHost\Preview\NativeHostPreviewServerService;
+use YtdPhp\NativeHost\Store\NativeHostPreviewServerStateStore;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 

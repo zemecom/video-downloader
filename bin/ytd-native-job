@@ -3,11 +3,11 @@
 
 declare(strict_types=1);
 
+use YtdPhp\NativeHost\Job\NativeHostJobRunnerService;
+use YtdPhp\NativeHost\Job\NativeHostProgressParserService;
+use YtdPhp\NativeHost\Store\NativeHostJobStateStore;
+use YtdPhp\NativeHost\Store\NativeHostRecentDownloadsStore;
 use YtdPhp\Runtime\RuntimeBootstrap;
-use YtdPhp\NativeHost\NativeHostJobRunnerService;
-use YtdPhp\NativeHost\NativeHostRecentDownloadsStore;
-use YtdPhp\NativeHost\NativeHostJobStateStore;
-use YtdPhp\NativeHost\NativeHostProgressParserService;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 

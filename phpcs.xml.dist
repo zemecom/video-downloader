@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<ruleset name="YTD">
+    <description>PHP_CodeSniffer rules for the YTD project.</description>
+
+    <arg name="basepath" value="."/>
+    <arg name="colors"/>
+    <arg name="extensions" value="php"/>
+    <arg name="parallel" value="4"/>
+    <arg name="warning-severity" value="0"/>
+
+    <file>src</file>
+    <file>tests</file>
+    <file>ytd.php</file>
+    <file>bin/ytd</file>
+    <file>bin/ytd-native-host</file>
+    <file>bin/ytd-native-job</file>
+    <file>bin/ytd-native-preview-server</file>
+
+    <exclude-pattern>vendor/*</exclude-pattern>
+    <exclude-pattern>logs/*</exclude-pattern>
+    <exclude-pattern>chrome-ext/*</exclude-pattern>
+    <exclude-pattern>tests/Fixtures/bin/*</exclude-pattern>
+
+    <rule ref="PSR12"/>
+</ruleset>

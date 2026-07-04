@@ -1,4 +1,4 @@
-.PHONY: help install install-deps alias init doctor doctor-smoke clean-logs test test-integration lint lint-fix check check-entrypoint-local ci-current chrome-ext-paths chrome-ext-install chrome-ext-uninstall
+.PHONY: help install install-deps alias init doctor doctor-smoke clean-logs phpcs test test-integration lint lint-fix check check-entrypoint-local ci-current chrome-ext-paths chrome-ext-install chrome-ext-uninstall
 
 PHP ?= php
 COMPOSER ?= composer
@@ -27,6 +27,7 @@ help:
 	@echo "  make chrome-ext-uninstall - uninstall Chrome native host manifest"
 	@echo ""
 	@echo "Checks:"
+	@echo "  make phpcs         - run PHP_CodeSniffer"
 	@echo "  make test          - run unit tests"
 	@echo "  make test-integration - run manual integration tests"
 	@echo "  make lint          - run PHP CS Fixer and PHPStan"
@@ -95,6 +96,9 @@ chrome-ext-uninstall:
 		exit 1; \
 	fi
 	@"$(CHROME_EXT_UNINSTALLER)"
+
+phpcs:
+	$(COMPOSER) phpcs
 
 test:
 	$(COMPOSER) test

@@ -39,6 +39,7 @@ Dev-зависимости проекта ставятся через `require-d
 - PHPUnit
 - PHPStan
 - PHP CS Fixer
+- PHP_CodeSniffer
 
 Опционально:
 
@@ -361,6 +362,7 @@ ytd URL
 - `make chrome-ext-install` — устанавливает native host для Chrome-расширения.
 - `make chrome-ext-uninstall` — удаляет manifest native host из профиля Chrome.
 - `make clean-logs` — удаляет все файлы логов.
+- `make phpcs` — запускает PHP_CodeSniffer по конфигу `phpcs.xml.dist`.
 - `make test` — запускает unit-тесты.
 - `make test-integration` — запускает integration-suite.
 - `make lint` — запускает PHP CS Fixer и PHPStan.
@@ -371,18 +373,25 @@ ytd URL
 - `make check` — удобный локальный минимум: сначала lint, потом unit-тесты.
 - `make build` — собирает готовый исполняемый файл `ytd.phar` с помощью Box.
 
+> [!TIP]
+> Для локальной отладки CLI используется Xdebug на порту `9003`. Текущая конфигурация рассчитана на ручной запуск по триггеру (`xdebug.start_with_request=trigger`), поэтому для отладки запускай команды так: `XDEBUG_TRIGGER=1 php bin/ytd --help`, а в PhpStorm заранее включай `Start Listening for PHP Debug Connections`.
+
 > [!NOTE]
 > В проекте установлен **GrumPHP**. При попытке сделать Git-коммит он автоматически запустит линтеры, статический анализ и тесты. Если что-то упадет — коммит будет отменен. Это гарантирует чистоту кода в репозитории.
 
 Можно запускать и напрямую через Composer:
 
 ```bash
+composer phpcs
 composer test
 composer test-integration
 composer lint
 composer lint-fix
 composer check
 ```
+
+> [!TIP]
+> `PHP_CodeSniffer` сейчас подключён как отдельная команда `composer phpcs` / `make phpcs`. Это удобно для постепенной чистки style-debt, не ломая текущий `lint`-пайплайн, который уже завязан на `PHP CS Fixer` и `PHPStan`.
 
 ## Integration-тесты
 

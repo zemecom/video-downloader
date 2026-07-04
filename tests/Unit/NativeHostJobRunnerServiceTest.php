@@ -14,6 +14,20 @@ use YtdPhp\NativeHost\Store\NativeHostRecentDownloadsStore;
 
 final class NativeHostJobRunnerServiceTest extends TestCase
 {
+    public function testNativeHostJobScriptUsesExistingWorkerClasses(): void
+    {
+        $script = (string) \file_get_contents(\dirname(__DIR__, 2) . '/bin/ytd-native-job');
+
+        self::assertStringContainsString('use YtdPhp\\NativeHost\\Job\\NativeHostJobRunnerService;', $script);
+        self::assertStringContainsString('use YtdPhp\\NativeHost\\Job\\NativeHostProgressParserService;', $script);
+        self::assertStringContainsString('use YtdPhp\\NativeHost\\Store\\NativeHostJobStateStore;', $script);
+        self::assertStringContainsString('use YtdPhp\\NativeHost\\Store\\NativeHostRecentDownloadsStore;', $script);
+        self::assertStringNotContainsString('use YtdPhp\\NativeHost\\NativeHostJobRunnerService;', $script);
+        self::assertStringNotContainsString('use YtdPhp\\NativeHost\\NativeHostProgressParserService;', $script);
+        self::assertStringNotContainsString('use YtdPhp\\NativeHost\\NativeHostJobStateStore;', $script);
+        self::assertStringNotContainsString('use YtdPhp\\NativeHost\\NativeHostRecentDownloadsStore;', $script);
+    }
+
     public function testRunForVideoInvokesCliWithMp4FlagForBrowserPreview(): void
     {
         $root = \sys_get_temp_dir() . '/ytd_native_runner_' . \uniqid();
