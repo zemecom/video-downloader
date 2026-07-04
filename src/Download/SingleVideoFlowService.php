@@ -23,18 +23,14 @@ final readonly class SingleVideoFlowService
 
     public function handle(string $videoUrl, RuntimeOptions $options): int
     {
+        $downloadOptions = DownloadOptions::fromRuntimeOptions($options);
+
         if ($options->fastMode) {
             $this->logger->info('⚡️ Быстрый режим: скачиваю видео и аудио параллельно...');
             $result = $this->downloaderService->downloadVideoFast(
-                $videoUrl,
-                $options->qualityPreset,
-                $options->currentProxy,
-                $options->insecure,
-                $options->outputFormat,
-                $options->dryRun,
-                $options->concurrentFragments,
-                $options->downloadDir,
-                $options->progressDelta,
+                videoUrl: $videoUrl,
+                qualityPreset: $options->qualityPreset,
+                options: $downloadOptions,
             );
 
             return $this->isSuccessfulDownloadStatus($result->status)
@@ -51,16 +47,9 @@ final readonly class SingleVideoFlowService
         }
 
         $result = $this->downloaderService->downloadVideo(
-            $videoUrl,
-            $formatCode,
-            $options->currentProxy,
-            $options->insecure,
-            $options->outputFormat,
-            $options->dryRun,
-            $options->concurrentFragments,
-            $options->downloadDir,
-            $options->progressNewline,
-            $options->progressDelta,
+            videoUrl: $videoUrl,
+            formatCode: $formatCode,
+            options: $downloadOptions,
         );
 
         return $this->isSuccessfulDownloadStatus($result->status)

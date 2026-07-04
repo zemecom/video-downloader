@@ -183,7 +183,12 @@ final readonly class NativeHostJobRunnerService
                         $preview = $this->previewRegistry->register($jobId, $outputPath, $port);
                         $state['previewReady'] = $preview['previewReady'] ?? false;
                         $state['previewUrl'] = $preview['previewUrl'] ?? null;
-                    } catch (\Throwable) {
+                    } catch (\Throwable $e) {
+                        \error_log(
+                            \sprintf("[%s] [ERROR] Failed to register preview for job %s: %s\n%s\n", \date('Y-m-d H:i:s'), $jobId, $e->getMessage(), $e->getTraceAsString()),
+                            3,
+                            $this->bootstrap->getNativeHostLogPath(),
+                        );
                         $state['previewReady'] = false;
                         unset($state['previewUrl']);
                     }

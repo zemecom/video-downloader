@@ -27,12 +27,8 @@ final readonly class FastStreamDownloadService
     public function download(
         FastStreamFormatPair $pair,
         string $expectedFile,
-        ?string $proxy,
-        bool $insecure,
-        bool $forceOverwrites,
         string $sourceUrl,
-        ?int $concurrentFragments = null,
-        ?string $progressDelta = null,
+        DownloadOptions $options,
     ): DownloadResult {
         $tempDir = $this->temporaryStorage->createTemporaryDirectory('ytd_fast_');
         if ($tempDir === null) {
@@ -52,14 +48,11 @@ final readonly class FastStreamDownloadService
             ));
 
             [$videoProcess, $audioProcess] = $this->downloadFastStreamFilesWithRetries(
-                $pair,
-                $videoPath,
-                $audioPath,
-                $proxy,
-                $insecure,
-                $sourceUrl,
-                $concurrentFragments,
-                $progressDelta,
+                pair: $pair,
+                videoPath: $videoPath,
+                audioPath: $audioPath,
+                sourceUrl: $sourceUrl,
+                options: $options,
             );
 
             if (!$videoProcess->isSuccessful() || !$audioProcess->isSuccessful()) {
@@ -75,7 +68,7 @@ final readonly class FastStreamDownloadService
             }
 
             $this->logger->info('🔗 Объединяю видео и аудио через ffmpeg...');
-            $mergeProcess = $this->runFfmpegMerge($videoPath, $audioPath, $expectedFile, $forceOverwrites);
+            $mergeProcess = $this->runFfmpegMerge($videoPath, $audioPath, $expectedFile, $options->forceOverwrites);
             if (!$mergeProcess->isSuccessful()) {
                 $detail = $this->ytDlpClient->getProcessErrorDetail($mergeProcess, 'ffmpeg_merge_failed');
                 $removedArtifacts = $this->artifactCleaner->cleanupFailedDownloadArtifacts($expectedFile);
@@ -102,21 +95,18 @@ final readonly class FastStreamDownloadService
     private function createRawStreamProcess(
         string $formatId,
         string $outputPath,
-        ?string $proxy,
-        bool $insecure,
         string $sourceUrl,
-        ?int $concurrentFragments = null,
-        ?string $progressDelta = null,
+        DownloadOptions $options,
     ): Process {
         $builder = new YtDlpCommandBuilder($sourceUrl);
-        $builder->setProxy($proxy)->setInsecure($insecure);
+        $builder->setProxy($options->proxy)->setInsecure($options->insecure);
 
         return $this->processRunner->createProcess($builder->buildForRawStreamDownload(
             $formatId,
             $outputPath,
             true,
-            $concurrentFragments ?? $this->bootstrap->getConcurrentFragments(),
-            $this->resolveProgressDelta($progressDelta),
+            $options->concurrentFragments ?? $this->bootstrap->getConcurrentFragments(),
+            $this->resolveProgressDelta($options->progressDelta),
         ));
     }
 
@@ -127,11 +117,8 @@ final readonly class FastStreamDownloadService
         FastStreamFormatPair $pair,
         string $videoPath,
         string $audioPath,
-        ?string $proxy,
-        bool $insecure,
         string $sourceUrl,
-        ?int $concurrentFragments = null,
-        ?string $progressDelta = null,
+        DownloadOptions $options,
     ): array {
         $videoProcess = null;
         $audioProcess = null;
@@ -143,26 +130,20 @@ final readonly class FastStreamDownloadService
 
             if ($retryVideo) {
                 $videoProcess = $this->createRawStreamProcess(
-                    $pair->video->formatId,
-                    $videoPath,
-                    $proxy,
-                    $insecure,
-                    $sourceUrl,
-                    $concurrentFragments,
-                    $progressDelta,
+                    formatId: $pair->video->formatId,
+                    outputPath: $videoPath,
+                    sourceUrl: $sourceUrl,
+                    options: $options,
                 );
                 $running['video'] = $videoProcess;
             }
 
             if ($retryAudio) {
                 $audioProcess = $this->createRawStreamProcess(
-                    $pair->audio->formatId,
-                    $audioPath,
-                    $proxy,
-                    $insecure,
-                    $sourceUrl,
-                    $concurrentFragments,
-                    $progressDelta,
+                    formatId: $pair->audio->formatId,
+                    outputPath: $audioPath,
+                    sourceUrl: $sourceUrl,
+                    options: $options,
                 );
                 $running['audio'] = $audioProcess;
             }

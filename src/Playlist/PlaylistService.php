@@ -96,11 +96,11 @@ final readonly class PlaylistService
         $targetDir = $this->buildPlaylistTargetDir($videoUrl, $playlist->title, $playlist->id, $options->downloadDir);
 
         return $this->collectSelectedItemsMetadata(
-            $playlist,
-            $selectedItems,
-            $options,
-            $targetDir,
-            $options->concurrentDownloads,
+            playlist: $playlist,
+            selectedItems: $selectedItems,
+            options: $options,
+            targetDir: $targetDir,
+            concurrentDownloads: $options->concurrentDownloads,
         );
     }
 
@@ -254,10 +254,10 @@ final readonly class PlaylistService
         }
 
         $success = $this->downloadQueueRunner->run(
-            $summary,
-            $options,
-            $overwritePolicy === self::OVERWRITE_OVERWRITE_ALL,
-            $workItems,
+            summary: $summary,
+            options: $options,
+            forceOverwrites: $overwritePolicy === self::OVERWRITE_OVERWRITE_ALL,
+            workItems: $workItems,
         );
 
         $this->cleanupPlaylistSummary($summary);

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace YtdPhp\Playlist;
 
 use YtdPhp\Download\DownloaderService;
+use YtdPhp\Download\DownloadOptions;
 use YtdPhp\Download\DownloadResult;
 use YtdPhp\Runtime\RuntimeOptions;
 use YtdPhp\Shared\ConsoleLogger;
@@ -35,7 +36,12 @@ final readonly class PlaylistDownloadQueueRunner
                     continue;
                 }
 
-                $running[] = $this->startDownload($item, $summary, $options, $forceOverwrites);
+                $running[] = $this->startDownload(
+                    item: $item,
+                    summary: $summary,
+                    options: $options,
+                    forceOverwrites: $forceOverwrites,
+                );
             }
 
             foreach ($running as $index => $runningItem) {
@@ -43,11 +49,20 @@ final readonly class PlaylistDownloadQueueRunner
                     continue;
                 }
 
-                $result = $this->downloader->finalizeProcessResult($runningItem->process, $runningItem->metadata->expectedPath, false);
+                $result = $this->downloader->finalizeProcessResult(
+                    process: $runningItem->process,
+                    expectedFile: $runningItem->metadata->expectedPath,
+                    emitLogs: false,
+                );
                 unset($running[$index]);
                 $running = \array_values($running);
                 $hasErrors = $hasErrors || $result->status === 'failed';
-                $this->reportQueueResult($runningItem->position, \count($summary->selectedItems), $runningItem->metadata, $result);
+                $this->reportQueueResult(
+                    position: $runningItem->position,
+                    total: \count($summary->selectedItems),
+                    item: $runningItem->metadata,
+                    result: $result,
+                );
             }
 
             \usleep(100000);
@@ -65,17 +80,11 @@ final readonly class PlaylistDownloadQueueRunner
         $metadata = $item->metadata;
         $this->logger->info(\sprintf('Старт [%d/%d]: %s', $item->position, \count($summary->selectedItems), $metadata->playlistItem->title));
         $process = $this->downloader->createPlaylistDownloadProcess(
-            $metadata->infoJsonPath,
-            $metadata->expectedPath,
-            $options->currentProxy,
-            $options->insecure,
-            $metadata->resolvedFormatCode,
-            $options->outputFormat,
-            $forceOverwrites,
-            $metadata->playlistItem->url !== '' ? $metadata->playlistItem->url : $summary->playlist->sourceUrl,
-            $options->concurrentFragments,
-            $options->progressNewline,
-            $options->progressDelta,
+            infoJsonPath: $metadata->infoJsonPath,
+            outputPath: $metadata->expectedPath,
+            formatCode: $metadata->resolvedFormatCode,
+            options: DownloadOptions::fromRuntimeOptions($options)->with(forceOverwrites: $forceOverwrites),
+            sourceUrl: $metadata->playlistItem->url !== '' ? $metadata->playlistItem->url : $summary->playlist->sourceUrl,
         );
         $process->start();
 

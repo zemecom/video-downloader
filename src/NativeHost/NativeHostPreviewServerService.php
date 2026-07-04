@@ -77,7 +77,8 @@ final readonly class NativeHostPreviewServerService
 
                     try {
                         $this->readClient($clients[$clientId]);
-                    } catch (Throwable) {
+                    } catch (Throwable $e) {
+                        \error_log(\sprintf("[%s] [ERROR] Preview server client read error: %s", \date('Y-m-d H:i:s'), $e->getMessage()));
                         $clients[$clientId]['done'] = true;
                     }
                 }
@@ -90,7 +91,8 @@ final readonly class NativeHostPreviewServerService
 
                     try {
                         $this->writeClient($clients[$clientId]);
-                    } catch (Throwable) {
+                    } catch (Throwable $e) {
+                        \error_log(\sprintf("[%s] [ERROR] Preview server client write error: %s", \date('Y-m-d H:i:s'), $e->getMessage()));
                         $clients[$clientId]['done'] = true;
                     }
                 }

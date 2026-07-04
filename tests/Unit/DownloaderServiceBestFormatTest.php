@@ -38,7 +38,7 @@ final class DownloaderServiceBestFormatTest extends TestCase
             $client = new YtDlpClient($logger);
             $service = new DownloaderService($client, $bootstrap, $logger, $prompter);
 
-            $result = $service->downloadVideo('https://www.xvideos.com/video.oufdtba54ef/example', 'best');
+            $result = $service->downloadVideo('https://www.xvideos.com/video.oufdtba54ef/example', 'best', new \YtdPhp\Download\DownloadOptions());
 
             self::assertSame('completed', $result->status);
             self::assertFileExists($downloadDir . '/My_Cool_Video.mkv');
@@ -83,7 +83,7 @@ final class DownloaderServiceBestFormatTest extends TestCase
             $client = new YtDlpClient($logger);
             $service = new DownloaderService($client, $bootstrap, $logger, $prompter);
 
-            $result = $service->downloadVideo('https://www.xvideos.com/video.oufdtba54ef/example', 'medium');
+            $result = $service->downloadVideo('https://www.xvideos.com/video.oufdtba54ef/example', 'medium', new \YtdPhp\Download\DownloadOptions());
 
             self::assertSame('completed', $result->status);
             self::assertFileExists($downloadDir . '/My_Cool_Video.mkv');

@@ -41,7 +41,7 @@ final class DownloaderServiceTest extends TestCase
             $client = new YtDlpClient($logger);
             $service = new DownloaderService($client, $bootstrap, $logger, $prompter);
 
-            $result = $service->downloadVideo('https://example.com/video', 'best');
+            $result = $service->downloadVideo('https://example.com/video', 'best', new \YtdPhp\Download\DownloadOptions());
             $logs = $output->fetch();
 
             self::assertSame('completed', $result->status);
@@ -99,7 +99,7 @@ final class DownloaderServiceTest extends TestCase
             $client = new YtDlpClient($logger);
             $service = new DownloaderService($client, $bootstrap, $logger, $prompter);
 
-            $result = $service->downloadVideo('https://example.com/video', 'best');
+            $result = $service->downloadVideo('https://example.com/video', 'best', new \YtdPhp\Download\DownloadOptions());
             $logs = $output->fetch();
             $expectedFile = $downloadDir . '/100_Real_Video_Test.mkv';
 
@@ -152,7 +152,7 @@ final class DownloaderServiceTest extends TestCase
             $client = new YtDlpClient($logger);
             $service = new DownloaderService($client, $bootstrap, $logger, $prompter);
 
-            $result = $service->downloadVideo('https://example.com/video', 'best');
+            $result = $service->downloadVideo('https://example.com/video', 'best', new \YtdPhp\Download\DownloadOptions());
             $logs = $output->fetch();
 
             self::assertSame('skipped', $result->status);
@@ -200,7 +200,7 @@ final class DownloaderServiceTest extends TestCase
             $client = new YtDlpClient($logger);
             $service = new DownloaderService($client, $bootstrap, $logger, $prompter);
 
-            $result = $service->downloadVideo('https://example.com/video', 'best');
+            $result = $service->downloadVideo('https://example.com/video', 'best', new \YtdPhp\Download\DownloadOptions());
             $lastDownloadArgs = \json_decode((string) \file_get_contents($root . '/last-download-args.json'), true);
 
             self::assertSame('completed', $result->status);
@@ -260,14 +260,13 @@ final class DownloaderServiceTest extends TestCase
             $result = $service->downloadVideo(
                 'https://example.com/video',
                 'best',
-                null,
-                false,
-                'mkv',
-                false,
-                11,
-                $customDir,
-                true,
-                '1.75',
+                new \YtdPhp\Download\DownloadOptions(
+                    outputFormat: 'mkv',
+                    concurrentFragments: 11,
+                    downloadDir: $customDir,
+                    progressNewline: true,
+                    progressDelta: '1.75',
+                ),
             );
             $lastDownloadArgs = \json_decode((string) \file_get_contents($root . '/last-download-args.json'), true);
 
@@ -330,7 +329,7 @@ final class DownloaderServiceTest extends TestCase
             $client = new YtDlpClient($logger);
             $service = new DownloaderService($client, $bootstrap, $logger, $prompter);
 
-            $result = $service->downloadVideo('https://example.com/video', 'best');
+            $result = $service->downloadVideo('https://example.com/video', 'best', new \YtdPhp\Download\DownloadOptions());
             $logs = $output->fetch();
 
             self::assertSame('completed', $result->status);
@@ -378,7 +377,7 @@ final class DownloaderServiceTest extends TestCase
             $client = new YtDlpClient($logger);
             $service = new DownloaderService($client, $bootstrap, $logger, $prompter);
 
-            $result = $service->downloadVideo('https://example.com/video', 'best');
+            $result = $service->downloadVideo('https://example.com/video', 'best', new \YtdPhp\Download\DownloadOptions());
             $logs = $output->fetch();
             $lastDownloadArgs = \json_decode((string) \file_get_contents($root . '/last-download-args-2.json'), true);
 
@@ -435,11 +434,10 @@ final class DownloaderServiceTest extends TestCase
             $result = $service->downloadVideoFast(
                 'https://example.com/video',
                 'best',
-                null,
-                false,
-                'mp4',
-                false,
-                6,
+                new \YtdPhp\Download\DownloadOptions(
+                    outputFormat: 'mp4',
+                    concurrentFragments: 6,
+                ),
             );
             $logs = $output->fetch();
 
@@ -511,7 +509,7 @@ final class DownloaderServiceTest extends TestCase
             $client = new YtDlpClient($logger);
             $service = new DownloaderService($client, $bootstrap, $logger, $prompter);
 
-            $result = $service->downloadVideoFast('https://example.com/video', 'best');
+            $result = $service->downloadVideoFast('https://example.com/video', 'best', new \YtdPhp\Download\DownloadOptions());
             $logs = $output->fetch();
 
             self::assertSame('completed', $result->status);
@@ -560,7 +558,7 @@ final class DownloaderServiceTest extends TestCase
             $client = new YtDlpClient($logger);
             $service = new DownloaderService($client, $bootstrap, $logger, $prompter);
 
-            $result = $service->downloadVideoFast('https://example.com/video', 'best');
+            $result = $service->downloadVideoFast('https://example.com/video', 'best', new \YtdPhp\Download\DownloadOptions());
             $logs = $output->fetch();
 
             self::assertSame('completed', $result->status);
@@ -608,7 +606,7 @@ final class DownloaderServiceTest extends TestCase
             $client = new YtDlpClient($logger);
             $service = new DownloaderService($client, $bootstrap, $logger, $prompter);
 
-            $result = $service->downloadVideoFast('https://example.com/video', 'best');
+            $result = $service->downloadVideoFast('https://example.com/video', 'best', new \YtdPhp\Download\DownloadOptions());
 
             self::assertSame('failed', $result->status);
             self::assertFalse(\file_exists($downloadDir . '/My_Cool_Video.mkv'));

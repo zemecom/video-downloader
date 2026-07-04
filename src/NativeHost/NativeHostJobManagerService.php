@@ -73,7 +73,12 @@ final class NativeHostJobManagerService
 
         try {
             ($this->starter)($jobId, $url, $mode, $this->bootstrap->getNativeHostLogPath());
-        } catch (Throwable) {
+        } catch (Throwable $e) {
+            \error_log(
+                \sprintf("[%s] [ERROR] Failed to start download process: %s\n%s\n", \date('Y-m-d H:i:s'), $e->getMessage(), $e->getTraceAsString()),
+                3,
+                $this->bootstrap->getNativeHostLogPath(),
+            );
             $state['status'] = 'failed';
             $state['progressText'] = 'Не удалось запустить загрузку.';
             $state['canCancel'] = false;

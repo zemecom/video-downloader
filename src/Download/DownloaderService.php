@@ -71,49 +71,27 @@ final readonly class DownloaderService
     public function downloadVideo(
         string $videoUrl,
         string $formatCode,
-        ?string $proxy = null,
-        bool $insecure = false,
-        string $outputFormat = 'mkv',
-        bool $dryRun = false,
-        ?int $concurrentFragments = null,
-        ?string $downloadDir = null,
-        ?bool $progressNewline = null,
-        ?string $progressDelta = null,
-        bool $emitElapsedRuntime = true,
+        DownloadOptions $options,
     ): DownloadResult {
         return $this->withElapsedRuntime(
             fn(): DownloadResult => $this->downloadVideoInternal(
-                $videoUrl,
-                $formatCode,
-                $proxy,
-                $insecure,
-                $outputFormat,
-                $dryRun,
-                $concurrentFragments,
-                $downloadDir,
-                $progressNewline,
-                $progressDelta,
+                videoUrl: $videoUrl,
+                formatCode: $formatCode,
+                options: $options,
             ),
-            $emitElapsedRuntime,
+            $options->emitElapsedRuntime,
         );
     }
 
     private function downloadVideoInternal(
         string $videoUrl,
         string $formatCode,
-        ?string $proxy = null,
-        bool $insecure = false,
-        string $outputFormat = 'mkv',
-        bool $dryRun = false,
-        ?int $concurrentFragments = null,
-        ?string $downloadDir = null,
-        ?bool $progressNewline = null,
-        ?string $progressDelta = null,
+        DownloadOptions $options,
     ): DownloadResult {
-        $basePath = $this->bootstrap->getDownloadBasePath($videoUrl, $downloadDir);
+        $basePath = $this->bootstrap->getDownloadBasePath($videoUrl, $options->downloadDir);
         $outputTemplate = $basePath . '/%(title)s.%(ext)s';
 
-        $metadataResult = $this->metadataService->fetch($videoUrl, $proxy, $insecure);
+        $metadataResult = $this->metadataService->fetch(videoUrl: $videoUrl, proxy: $options->proxy, insecure: $options->insecure);
         if ($metadataResult->failure instanceof DownloadResult) {
             return $metadataResult->failure;
         }
@@ -122,20 +100,23 @@ final readonly class DownloaderService
             return new DownloadResult('failed', 'metadata_failed');
         }
 
-        $resolvedFormatCode = $this->resolveRequestedFormatCode($formatCode, $metadata->payload, $videoUrl, $outputFormat);
+        $resolvedFormatCode = $this->resolveRequestedFormatCode(
+            formatCode: $formatCode,
+            metadata: $metadata->payload,
+            sourceUrl: $videoUrl,
+            outputFormat: $options->outputFormat,
+        );
 
         try {
             $this->logger->info('🔍 Проверяю наличие файла...');
             $expectedFile = $this->expectedOutputResolver->resolveFromInfoJson(
-                $resolvedFormatCode,
-                $outputTemplate,
-                $proxy,
-                $insecure,
-                $metadata->infoJsonPath,
-                $outputFormat,
+                formatCode: $resolvedFormatCode,
+                outputTemplate: $outputTemplate,
+                options: $options,
+                infoJsonPath: $metadata->infoJsonPath,
             );
 
-            if ($dryRun) {
+            if ($options->dryRun) {
                 $this->logger->info('🧪 Режим dry-run: показываю результат preflight без загрузки.');
                 if (\is_string($expectedFile) && $expectedFile !== '') {
                     $this->outputFormatter->logOutputPath($expectedFile);
@@ -166,19 +147,12 @@ final readonly class DownloaderService
             $downloadTarget = $expectedFile ?? $outputTemplate;
 
             return $this->downloadFromInfoJson(
-                $metadata->infoJsonPath,
-                $downloadTarget,
-                $resolvedFormatCode,
-                $proxy,
-                $insecure,
-                $outputFormat,
-                $forceOverwrites,
-                $expectedFile,
-                true,
-                $videoUrl,
-                $concurrentFragments,
-                $progressNewline,
-                $progressDelta,
+                infoJsonPath: $metadata->infoJsonPath,
+                outputTemplate: $downloadTarget,
+                formatCode: $resolvedFormatCode,
+                options: $options->with(forceOverwrites: $forceOverwrites),
+                expectedFile: $expectedFile,
+                sourceUrl: $videoUrl,
             );
         } finally {
             $this->temporaryStorage->removeFileIfExists($metadata->infoJsonPath);
@@ -188,46 +162,27 @@ final readonly class DownloaderService
     public function downloadVideoFast(
         string $videoUrl,
         string $qualityPreset,
-        ?string $proxy = null,
-        bool $insecure = false,
-        string $outputFormat = 'mkv',
-        bool $dryRun = false,
-        ?int $concurrentFragments = null,
-        ?string $downloadDir = null,
-        ?string $progressDelta = null,
-        bool $emitElapsedRuntime = true,
+        DownloadOptions $options,
     ): DownloadResult {
         return $this->withElapsedRuntime(
             fn(): DownloadResult => $this->downloadVideoFastInternal(
-                $videoUrl,
-                $qualityPreset,
-                $proxy,
-                $insecure,
-                $outputFormat,
-                $dryRun,
-                $concurrentFragments,
-                $downloadDir,
-                $progressDelta,
+                videoUrl: $videoUrl,
+                qualityPreset: $qualityPreset,
+                options: $options,
             ),
-            $emitElapsedRuntime,
+            $options->emitElapsedRuntime,
         );
     }
 
     private function downloadVideoFastInternal(
         string $videoUrl,
         string $qualityPreset,
-        ?string $proxy = null,
-        bool $insecure = false,
-        string $outputFormat = 'mkv',
-        bool $dryRun = false,
-        ?int $concurrentFragments = null,
-        ?string $downloadDir = null,
-        ?string $progressDelta = null,
+        DownloadOptions $options,
     ): DownloadResult {
-        $basePath = $this->bootstrap->getDownloadBasePath($videoUrl, $downloadDir);
+        $basePath = $this->bootstrap->getDownloadBasePath($videoUrl, $options->downloadDir);
         $outputTemplate = $basePath . '/%(title)s.%(ext)s';
 
-        $metadataResult = $this->metadataService->fetch($videoUrl, $proxy, $insecure);
+        $metadataResult = $this->metadataService->fetch(videoUrl: $videoUrl, proxy: $options->proxy, insecure: $options->insecure);
         if ($metadataResult->failure instanceof DownloadResult) {
             return $metadataResult->failure;
         }
@@ -241,39 +196,34 @@ final readonly class DownloaderService
                 $qualityPreset,
                 $metadata->payload,
                 $this->bootstrap->isYoutubeUrl($videoUrl),
-                $outputFormat,
+                $options->outputFormat,
             );
             if ($pair === null) {
                 $this->logger->warning('⚠️ Не удалось подобрать отдельные video/audio потоки для `--fast`; использую обычную загрузку.');
 
-                return $this->downloadVideo(
-                    $videoUrl,
-                    $qualityPreset,
-                    $proxy,
-                    $insecure,
-                    $outputFormat,
-                    $dryRun,
-                    $concurrentFragments,
-                    $downloadDir,
-                    true,
-                    $progressDelta,
-                    false,
+                return $this->downloadVideoInternal(
+                    videoUrl: $videoUrl,
+                    formatCode: $qualityPreset,
+                    options: $options,
                 );
             }
 
-            $resolvedFormatCode = $this->resolveRequestedFormatCode($qualityPreset, $metadata->payload, $videoUrl, $outputFormat);
+            $resolvedFormatCode = $this->resolveRequestedFormatCode(
+                formatCode: $qualityPreset,
+                metadata: $metadata->payload,
+                sourceUrl: $videoUrl,
+                outputFormat: $options->outputFormat,
+            );
             $expectedFile = $this->expectedOutputResolver->resolveFastExpectedFile(
-                $resolvedFormatCode,
-                $outputTemplate,
-                $proxy,
-                $insecure,
-                $metadata->infoJsonPath,
-                $outputFormat,
-                $metadata->payload,
-                $basePath,
+                formatCode: $resolvedFormatCode,
+                outputTemplate: $outputTemplate,
+                options: $options,
+                infoJsonPath: $metadata->infoJsonPath,
+                metadata: $metadata->payload,
+                basePath: $basePath,
             );
 
-            if ($dryRun) {
+            if ($options->dryRun) {
                 $this->logger->info('🧪 Режим dry-run: показываю результат preflight без загрузки.');
                 $this->outputFormatter->logOutputPath($expectedFile);
                 if (\file_exists($expectedFile)) {
@@ -306,12 +256,8 @@ final readonly class DownloaderService
             return $this->fastStreamDownloadService->download(
                 $pair,
                 $expectedFile,
-                $proxy,
-                $insecure,
-                $forceOverwrites,
                 $videoUrl,
-                $concurrentFragments,
-                $progressDelta,
+                $options->with(forceOverwrites: $forceOverwrites),
             );
         } finally {
             $this->temporaryStorage->removeFileIfExists($metadata->infoJsonPath);
@@ -337,30 +283,21 @@ final readonly class DownloaderService
     public function downloadFromInfoJson(
         string $infoJsonPath,
         string $outputTemplate,
-        string $formatCode = 'best',
-        ?string $proxy = null,
-        bool $insecure = false,
-        string $outputFormat = 'mkv',
-        bool $forceOverwrites = false,
+        string $formatCode,
+        DownloadOptions $options,
         ?string $expectedFile = null,
-        bool $emitLogs = true,
         ?string $sourceUrl = null,
-        ?int $concurrentFragments = null,
-        ?bool $progressNewline = null,
-        ?string $progressDelta = null,
     ): DownloadResult {
         $expectedFile ??= $this->expectedOutputResolver->resolveFromInfoJson(
             $formatCode,
             $outputTemplate,
-            $proxy,
-            $insecure,
+            $options,
             $infoJsonPath,
-            $outputFormat,
             false,
         );
 
-        if (\is_string($expectedFile) && $expectedFile !== '' && \file_exists($expectedFile) && !$forceOverwrites) {
-            if ($emitLogs) {
+        if (\is_string($expectedFile) && $expectedFile !== '' && \file_exists($expectedFile) && !$options->forceOverwrites) {
+            if ($options->emitLogs) {
                 $this->logger->warning('⚠️ Файл уже существует: ' . $expectedFile);
                 $this->outputFormatter->logExistingOutputTarget($expectedFile);
             }
@@ -369,25 +306,25 @@ final readonly class DownloaderService
         }
 
         $builder = new YtDlpCommandBuilder($sourceUrl);
-        $builder->setProxy($proxy)->setInsecure($insecure)->loadInfoJson($infoJsonPath);
-        if ($forceOverwrites) {
+        $builder->setProxy($options->proxy)->setInsecure($options->insecure)->loadInfoJson($infoJsonPath);
+        if ($options->forceOverwrites) {
             $builder->addArg('--force-overwrites');
         }
 
         $command = $builder->buildForDownload(
             $formatCode,
             $outputTemplate,
-            $outputFormat,
-            $this->resolveLineBufferedProgress($progressNewline),
-            $concurrentFragments ?? $this->bootstrap->getConcurrentFragments(),
-            $this->resolveProgressDelta($progressDelta),
+            $options->outputFormat,
+            $this->resolveLineBufferedProgress($options->progressNewline),
+            $options->concurrentFragments ?? $this->bootstrap->getConcurrentFragments(),
+            $this->resolveProgressDelta($options->progressDelta),
         );
-        if ($emitLogs) {
+        if ($options->emitLogs) {
             $this->logger->info('🚀 Начинаю загрузку...');
         }
-        $process = $this->processRunner->runWithRetries($command, $emitLogs);
+        $process = $this->processRunner->runWithRetries($command, $options->emitLogs);
 
-        return $this->finalizeProcessResult($process, $expectedFile, $emitLogs);
+        return $this->finalizeProcessResult($process, $expectedFile, $options->emitLogs);
     }
 
     /**
@@ -410,29 +347,23 @@ final readonly class DownloaderService
     public function createPlaylistDownloadProcess(
         string $infoJsonPath,
         string $outputPath,
-        ?string $proxy,
-        bool $insecure,
         string $formatCode,
-        string $outputFormat,
-        bool $forceOverwrites,
+        DownloadOptions $options,
         ?string $sourceUrl = null,
-        ?int $concurrentFragments = null,
-        ?bool $progressNewline = null,
-        ?string $progressDelta = null,
     ): Process {
         $builder = new YtDlpCommandBuilder($sourceUrl);
-        $builder->setProxy($proxy)->setInsecure($insecure)->loadInfoJson($infoJsonPath);
-        if ($forceOverwrites) {
+        $builder->setProxy($options->proxy)->setInsecure($options->insecure)->loadInfoJson($infoJsonPath);
+        if ($options->forceOverwrites) {
             $builder->addArg('--force-overwrites');
         }
 
         return $this->processRunner->createProcess($builder->buildForDownload(
             $formatCode,
             $outputPath,
-            $outputFormat,
-            $this->resolveLineBufferedProgress($progressNewline),
-            $concurrentFragments ?? $this->bootstrap->getConcurrentFragments(),
-            $this->resolveProgressDelta($progressDelta),
+            $options->outputFormat,
+            $this->resolveLineBufferedProgress($options->progressNewline),
+            $options->concurrentFragments ?? $this->bootstrap->getConcurrentFragments(),
+            $this->resolveProgressDelta($options->progressDelta),
         ));
     }
 

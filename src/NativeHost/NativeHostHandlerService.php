@@ -48,7 +48,9 @@ final readonly class NativeHostHandlerService
             };
         } catch (NativeHostException $exception) {
             return NativeHostResponse::error($exception->getResponseCode(), $exception->getMessage());
-        } catch (Throwable) {
+        } catch (Throwable $e) {
+            $this->logger->append('[ERROR] Unexpected native host error: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
+
             return NativeHostResponse::error('unexpected_error', 'Unexpected native host error.');
         }
     }

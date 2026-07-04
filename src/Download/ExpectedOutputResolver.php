@@ -16,20 +16,18 @@ final readonly class ExpectedOutputResolver
     public function resolveFromInfoJson(
         string $formatCode,
         string $outputTemplate,
-        ?string $proxy,
-        bool $insecure,
+        DownloadOptions $options,
         string $infoJsonPath,
-        string $outputFormat,
         bool $sanitize = true,
     ): ?string {
         $expectedFile = $this->ytDlpClient->getExpectedFilename(
-            null,
-            $formatCode,
-            $outputTemplate,
-            $proxy,
-            $insecure,
-            $infoJsonPath,
-            $outputFormat,
+            videoUrl: null,
+            formatCode: $formatCode,
+            outputPath: $outputTemplate,
+            proxy: $options->proxy,
+            insecure: $options->insecure,
+            infoJsonPath: $infoJsonPath,
+            outputFormat: $options->outputFormat,
         );
 
         if ($sanitize && \is_string($expectedFile) && $expectedFile !== '') {
@@ -45,23 +43,19 @@ final readonly class ExpectedOutputResolver
     public function resolveFastExpectedFile(
         string $formatCode,
         string $outputTemplate,
-        ?string $proxy,
-        bool $insecure,
+        DownloadOptions $options,
         string $infoJsonPath,
-        string $outputFormat,
         array $metadata,
         string $basePath,
     ): string {
         $expectedFile = $this->resolveFromInfoJson(
-            $formatCode,
-            $outputTemplate,
-            $proxy,
-            $insecure,
-            $infoJsonPath,
-            $outputFormat,
-        ) ?? $this->buildFallbackExpectedOutputPath($metadata, $basePath, $outputFormat);
+            formatCode: $formatCode,
+            outputTemplate: $outputTemplate,
+            options: $options,
+            infoJsonPath: $infoJsonPath,
+        ) ?? $this->buildFallbackExpectedOutputPath($metadata, $basePath, $options->outputFormat);
 
-        return $this->replaceOutputExtension($this->bootstrap->sanitizeOutputFilename($expectedFile), $outputFormat);
+        return $this->replaceOutputExtension($this->bootstrap->sanitizeOutputFilename($expectedFile), $options->outputFormat);
     }
 
     /**
