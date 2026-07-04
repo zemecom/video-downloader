@@ -16,11 +16,11 @@ final class NativeHostProgressParserService
             return null;
         }
 
-        if (\preg_match('/\[download\]\s+(\d+(?:\.\d+)?)%/', $normalized, $matches) === 1) {
+        if (\preg_match('/\[[a-zA-Z0-9_]+\]\s+(\d+(?:\.\d+)?)%/', $normalized, $matches) === 1) {
             return [
                 'status' => 'downloading',
                 'progressPercent' => (float) $matches[1],
-                'progressText' => $normalized,
+                'progressText' => \preg_replace('/^\[[^\]]+\]\s+/', '', $normalized),
             ];
         }
 
@@ -37,14 +37,14 @@ final class NativeHostProgressParserService
             return [
                 'status' => 'starting',
                 'progressPercent' => null,
-                'progressText' => $normalized,
+                'progressText' => \preg_replace('/^\[[^\]]+\]\s+/', '', $normalized),
             ];
         }
 
         return [
             'status' => 'starting',
             'progressPercent' => null,
-            'progressText' => $normalized,
+            'progressText' => \preg_replace('/^\[[^\]]+\]\s+/', '', $normalized),
         ];
     }
 }

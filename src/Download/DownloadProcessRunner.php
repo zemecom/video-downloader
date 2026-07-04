@@ -69,13 +69,19 @@ final readonly class DownloadProcessRunner
         return \str_contains($detail, 'HTTP Error 403') || \str_contains($detail, 'HTTP 403');
     }
 
-    /**
-     * @param list<string> $command
-     */
     private function runLiveDownloadWithProgress(array $command): Process
     {
-        $progress = new YtDlpProgressRenderer($this->logger, ['download']);
         $process = $this->createProcess($command);
+
+        if (\getenv('YTD_RAW_PROGRESS') === '1') {
+            $process->run(function (string $type, string $buffer): void {
+                $this->logger->raw($buffer);
+            });
+
+            return $process;
+        }
+
+        $progress = new YtDlpProgressRenderer($this->logger, ['download']);
         $process->run(function (string $type, string $buffer) use ($progress): void {
             $progress->consume('download', $buffer);
         });

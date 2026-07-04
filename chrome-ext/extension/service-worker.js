@@ -1,4 +1,23 @@
 const HOST_NAME = 'dev.zemecom.ytd_downloader';
+
+self.addEventListener('error', (event) => {
+  const error = event.error || {};
+  callNativeHost({
+    action: 'log_client_error',
+    errorMessage: event.message || String(error),
+    errorStack: error.stack || null,
+  }).catch(() => {});
+});
+
+self.addEventListener('unhandledrejection', (event) => {
+  const reason = event.reason || {};
+  callNativeHost({
+    action: 'log_client_error',
+    errorMessage: `Unhandled Rejection: ${reason.message || String(reason)}`,
+    errorStack: reason.stack || null,
+  }).catch(() => {});
+});
+
 const ACTIVE_DOWNLOAD_KEY = 'activeDownload';
 // Use a data URL for notifications so the notifications backend does not need
 // to fetch an extension resource before showing the notification.
@@ -23,10 +42,161 @@ const MESSAGES = {
   unexpected_error: 'Native host вернул неожиданный ответ.',
 };
 
+class DownloadManager {
+  constructor() {
+    this.pollTimer = null;
+    this.pollGeneration = 0;
+    this.activeJobId = null;
+    this.ports = new Set();
+
+    chrome.runtime.onConnect.addListener((port) => {
+      if (port.name === 'ytd-overlay' || port.name === 'ytd-popup') {
+        this.ports.add(port);
+        port.onDisconnect.addListener(() => {
+          this.ports.delete(port);
+        });
+
+        // Broadcast current state to the newly connected port
+        this.broadcastStateToPort(port);
+      }
+    });
+
+    // Resume polling on extension startup if there's an active download
+    this.resumePolling();
+  }
+
+  async resumePolling() {
+    const active = await readActiveDownload();
+    if (active && active.jobId && !isTerminalStatus(active.status)) {
+      this.startPolling(active.jobId);
+    }
+  }
+
+  async broadcastStateToPort(port) {
+    console.log('[YTD] broadcastStateToPort', port.name);
+    const active = await readActiveDownload();
+    if (active) {
+      console.log('[YTD] Broadcasting active state to port:', active);
+      port.postMessage({
+        type: 'ytd-overlay-update',
+        ...active,
+      });
+    }
+  }
+
+  broadcast(payload) {
+    console.log('[YTD] Broadcasting payload to all ports:', payload);
+    for (const port of this.ports) {
+      try {
+        port.postMessage({
+          type: 'ytd-overlay-update',
+          ...payload,
+        });
+      } catch (e) {
+        console.warn('[YTD] Failed to broadcast to port', port.name, e);
+        this.ports.delete(port);
+      }
+    }
+  }
+
+  startPolling(jobId) {
+    console.log('[YTD] startPolling for job:', jobId);
+    this.activeJobId = jobId;
+    this.stopPolling();
+    const generation = ++this.pollGeneration;
+    this.schedulePoll(generation);
+  }
+
+  stopPolling() {
+    this.pollGeneration += 1;
+    if (this.pollTimer !== null) {
+      clearTimeout(this.pollTimer);
+      this.pollTimer = null;
+    }
+  }
+
+  schedulePoll(generation, delayMs = 1000) {
+    console.log(`[YTD] schedulePoll in ${delayMs}ms, generation:`, generation);
+    this.pollTimer = setTimeout(() => {
+      this.pollTimer = null;
+      void this.doPoll(generation);
+    }, delayMs);
+  }
+
+  async doPoll(generation) {
+    console.log('[YTD] doPoll executing, generation:', generation, 'activeJobId:', this.activeJobId);
+    if (generation !== this.pollGeneration || !this.activeJobId) {
+      console.log('[YTD] doPoll aborted (generation mismatch or no job ID)');
+      return;
+    }
+
+    console.log('[YTD] callNativeHost get_job_status for', this.activeJobId);
+    const response = await callNativeHost({
+      action: 'get_job_status',
+      jobId: this.activeJobId,
+    });
+
+    console.log('[YTD] get_job_status response:', response);
+
+    if (generation !== this.pollGeneration) return;
+
+    if (!response.ok) {
+      console.warn('[YTD] get_job_status failed:', response);
+      if (response.errorCode === 'job_not_found') {
+        console.log('[YTD] Job not found, stopping poll');
+        await forgetActiveDownload(this.activeJobId);
+        this.stopPolling();
+
+        const terminalPayload = {
+          status: 'failed',
+          progressPercent: null,
+          progressText: 'Связь с загрузкой потеряна (возможно файл был удалён).',
+          canCancel: false,
+        };
+        this.broadcast(terminalPayload);
+        return;
+      }
+      this.schedulePoll(generation, 2000);
+      return;
+    }
+
+    const payload = response.payload;
+    await rememberActiveDownload(payload);
+    this.broadcast(payload);
+
+    if (isTerminalStatus(payload.status)) {
+      console.log('[YTD] Terminal status reached, stopping poll:', payload.status);
+      this.stopPolling();
+      return;
+    }
+
+    this.schedulePoll(generation);
+  }
+}
+
+const downloadManager = new DownloadManager();
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.type === 'ytd:start-download') {
     startDownload(message).then(sendResponse);
+    return true;
+  }
 
+  if (message?.type === 'ytd:force-cancel-download') {
+    forceCancelDownload(message).then(sendResponse);
+    return true;
+  }
+
+  if (message?.type === 'ytd:get-overlay-resources') {
+    Promise.all([
+      fetch(chrome.runtime.getURL('overlay.html')).then(res => res.text()),
+      fetch(chrome.runtime.getURL('overlay.css')).then(res => res.text())
+    ]).then(([html, css]) => {
+      sendResponse({ html, css });
+    }).catch(err => {
+      console.warn('[YTD] Failed to read resources:', err);
+      sendResponse({ html: '', css: '' });
+    });
     return true;
   }
 
@@ -34,7 +204,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     callNativeHost({
       action: 'list_recent_downloads',
     }).then(sendResponse);
-
     return true;
   }
 
@@ -43,31 +212,26 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       action: 'open_recent_download',
       entryId: message.entryId,
     }).then(sendResponse);
-
     return true;
   }
 
   if (message?.type === 'ytd:get-recent-download-path') {
     getRecentDownloadPath(message).then(sendResponse);
-
     return true;
   }
 
   if (message?.type === 'ytd:preview-recent-download') {
     previewRecentDownload(message).then(sendResponse);
-
     return true;
   }
 
   if (message?.type === 'ytd:open-preview-page') {
     openPreviewPage(message, sender).then(sendResponse);
-
     return true;
   }
 
   if (message?.type === 'ytd:pause-origin-video') {
     pauseOriginVideo(message).then(sendResponse);
-
     return true;
   }
 
@@ -76,7 +240,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       action: 'reveal_recent_download',
       entryId: message.entryId,
     }).then(sendResponse);
-
     return true;
   }
 
@@ -85,28 +248,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       action: 'delete_recent_download',
       entryId: message.entryId,
     }).then(sendResponse);
-
-    return true;
-  }
-
-  if (message?.type === 'ytd:get-job-status') {
-    callNativeHost({
-      action: 'get_job_status',
-      jobId: message.jobId,
-    }).then(sendResponse);
-
     return true;
   }
 
   if (message?.type === 'ytd:get-active-download') {
     getActiveDownload().then(sendResponse);
-
     return true;
   }
 
   if (message?.type === 'ytd:cancel-download') {
     cancelDownload(message).then(sendResponse);
-
     return true;
   }
 
@@ -114,13 +265,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 async function startDownload(message) {
+  console.log('[YTD] startDownload called with message:', message);
   const tabId = Number.isInteger(message?.tabId) ? message.tabId : null;
-  const url = typeof message?.url === 'string' ? message.url : '';
+  const url = normalizeText(message?.url);
   const mode = message?.mode === 'audio' ? 'audio' : 'video';
 
   if (!Number.isInteger(tabId) || !isSupportedTabUrl(url)) {
+    console.warn('[YTD] startDownload aborted: unsupported page or no tabId');
     notify('unsupported_page');
-
     return {
       ok: false,
       errorCode: 'unsupported_page',
@@ -128,35 +280,47 @@ async function startDownload(message) {
     };
   }
 
-  await ensureOverlay(tabId);
-  await sendOverlayMessage(tabId, {
-    type: 'ytd-overlay-show',
+  const initialPayload = {
+    jobId: 'pending',
     status: 'starting',
     progressPercent: null,
     progressText: mode === 'audio' ? 'Подготавливаю загрузку аудио...' : 'Подготавливаю загрузку...',
     canCancel: false,
-  });
+    mode,
+    url,
+  };
+  await rememberActiveDownload(initialPayload);
+  downloadManager.broadcast(initialPayload);
 
+  await ensureOverlay(tabId);
+
+  console.log('[YTD] calling NativeHost start_download for URL:', url);
   const response = await callNativeHost({
     action: 'start_download',
     url,
     mode,
   });
 
+  console.log('[YTD] NativeHost start_download response:', response);
+
   if (!response.ok) {
+    console.warn('[YTD] start_download failed:', response);
     const code = response.errorCode || 'unexpected_error';
     const messageText = code === 'unexpected_error'
       ? (response.errorMessage || MESSAGES.unexpected_error)
       : (MESSAGES[code] || response.errorMessage || MESSAGES.unexpected_error);
     notify(code, messageText);
-    await sendOverlayMessage(tabId, {
-      type: 'ytd-overlay-update',
+    
+    const errorPayload = {
+      jobId: 'pending',
       status: 'failed',
       progressPercent: null,
       progressText: messageText,
       canCancel: false,
-    });
-
+    };
+    await rememberActiveDownload(errorPayload);
+    downloadManager.broadcast(errorPayload);
+    
     return {
       ok: false,
       errorCode: code,
@@ -164,15 +328,15 @@ async function startDownload(message) {
     };
   }
 
-  await sendOverlayMessage(tabId, {
-    type: 'ytd-overlay-bind-job',
-    ...response.payload,
-  });
+  const payload = response.payload;
   await rememberActiveDownload({
-    ...response.payload,
+    ...payload,
     mode,
     url,
   });
+  
+  downloadManager.broadcast(payload);
+  downloadManager.startPolling(payload.jobId);
 
   return {
     ok: true,
@@ -182,34 +346,41 @@ async function startDownload(message) {
 
 async function getActiveDownload() {
   const activeDownload = await readActiveDownload();
-  const jobId = normalizeText(activeDownload?.jobId);
+  return {
+    ok: true,
+    payload: activeDownload || null,
+  };
+}
 
-  if (jobId === '') {
-    return {
-      ok: true,
-      payload: null,
-    };
-  }
-
+async function forceCancelDownload(message) {
+  const jobId = normalizeText(message?.jobId);
+  console.log('[YTD] forceCancelDownload called for job:', jobId);
   const response = await callNativeHost({
-    action: 'get_job_status',
+    action: 'force_cancel_download',
     jobId,
   });
+
+  console.log('[YTD] forceCancelDownload response:', response);
 
   if (!response.ok) {
     if (response.errorCode === 'job_not_found') {
       await forgetActiveDownload(jobId);
+      downloadManager.stopPolling();
 
-      return {
-        ok: true,
-        payload: null,
+      const payload = {
+        status: 'cancelled',
+        progressPercent: null,
+        progressText: 'Загрузка не найдена или уже завершена.',
+        canCancel: false,
       };
+      downloadManager.broadcast(payload);
+      return { ok: true, payload };
     }
-
     return response;
   }
 
   await rememberActiveDownload(response.payload);
+  downloadManager.broadcast(response.payload);
 
   return response;
 }
@@ -224,12 +395,22 @@ async function cancelDownload(message) {
   if (!response.ok) {
     if (response.errorCode === 'job_not_found') {
       await forgetActiveDownload(jobId);
+      downloadManager.stopPolling();
+      
+      const payload = {
+        status: 'cancelled',
+        progressPercent: null,
+        progressText: 'Загрузка не найдена или уже завершена.',
+        canCancel: false,
+      };
+      downloadManager.broadcast(payload);
+      return { ok: true, payload };
     }
-
     return response;
   }
 
   await rememberActiveDownload(response.payload);
+  downloadManager.broadcast(response.payload);
 
   return response;
 }
@@ -418,6 +599,13 @@ async function rememberActiveDownload(payload) {
       jobId,
       mode: payload?.mode === 'audio' ? 'audio' : 'video',
       status: normalizeText(payload?.status) || 'starting',
+      progressText: typeof payload?.progressText === 'string' ? payload.progressText : (isExistingDownload ? existing?.progressText : ''),
+      progressPercent: typeof payload?.progressPercent === 'number' ? payload.progressPercent : (isExistingDownload ? existing?.progressPercent : null),
+      canCancel: typeof payload?.canCancel === 'boolean' ? payload.canCancel : (isExistingDownload ? existing?.canCancel : false),
+      previewReady: typeof payload?.previewReady === 'boolean' ? payload.previewReady : (isExistingDownload ? existing?.previewReady : false),
+      previewUrl: typeof payload?.previewUrl === 'string' ? payload.previewUrl : (isExistingDownload ? existing?.previewUrl : ''),
+      outputPath: typeof payload?.outputPath === 'string' ? payload.outputPath : (isExistingDownload ? existing?.outputPath : ''),
+      recentDownloadId: typeof payload?.recentDownloadId === 'string' ? payload.recentDownloadId : (isExistingDownload ? existing?.recentDownloadId : ''),
       url: normalizeText(payload?.url) || (isExistingDownload ? normalizeText(existing?.url) : ''),
       startedAt: isExistingDownload && Number.isFinite(existing?.startedAt) ? existing.startedAt : Date.now(),
       updatedAt: Date.now(),
@@ -504,22 +692,26 @@ function notify(code, messageOverride) {
 }
 
 async function ensureOverlay(tabId) {
-  await chrome.scripting.executeScript({
-    target: { tabId },
-    files: ['content-script.js'],
-  });
-}
+  if (!Number.isInteger(tabId)) {
+    return;
+  }
 
-async function sendOverlayMessage(tabId, payload) {
   try {
-    await sendTabMessage(tabId, payload);
-  } catch (_error) {
-    // Ignore message delivery failures for tabs that navigated away.
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      files: ['content-script.js'],
+    });
+  } catch (error) {
+    console.warn('YTD: Failed to inject content script:', error);
   }
 }
 
 function sendTabMessage(tabId, payload) {
   return chrome.tabs.sendMessage(tabId, payload);
+}
+
+function isTerminalStatus(status) {
+  return status === 'completed' || status === 'failed' || status === 'cancelled';
 }
 
 function callNativeHost(payload) {

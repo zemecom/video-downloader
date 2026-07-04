@@ -16,11 +16,13 @@ final readonly class NativeHostRequest
     public const string START_DOWNLOAD = 'start_download';
     public const string GET_JOB_STATUS = 'get_job_status';
     public const string CANCEL_DOWNLOAD = 'cancel_download';
+    public const string FORCE_CANCEL_DOWNLOAD = 'force_cancel_download';
     public const string LIST_RECENT_DOWNLOADS = 'list_recent_downloads';
     public const string PREVIEW_RECENT_DOWNLOAD = 'preview_recent_download';
     public const string OPEN_RECENT_DOWNLOAD = 'open_recent_download';
     public const string REVEAL_RECENT_DOWNLOAD = 'reveal_recent_download';
     public const string DELETE_RECENT_DOWNLOAD = 'delete_recent_download';
+    public const string LOG_CLIENT_ERROR = 'log_client_error';
 
     public function __construct(
         public string $action,
@@ -28,6 +30,8 @@ final readonly class NativeHostRequest
         public ?string $jobId = null,
         public ?string $mode = null,
         public ?string $entryId = null,
+        public ?string $errorMessage = null,
+        public ?string $errorStack = null,
     ) {}
 
     /**
@@ -39,7 +43,8 @@ final readonly class NativeHostRequest
         $url = $payload['url'] ?? null;
         $jobId = $payload['jobId'] ?? null;
         $mode = $payload['mode'] ?? null;
-        $entryId = $payload['entryId'] ?? null;
+        $errorMessage = $payload['errorMessage'] ?? null;
+        $errorStack = $payload['errorStack'] ?? null;
 
         if ($action === self::LEGACY_DOWNLOAD_CURRENT_TAB) {
             $action = self::START_DOWNLOAD;
@@ -51,9 +56,10 @@ final readonly class NativeHostRequest
 
         return match ($action) {
             self::START_DOWNLOAD => new self($action, self::validateUrl($url), null, self::validateMode($mode)),
-            self::GET_JOB_STATUS, self::CANCEL_DOWNLOAD => new self($action, null, self::validateJobId($jobId), null),
+            self::GET_JOB_STATUS, self::CANCEL_DOWNLOAD, self::FORCE_CANCEL_DOWNLOAD => new self($action, null, self::validateJobId($jobId), null),
             self::LIST_RECENT_DOWNLOADS => new self($action),
             self::PREVIEW_RECENT_DOWNLOAD, self::OPEN_RECENT_DOWNLOAD, self::REVEAL_RECENT_DOWNLOAD, self::DELETE_RECENT_DOWNLOAD => new self($action, null, null, null, self::validateEntryId($entryId)),
+            self::LOG_CLIENT_ERROR => new self($action, null, null, null, null, \is_string($errorMessage) ? $errorMessage : 'Unknown JS error', \is_string($errorStack) ? $errorStack : null),
             default => throw new NativeHostException('invalid_payload', 'Invalid native host payload.'),
         };
     }

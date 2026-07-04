@@ -1,3 +1,12 @@
+const STATUS_LABELS = {
+  downloading: 'Идёт загрузка',
+  completed: 'Готово',
+  failed: 'Ошибка',
+  cancelled: 'Отменено',
+  cancelling: 'Останавливаю',
+  starting: 'Подготовка',
+};
+
 const buttons = Array.from(document.querySelectorAll('[data-mode]'));
 const statusNode = document.querySelector('.status');
 const recentListNode = document.querySelector('.recent-list');
@@ -9,12 +18,22 @@ const activeDownloadPhaseNode = document.querySelector('.active-download-phase')
 const activeDownloadPercentNode = document.querySelector('.active-download-percent');
 const activeDownloadCancelButton = document.querySelector('.active-download-cancel');
 
-let activePollTimer = null;
-let activePollGeneration = 0;
 let activeJobId = null;
+let lastKnownStatus = null;
 
 loadRecentDownloads();
-startActiveDownloadPolling();
+
+const port = chrome.runtime.connect({ name: 'ytd-popup' });
+port.onMessage.addListener(async (message) => {
+  if (message?.type === 'ytd-overlay-update') {
+    renderActiveDownload(message);
+    const newStatus = message.status;
+    if (isTerminalStatus(newStatus) && !isTerminalStatus(lastKnownStatus)) {
+      await loadRecentDownloads();
+    }
+    lastKnownStatus = newStatus;
+  }
+});
 
 buttons.forEach((button) => {
   button.addEventListener('click', () => {
@@ -23,7 +42,15 @@ buttons.forEach((button) => {
 });
 
 activeDownloadCancelButton.addEventListener('click', () => {
-  cancelActiveDownload();
+  if (activeDownloadCancelButton.disabled) return;
+
+  if (activeDownloadCancelButton.textContent === 'Принудительно остановить') {
+    forceCancelActiveDownload();
+  } else if (activeDownloadCancelButton.textContent === 'Отменить') {
+    cancelActiveDownload();
+  } else {
+    hideActiveDownload();
+  }
 });
 
 async function startDownload(mode) {
@@ -194,62 +221,6 @@ async function runRecentAction(type, entryId, pendingMessage, reloadOnSuccess = 
   }
 }
 
-function startActiveDownloadPolling() {
-  if (activePollTimer !== null) {
-    clearTimeout(activePollTimer);
-    activePollTimer = null;
-  }
-
-  const generation = ++activePollGeneration;
-  void pollActiveDownload(generation);
-}
-
-function scheduleActiveDownloadPoll(generation, delayMs = 1000) {
-  activePollTimer = setTimeout(() => {
-    activePollTimer = null;
-    void pollActiveDownload(generation);
-  }, delayMs);
-}
-
-function stopActiveDownloadPolling() {
-  activePollGeneration += 1;
-
-  if (activePollTimer !== null) {
-    clearTimeout(activePollTimer);
-    activePollTimer = null;
-  }
-}
-
-async function pollActiveDownload(generation) {
-  const response = await sendMessage({
-    type: 'ytd:get-active-download',
-  });
-
-  if (generation !== activePollGeneration) {
-    return;
-  }
-
-  if (!response?.ok) {
-    renderActiveDownloadError(response?.errorMessage || 'Не удалось получить статус загрузки.');
-    scheduleActiveDownloadPoll(generation, 2000);
-    return;
-  }
-
-  if (!response.payload) {
-    hideActiveDownload();
-    return;
-  }
-
-  renderActiveDownload(response.payload);
-
-  if (isTerminalStatus(response.payload.status)) {
-    await loadRecentDownloads();
-    return;
-  }
-
-  scheduleActiveDownloadPoll(generation);
-}
-
 async function cancelActiveDownload() {
   if (!activeJobId) {
     return;
@@ -277,8 +248,35 @@ async function cancelActiveDownload() {
   if (response.payload) {
     renderActiveDownload(response.payload);
   }
+}
 
-  startActiveDownloadPolling();
+async function forceCancelActiveDownload() {
+  if (!activeJobId) {
+    return;
+  }
+
+  activeDownloadCancelButton.disabled = true;
+  renderActiveDownload({
+    jobId: activeJobId,
+    status: 'cancelling',
+    progressPercent: null,
+    progressText: 'Принудительно останавливаю...',
+    canCancel: false,
+  });
+
+  const response = await sendMessage({
+    type: 'ytd:force-cancel-download',
+    jobId: activeJobId,
+  });
+
+  if (!response?.ok) {
+    renderActiveDownloadError(response?.errorMessage || 'Не удалось остановить загрузку.');
+    return;
+  }
+
+  if (response.payload) {
+    renderActiveDownload(response.payload);
+  }
 }
 
 function renderActiveDownload(payload) {
@@ -290,10 +288,10 @@ function renderActiveDownload(payload) {
   activeJobId = typeof payload?.jobId === 'string' && payload.jobId !== '' ? payload.jobId : activeJobId;
   activeDownloadNode.hidden = false;
   activeDownloadStatusNode.textContent = progressText;
-  activeDownloadPhaseNode.textContent = statusLabel(status);
+  activeDownloadPhaseNode.textContent = STATUS_LABELS[status] || STATUS_LABELS.starting;
   activeDownloadPercentNode.textContent = progressPercent === null ? '--' : `${Math.round(progressPercent)}%`;
-  activeDownloadCancelButton.textContent = isTerminalStatus(status) ? 'Готово' : 'Отменить';
-  activeDownloadCancelButton.disabled = !canCancel || isTerminalStatus(status);
+  activeDownloadCancelButton.textContent = isTerminalStatus(status) ? 'Готово' : (status === 'cancelling' ? 'Принудительно остановить' : 'Отменить');
+  activeDownloadCancelButton.disabled = isTerminalStatus(status) || (!canCancel && status !== 'cancelling');
 
   if (progressPercent === null || status === 'starting' || status === 'cancelling') {
     activeDownloadFillNode.dataset.indeterminate = 'true';
@@ -308,7 +306,7 @@ function renderActiveDownload(payload) {
 function renderActiveDownloadError(message) {
   activeDownloadNode.hidden = false;
   activeDownloadStatusNode.textContent = message;
-  activeDownloadPhaseNode.textContent = 'Ошибка';
+  activeDownloadPhaseNode.textContent = STATUS_LABELS.failed;
   activeDownloadPercentNode.textContent = '--';
   activeDownloadCancelButton.disabled = true;
   activeDownloadFillNode.dataset.indeterminate = 'true';
@@ -319,28 +317,11 @@ function hideActiveDownload() {
   activeJobId = null;
   activeDownloadNode.hidden = true;
   activeDownloadStatusNode.textContent = '';
-  activeDownloadPhaseNode.textContent = 'Подготовка';
+  activeDownloadPhaseNode.textContent = STATUS_LABELS.starting;
   activeDownloadPercentNode.textContent = '--';
   activeDownloadCancelButton.disabled = false;
   activeDownloadFillNode.dataset.indeterminate = 'true';
   activeDownloadFillNode.style.width = '38%';
-}
-
-function statusLabel(status) {
-  switch (status) {
-    case 'downloading':
-      return 'Идёт загрузка';
-    case 'completed':
-      return 'Готово';
-    case 'failed':
-      return 'Ошибка';
-    case 'cancelled':
-      return 'Отменено';
-    case 'cancelling':
-      return 'Останавливаю';
-    default:
-      return 'Подготовка';
-  }
 }
 
 function isTerminalStatus(status) {
@@ -373,7 +354,3 @@ function sendMessage(message) {
     });
   });
 }
-
-globalThis.addEventListener('unload', () => {
-  stopActiveDownloadPolling();
-});

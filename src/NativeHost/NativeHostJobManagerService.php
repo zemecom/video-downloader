@@ -127,6 +127,39 @@ final class NativeHostJobManagerService
         return NativeHostResponse::success('cancel_requested', 'Cancellation requested.', (string) ($state['url'] ?? null), $this->stateDetails($state));
     }
 
+    public function forceCancelDownload(string $jobId): NativeHostResponse
+    {
+        $state = $this->store->read($jobId);
+        if (!\is_array($state)) {
+            return NativeHostResponse::error('job_not_found', 'Download job not found.', null, [
+                'jobId' => $jobId,
+            ]);
+        }
+
+        if (!\in_array($state['status'] ?? null, ['completed', 'failed', 'cancelled'], true)) {
+            $state['status'] = 'cancelled';
+            $state['progressText'] = 'Загрузка принудительно отменена.';
+            $state['canCancel'] = false;
+            $state['updatedAt'] = $this->now();
+            $this->store->write($jobId, $state);
+
+            $downloadPid = $state['downloadPid'] ?? null;
+            if (\is_int($downloadPid) && $downloadPid > 0) {
+                (new Process(['pkill', '-9', '-P', (string) $downloadPid]))->run();
+                (new Process(['kill', '-9', (string) $downloadPid]))->run();
+            }
+
+            $workerPid = $state['workerPid'] ?? null;
+            if (\is_int($workerPid) && $workerPid > 0) {
+                (new Process(['kill', '-9', (string) $workerPid]))->run();
+            }
+        }
+        
+        $this->store->requestCancel($jobId);
+
+        return NativeHostResponse::success('cancel_forced', 'Download forcibly cancelled.', (string) ($state['url'] ?? null), $this->stateDetails($state));
+    }
+
     public function listRecentDownloads(): NativeHostResponse
     {
         return NativeHostResponse::success('recent_downloads', 'Recent downloads loaded.', null, [

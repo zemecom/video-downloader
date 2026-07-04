@@ -8,3 +8,5 @@
 .idea/
 .phpunit.cache/
 *.log
+
+node_modules/

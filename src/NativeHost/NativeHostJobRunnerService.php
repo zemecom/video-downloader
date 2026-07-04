@@ -73,7 +73,10 @@ final readonly class NativeHostJobRunnerService
             ],
             $pipes,
             $this->bootstrap->getPackageRoot(),
-            \array_merge(ProcessEnvironment::build(), ['YTD_PROGRESS_NEWLINE' => '1']),
+            \array_merge(ProcessEnvironment::build(), [
+                'YTD_PROGRESS_NEWLINE' => '1',
+                'YTD_RAW_PROGRESS' => '1',
+            ]),
         );
 
         if (!\is_resource($process)) {

@@ -221,7 +221,8 @@ final readonly class FastStreamDownloadService
     private function waitForFastStreamProcesses(array $processes): void
     {
         $processes = $this->orderFastStreamProcesses($processes);
-        $progress = new YtDlpProgressRenderer($this->logger, array_keys($processes));
+        $rawMode = \getenv('YTD_RAW_PROGRESS') === '1';
+        $progress = $rawMode ? null : new YtDlpProgressRenderer($this->logger, array_keys($processes));
 
         while ($this->hasRunningProcess($processes)) {
             foreach ($processes as $label => $process) {
@@ -233,7 +234,10 @@ final readonly class FastStreamDownloadService
         foreach ($processes as $label => $process) {
             $this->flushProcessOutput($label, $process, $progress);
         }
-        $progress->finish();
+        
+        if ($progress !== null) {
+            $progress->finish();
+        }
     }
 
     /**
@@ -270,10 +274,25 @@ final readonly class FastStreamDownloadService
         return false;
     }
 
-    private function flushProcessOutput(string $label, Process $process, YtDlpProgressRenderer $progress): void
+    private function flushProcessOutput(string $label, Process $process, ?YtDlpProgressRenderer $progress): void
     {
-        $progress->consume($label, $process->getIncrementalOutput());
-        $progress->consume($label, $process->getIncrementalErrorOutput());
+        $output = $process->getIncrementalOutput();
+        if ($output !== '') {
+            if ($progress !== null) {
+                $progress->consume($label, $output);
+            } else {
+                $this->logger->raw($output);
+            }
+        }
+
+        $errorOutput = $process->getIncrementalErrorOutput();
+        if ($errorOutput !== '') {
+            if ($progress !== null) {
+                $progress->consume($label, $errorOutput);
+            } else {
+                $this->logger->raw($errorOutput);
+            }
+        }
     }
 
     private function formatFastStreamFailureDetail(Process $videoProcess, Process $audioProcess): string

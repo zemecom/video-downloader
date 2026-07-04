@@ -19,11 +19,6 @@
   font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   z-index: 2147483647;
   padding: 16px;
-  display: none;
-}
-
-.overlay[data-visible="true"] {
-  display: block;
 }
 
 .header {

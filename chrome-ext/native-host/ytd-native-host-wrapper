@@ -3,6 +3,11 @@ set -eu
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 REPO_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)
+
+# Chrome launches native hosts with a minimal PATH.
+# Ensure common binary locations are available so that yt-dlp, ffmpeg, etc. are found.
+export PATH="$HOME/.local/bin:$HOME/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
+
 PHP_BIN="${PHP_BIN:-}"
 
 if [ -z "$PHP_BIN" ]; then
