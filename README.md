@@ -47,7 +47,7 @@ Dev-зависимости проекта ставятся через `require-d
 - Chrome/Chromium и macOS Native Messaging для `chrome-ext`;
 - реальные URL для ручных integration-проверок через `TEST_*`.
 
-Node.js/npm для текущего Chrome-расширения не нужны: расширение в `chrome-ext/extension` статическое.
+Node.js и npm (команда `npm install`) нужны только для локального линтера (ESLint) в `chrome-ext/`. Само расширение в `chrome-ext/extension` статическое и не требует сборки.
 
 ## Установка
 
@@ -312,9 +312,11 @@ ytdphp URL
 - `make chrome-ext-paths` — показывает пути к unpacked extension и native host.
 - `make chrome-ext-install` — устанавливает native host для Chrome-расширения.
 - `make chrome-ext-uninstall` — удаляет manifest native host из профиля Chrome.
+- `make clean-logs` — удаляет все файлы логов.
 - `make test` — запускает unit-тесты.
 - `make test-integration` — запускает integration-suite.
 - `make lint` — запускает PHP CS Fixer и PHPStan.
+- `make lint-fix` — автоматически исправляет проблемы со стилем кода.
 - `make check` — удобный локальный минимум: сначала lint, потом unit-тесты.
 
 Можно запускать и напрямую через Composer:
@@ -323,6 +325,7 @@ ytdphp URL
 composer test
 composer test-integration
 composer lint
+composer lint-fix
 composer check
 ```
 

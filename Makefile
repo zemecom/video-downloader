@@ -1,11 +1,8 @@
-.PHONY: help install install-deps alias init doctor doctor-smoke test test-integration lint lint-fix check check-entrypoint-local ci-current chrome-ext-paths chrome-ext-install chrome-ext-uninstall
+.PHONY: help install install-deps alias init doctor doctor-smoke clean-logs test test-integration lint lint-fix check check-entrypoint-local ci-current chrome-ext-paths chrome-ext-install chrome-ext-uninstall
 
 PHP ?= php
 COMPOSER ?= composer
 PHP_ALIAS_NAME ?= ytdphp
-FIXER ?= vendor/bin/php-cs-fixer
-PHPSTAN ?= vendor/bin/phpstan
-PHPUNIT ?= vendor/bin/phpunit
 CHROME_EXT_DIR ?= chrome-ext
 CHROME_EXT_EXTENSION_DIR ?= $(CHROME_EXT_DIR)/extension
 CHROME_EXT_NATIVE_HOST_DIR ?= $(CHROME_EXT_DIR)/native-host
@@ -22,6 +19,7 @@ help:
 	@echo ""
 	@echo "Project commands:"
 	@echo "  make init          - create runtime config files from templates"
+	@echo "  make clean-logs    - remove all log files"
 	@echo "  make doctor        - run environment checks"
 	@echo "  make doctor-smoke  - run doctor against template configs in a temporary runtime root"
 	@echo "  make chrome-ext-paths - print Chrome extension and native host paths"
@@ -55,6 +53,10 @@ init:
 	@test -f .env || cp .env.example .env
 	@test -f proxy_rules.yaml || cp proxy_rules.example.yaml proxy_rules.yaml
 	@echo "Project initialized."
+
+clean-logs:
+	rm -rf logs/* *.log
+	@echo "Logs cleared."
 
 doctor:
 	$(PHP) bin/ytd --doctor
@@ -93,22 +95,19 @@ chrome-ext-uninstall:
 	@"$(CHROME_EXT_UNINSTALLER)"
 
 test:
-	$(PHPUNIT) --testsuite unit
+	$(COMPOSER) test
 
 test-integration:
-	$(PHPUNIT) --testsuite integration
+	$(COMPOSER) test-integration
 
 lint:
-	$(FIXER) fix --dry-run --diff --using-cache=no --config=.php-cs-fixer.dist.php --sequential
-	$(PHPSTAN) analyse --configuration=phpstan.neon --no-progress --debug --memory-limit=512M
+	$(COMPOSER) lint
 
 lint-fix:
-	$(FIXER) fix --using-cache=no --config=.php-cs-fixer.dist.php --sequential $(FIXER_TARGETS)
-	$(MAKE) lint
+	$(COMPOSER) lint-fix
 
 check:
-	$(MAKE) lint
-	$(MAKE) test
+	$(COMPOSER) check
 
 check-entrypoint-local:
 	$(PHP) -r '[$$a,$$b]=[(string)shell_exec("php bin/ytd --help"),(string)shell_exec("php ytd.php --help")]; if ($$a !== $$b) { fwrite(STDERR, "bin/ytd help does not match ytd.php help\n"); exit(1);} '

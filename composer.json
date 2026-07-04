@@ -36,6 +36,10 @@
       "vendor/bin/php-cs-fixer fix --dry-run --diff --using-cache=no --config=.php-cs-fixer.dist.php --sequential",
       "vendor/bin/phpstan analyse --configuration=phpstan.neon --no-progress --debug --memory-limit=512M"
     ],
+    "lint-fix": [
+      "vendor/bin/php-cs-fixer fix --using-cache=no --config=.php-cs-fixer.dist.php --sequential",
+      "@lint"
+    ],
     "check": [
       "@lint",
       "@test"
