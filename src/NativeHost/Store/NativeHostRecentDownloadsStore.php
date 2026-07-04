@@ -36,7 +36,7 @@ final readonly class NativeHostRecentDownloadsStore
             'path' => $path,
             'url' => $url,
             'mode' => $mode,
-            'createdAt' => (new DateTimeImmutable())->format(DATE_ATOM),
+            'createdAt' => new DateTimeImmutable()->format(DATE_ATOM),
         ];
 
         $this->withExclusiveLock(function () use ($entry): void {
@@ -99,7 +99,7 @@ final readonly class NativeHostRecentDownloadsStore
     private function writeAll(array $items): void
     {
         $path = $this->bootstrap->getNativeHostRecentDownloadsPath();
-        (new Filesystem())->mkdir(\dirname($path));
+        new Filesystem()->mkdir(\dirname($path));
 
         try {
             $encoded = \json_encode($items, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . PHP_EOL;
@@ -133,7 +133,7 @@ final readonly class NativeHostRecentDownloadsStore
             return [];
         }
 
-        return \is_array($decoded) ? \array_values(\array_filter($decoded, 'is_array')) : [];
+        return \is_array($decoded) ? \array_values(\array_filter($decoded, is_array(...))) : [];
     }
 
     /**
@@ -155,7 +155,7 @@ final readonly class NativeHostRecentDownloadsStore
     private function withExclusiveLock(Closure $callback): void
     {
         $lockPath = $this->bootstrap->getNativeHostRecentDownloadsPath() . '.lock';
-        (new Filesystem())->mkdir(\dirname($lockPath));
+        new Filesystem()->mkdir(\dirname($lockPath));
 
         $handle = \fopen($lockPath, 'c+');
         if (!\is_resource($handle)) {

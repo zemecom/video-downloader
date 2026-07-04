@@ -22,12 +22,6 @@ use YtdPhp\Shared\InputPrompter;
 
 final readonly class DownloaderService
 {
-    private YtDlpGateway $ytDlpClient;
-    private RuntimeBootstrap $bootstrap;
-    private ConsoleLogger $logger;
-    private InputPrompter $prompter;
-    private AutomaticFormatResolver $automaticFormatResolver;
-    private FastStreamFormatResolver $fastStreamFormatResolver;
     private DownloadTemporaryStorage $temporaryStorage;
     private DownloadOutputFormatter $outputFormatter;
     private DownloadArtifactCleaner $artifactCleaner;
@@ -37,12 +31,12 @@ final readonly class DownloaderService
     private FastStreamDownloadService $fastStreamDownloadService;
 
     public function __construct(
-        YtDlpGateway $ytDlpClient,
-        RuntimeBootstrap $bootstrap,
-        ConsoleLogger $logger,
-        InputPrompter $prompter,
-        AutomaticFormatResolver $automaticFormatResolver = new AutomaticFormatResolver(),
-        FastStreamFormatResolver $fastStreamFormatResolver = new FastStreamFormatResolver(),
+        private YtDlpGateway $ytDlpClient,
+        private RuntimeBootstrap $bootstrap,
+        private ConsoleLogger $logger,
+        private InputPrompter $prompter,
+        private AutomaticFormatResolver $automaticFormatResolver = new AutomaticFormatResolver(),
+        private FastStreamFormatResolver $fastStreamFormatResolver = new FastStreamFormatResolver(),
         ?DownloadTemporaryStorage $temporaryStorage = null,
         ?DownloadOutputFormatter $outputFormatter = null,
         ?DownloadArtifactCleaner $artifactCleaner = null,
@@ -51,22 +45,16 @@ final readonly class DownloaderService
         ?ExpectedOutputResolver $expectedOutputResolver = null,
         ?FastStreamDownloadService $fastStreamDownloadService = null,
     ) {
-        $this->ytDlpClient = $ytDlpClient;
-        $this->bootstrap = $bootstrap;
-        $this->logger = $logger;
-        $this->prompter = $prompter;
-        $this->automaticFormatResolver = $automaticFormatResolver;
-        $this->fastStreamFormatResolver = $fastStreamFormatResolver;
         $this->temporaryStorage = $temporaryStorage ?? new DownloadTemporaryStorage();
-        $this->outputFormatter = $outputFormatter ?? new DownloadOutputFormatter($logger);
+        $this->outputFormatter = $outputFormatter ?? new DownloadOutputFormatter($this->logger);
         $this->artifactCleaner = $artifactCleaner ?? new DownloadArtifactCleaner();
-        $this->processRunner = $processRunner ?? new DownloadProcessRunner($ytDlpClient, $logger);
-        $this->metadataService = $metadataService ?? new DownloadMetadataService($ytDlpClient, $logger, $this->temporaryStorage);
-        $this->expectedOutputResolver = $expectedOutputResolver ?? new ExpectedOutputResolver($ytDlpClient, $bootstrap);
+        $this->processRunner = $processRunner ?? new DownloadProcessRunner($this->ytDlpClient, $this->logger);
+        $this->metadataService = $metadataService ?? new DownloadMetadataService($this->ytDlpClient, $this->logger, $this->temporaryStorage);
+        $this->expectedOutputResolver = $expectedOutputResolver ?? new ExpectedOutputResolver($this->ytDlpClient, $this->bootstrap);
         $this->fastStreamDownloadService = $fastStreamDownloadService ?? new FastStreamDownloadService(
-            $ytDlpClient,
-            $bootstrap,
-            $logger,
+            $this->ytDlpClient,
+            $this->bootstrap,
+            $this->logger,
             $this->processRunner,
             $this->temporaryStorage,
             $this->artifactCleaner,
@@ -209,7 +197,7 @@ final readonly class DownloaderService
                 $this->bootstrap->isYoutubeUrl($videoUrl),
                 $options->outputFormat,
             );
-            if ($pair === null) {
+            if (!$pair instanceof \YtdPhp\Download\Format\FastStreamFormatPair) {
                 $this->logger->warning('⚠️ Не удалось подобрать отдельные video/audio потоки для `--fast`; использую обычную загрузку.');
 
                 return $this->downloadVideoInternal(

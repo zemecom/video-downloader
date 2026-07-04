@@ -30,7 +30,7 @@ final readonly class NativeHostJobStateStore
     {
         $path = $this->statePath($jobId);
         $directory = \dirname($path);
-        (new Filesystem())->mkdir($directory);
+        new Filesystem()->mkdir($directory);
 
         try {
             $encoded = \json_encode($state, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . PHP_EOL;
@@ -74,7 +74,7 @@ final readonly class NativeHostJobStateStore
 
     public function requestCancel(string $jobId): void
     {
-        (new Filesystem())->mkdir($this->bootstrap->getNativeHostJobsDirectoryPath());
+        new Filesystem()->mkdir($this->bootstrap->getNativeHostJobsDirectoryPath());
         \file_put_contents($this->cancelPath($jobId), 'cancel');
     }
 
@@ -85,7 +85,7 @@ final readonly class NativeHostJobStateStore
 
     public function clearCancelRequest(string $jobId): void
     {
-        (new Filesystem())->remove($this->cancelPath($jobId));
+        new Filesystem()->remove($this->cancelPath($jobId));
     }
 
     public function statePath(string $jobId): string
@@ -111,7 +111,7 @@ final readonly class NativeHostJobStateStore
     private function withStateLock(string $jobId, int $operation, Closure $callback): mixed
     {
         $lockPath = $this->lockPath($jobId);
-        (new Filesystem())->mkdir(\dirname($lockPath));
+        new Filesystem()->mkdir(\dirname($lockPath));
 
         $handle = \fopen($lockPath, 'c+');
         if (!\is_resource($handle)) {

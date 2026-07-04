@@ -203,7 +203,7 @@ final readonly class NativeHostPreviewServerService
             return;
         }
 
-        $fileHandle = \fopen((string) $response['filePath'], 'rb');
+        $fileHandle = \fopen($response['filePath'], 'rb');
         if (!\is_resource($fileHandle)) {
             $clientState['done'] = true;
 

@@ -16,11 +16,19 @@ playButton.addEventListener('click', async () => {
 });
 
 openButton.addEventListener('click', async () => {
-  await runRecentAction('ytd:open-recent-download', 'Открываю файл...', 'Не удалось открыть файл.');
+  await runRecentAction(
+    'ytd:open-recent-download',
+    'Открываю файл...',
+    'Не удалось открыть файл.'
+  );
 });
 
 revealButton.addEventListener('click', async () => {
-  await runRecentAction('ytd:reveal-recent-download', 'Показываю в Finder...', 'Не удалось показать файл.');
+  await runRecentAction(
+    'ytd:reveal-recent-download',
+    'Показываю в Finder...',
+    'Не удалось показать файл.'
+  );
 });
 
 player.addEventListener('play', () => {
@@ -31,11 +39,13 @@ player.addEventListener('play', () => {
 
 player.addEventListener('error', () => {
   playButton.classList.add('button-hidden');
-  statusNode.textContent = 'Браузер не смог воспроизвести файл. Можно открыть его отдельным приложением.';
+  statusNode.textContent =
+    'Браузер не смог воспроизвести файл. Можно открыть его отдельным приложением.';
 });
 
 async function initPreview() {
-  const previewId = new URL(globalThis.location.href).searchParams.get('id') || '';
+  const previewId =
+    new URL(globalThis.location.href).searchParams.get('id') || '';
   if (previewId === '') {
     renderFatalError('Не удалось найти данные для просмотра.');
     return;
@@ -46,14 +56,23 @@ async function initPreview() {
   await chrome.storage.session.remove(storageKey);
 
   const payload = result?.[storageKey];
-  if (!payload || typeof payload.previewUrl !== 'string' || payload.previewUrl === '') {
+  if (
+    !payload ||
+    typeof payload.previewUrl !== 'string' ||
+    payload.previewUrl === ''
+  ) {
     renderFatalError('Ссылка для просмотра больше недоступна.');
     return;
   }
 
   previewUrl = payload.previewUrl;
-  recentDownloadId = typeof payload.recentDownloadId === 'string' ? payload.recentDownloadId : '';
-  originTabId = Number.isInteger(payload.originTabId) ? payload.originTabId : null;
+  recentDownloadId =
+    typeof payload.recentDownloadId === 'string'
+      ? payload.recentDownloadId
+      : '';
+  originTabId = Number.isInteger(payload.originTabId)
+    ? payload.originTabId
+    : null;
   renderFilePath(resolveFilePath(payload));
   void hydrateFilePath();
   openButton.disabled = recentDownloadId === '';
@@ -70,19 +89,23 @@ async function attemptPlayback(fromUserGesture) {
   }
 
   playButton.classList.add('button-hidden');
-  statusNode.textContent = fromUserGesture ? 'Запускаю видео...' : 'Открываю видео...';
+  statusNode.textContent = fromUserGesture
+    ? 'Запускаю видео...'
+    : 'Открываю видео...';
 
   try {
     await player.play();
     if (player.muted) {
-      statusNode.textContent = 'Видео запущено без звука. Звук можно включить в плеере.';
+      statusNode.textContent =
+        'Видео запущено без звука. Звук можно включить в плеере.';
     }
   } catch (_error) {
     if (!fromUserGesture) {
       try {
         player.muted = true;
         await player.play();
-        statusNode.textContent = 'Видео запущено без звука. Звук можно включить в плеере.';
+        statusNode.textContent =
+          'Видео запущено без звука. Звук можно включить в плеере.';
         return;
       } catch (_mutedError) {
         player.muted = false;
@@ -99,7 +122,8 @@ async function attemptPlayback(fromUserGesture) {
 
 async function runRecentAction(type, pendingMessage, fallbackErrorMessage) {
   if (typeof recentDownloadId !== 'string' || recentDownloadId === '') {
-    statusNode.textContent = 'Файл больше недоступен в списке recent downloads.';
+    statusNode.textContent =
+      'Файл больше недоступен в списке recent downloads.';
     return;
   }
 
@@ -111,7 +135,7 @@ async function runRecentAction(type, pendingMessage, fallbackErrorMessage) {
 
   statusNode.textContent = response?.ok
     ? ''
-    : (response?.errorMessage || fallbackErrorMessage);
+    : response?.errorMessage || fallbackErrorMessage;
 }
 
 async function pauseOriginVideo() {
@@ -143,7 +167,11 @@ function renderFilePath(filePath) {
 }
 
 async function hydrateFilePath() {
-  if (!filePathNode.hidden || typeof recentDownloadId !== 'string' || recentDownloadId === '') {
+  if (
+    !filePathNode.hidden ||
+    typeof recentDownloadId !== 'string' ||
+    recentDownloadId === ''
+  ) {
     return;
   }
 

@@ -10,3 +10,10 @@
 *.log
 
 node_modules/
+
+# Build
+ytd.phar
+bin/box
+
+# Cache
+.deptrac.cache

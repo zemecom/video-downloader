@@ -1,0 +1,17 @@
+{
+    "main": "bin/ytd",
+    "output": "ytd.phar",
+    "directories": ["src", "vendor"],
+    "files": ["ytd.php", ".env.example", "proxy_rules.example.yaml"],
+    "finder": [
+        {
+            "name": "*.php",
+            "exclude": ["tests", "test"],
+            "in": "vendor"
+        }
+    ],
+    "compactors": [
+        "KevinGH\\Box\\Compactor\\Php",
+        "KevinGH\\Box\\Compactor\\Json"
+    ]
+}

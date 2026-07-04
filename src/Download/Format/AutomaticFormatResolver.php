@@ -89,7 +89,7 @@ final class AutomaticFormatResolver
 
         $liveStatus = $metadata['live_status'] ?? null;
 
-        return $liveStatus === 'is_live' || $liveStatus === 'post_live' || $liveStatus === 'was_live';
+        return in_array($liveStatus, ['is_live', 'post_live', 'was_live'], true);
     }
 
     private function resolveBestMuxedFormatId(
@@ -108,18 +108,26 @@ final class AutomaticFormatResolver
         $bestMuxedScore = -1;
 
         foreach ($formats as $format) {
-            if (!\is_array($format) || !$this->isMuxedFormat($format)) {
+            if (!\is_array($format)) {
                 continue;
             }
-
-            if (($preferNonAv1 && $this->isAv1Format($format))
-                || !$this->matchesHeightCap($format, $maxHeight)
-                || ($requireBrowserSafeMp4 && !$this->isBrowserSafeMp4Format($format))) {
+            if (!$this->isMuxedFormat($format)) {
                 continue;
             }
-
+            if ($preferNonAv1 && $this->isAv1Format($format)) {
+                continue;
+            }
+            if (!$this->matchesHeightCap($format, $maxHeight)) {
+                continue;
+            }
+            if ($requireBrowserSafeMp4 && !$this->isBrowserSafeMp4Format($format)) {
+                continue;
+            }
             $formatId = $format['format_id'] ?? null;
-            if (!\is_string($formatId) || $formatId === '') {
+            if (!\is_string($formatId)) {
+                continue;
+            }
+            if ($formatId === '') {
                 continue;
             }
 
@@ -222,7 +230,7 @@ final class AutomaticFormatResolver
     {
         $extension = \strtolower((string) ($format['ext'] ?? ''));
 
-        return ($extension === '' || $extension === 'mp4' || $extension === 'm4v')
+        return (in_array($extension, ['', 'mp4', 'm4v'], true))
             && $this->isBrowserSafeVideoCodec($format)
             && $this->isBrowserSafeAudioCodec($format);
     }

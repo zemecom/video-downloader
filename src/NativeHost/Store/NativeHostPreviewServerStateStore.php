@@ -42,13 +42,13 @@ final readonly class NativeHostPreviewServerStateStore
     public function write(int $pid, int $port): void
     {
         $path = $this->bootstrap->getNativeHostPreviewServerStatePath();
-        (new Filesystem())->mkdir(\dirname($path));
+        new Filesystem()->mkdir(\dirname($path));
 
         try {
             $encoded = \json_encode([
                 'pid' => $pid,
                 'port' => $port,
-                'updatedAt' => (new DateTimeImmutable())->format(DATE_ATOM),
+                'updatedAt' => new DateTimeImmutable()->format(DATE_ATOM),
             ], JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . PHP_EOL;
         } catch (JsonException) {
             return;
@@ -66,6 +66,6 @@ final readonly class NativeHostPreviewServerStateStore
 
     public function clear(): void
     {
-        (new Filesystem())->remove($this->bootstrap->getNativeHostPreviewServerStatePath());
+        new Filesystem()->remove($this->bootstrap->getNativeHostPreviewServerStatePath());
     }
 }

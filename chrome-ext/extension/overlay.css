@@ -10,13 +10,26 @@
   max-width: calc(100vw - 32px);
   border-radius: 18px;
   background:
-    radial-gradient(circle at top left, rgba(79, 182, 255, 0.18), transparent 36%),
-    radial-gradient(circle at bottom right, rgba(15, 92, 255, 0.16), transparent 34%),
+    radial-gradient(
+      circle at top left,
+      rgba(79, 182, 255, 0.18),
+      transparent 36%
+    ),
+    radial-gradient(
+      circle at bottom right,
+      rgba(15, 92, 255, 0.16),
+      transparent 34%
+    ),
     linear-gradient(180deg, rgba(15, 24, 42, 0.96), rgba(8, 12, 22, 0.98));
   color: #f7f4ee;
   box-shadow: 0 20px 60px rgba(2, 8, 20, 0.42);
   border: 1px solid rgba(125, 220, 255, 0.14);
-  font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family:
+    ui-sans-serif,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
   z-index: 2147483647;
   padding: 16px;
 }
@@ -67,9 +80,14 @@
   transition: width 180ms ease;
 }
 
-.progress-fill[data-indeterminate="true"] {
+.progress-fill[data-indeterminate='true'] {
   width: 38%;
-  background: linear-gradient(90deg, rgba(125, 220, 255, 0.08), #7ddcff, rgba(15, 92, 255, 0.18));
+  background: linear-gradient(
+    90deg,
+    rgba(125, 220, 255, 0.08),
+    #7ddcff,
+    rgba(15, 92, 255, 0.18)
+  );
   animation: ytd-overlay-slide 1.25s ease-in-out infinite;
 }
 
@@ -115,6 +133,10 @@
 }
 
 @keyframes ytd-overlay-slide {
-  0% { transform: translateX(-105%); }
-  100% { transform: translateX(255%); }
+  0% {
+    transform: translateX(-105%);
+  }
+  100% {
+    transform: translateX(255%);
+  }
 }

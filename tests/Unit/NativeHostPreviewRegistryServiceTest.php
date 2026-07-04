@@ -58,7 +58,7 @@ final class NativeHostPreviewRegistryServiceTest extends TestCase
             $registry = new NativeHostPreviewRegistryService(
                 new RuntimeBootstrap($root),
                 30,
-                static fn() => $now,
+                static fn(): \DateTimeImmutable => $now,
             );
 
             $preview = $registry->register('job-123', $filePath, 38123);

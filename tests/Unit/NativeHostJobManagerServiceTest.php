@@ -41,11 +41,11 @@ final class NativeHostJobManagerServiceTest extends TestCase
             self::assertSame('starting', $payload['status']);
             self::assertSame('https://example.com/watch?v=42', $payload['url']);
 
-            $saved = $store->read((string) $payload['jobId']);
+            $saved = $store->read($payload['jobId']);
             self::assertSame('starting', $saved['status']);
             self::assertSame('https://example.com/watch?v=42', $saved['url']);
             self::assertSame('video', $saved['mode']);
-            self::assertSame((string) $payload['jobId'], $spawned[0] ?? null);
+            self::assertSame($payload['jobId'], $spawned[0] ?? null);
             self::assertSame('video', $spawned[2] ?? null);
         } finally {
             putenv('YTD_PROJECT_ROOT');
@@ -93,7 +93,7 @@ final class NativeHostJobManagerServiceTest extends TestCase
             $manager = new NativeHostJobManagerService(
                 $bootstrap,
                 $store,
-                static function (): void {
+                static function (): never {
                     throw new \RuntimeException('process_start_failed');
                 },
                 static function (): void {},

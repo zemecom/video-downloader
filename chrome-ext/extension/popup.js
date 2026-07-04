@@ -12,11 +12,19 @@ const statusNode = document.querySelector('.status');
 const recentListNode = document.querySelector('.recent-list');
 const recentEmptyNode = document.querySelector('.recent-empty');
 const activeDownloadNode = document.querySelector('.active-download');
-const activeDownloadStatusNode = document.querySelector('.active-download-status');
+const activeDownloadStatusNode = document.querySelector(
+  '.active-download-status'
+);
 const activeDownloadFillNode = document.querySelector('.active-download-fill');
-const activeDownloadPhaseNode = document.querySelector('.active-download-phase');
-const activeDownloadPercentNode = document.querySelector('.active-download-percent');
-const activeDownloadCancelButton = document.querySelector('.active-download-cancel');
+const activeDownloadPhaseNode = document.querySelector(
+  '.active-download-phase'
+);
+const activeDownloadPercentNode = document.querySelector(
+  '.active-download-percent'
+);
+const activeDownloadCancelButton = document.querySelector(
+  '.active-download-cancel'
+);
 
 let activeJobId = null;
 let lastKnownStatus = null;
@@ -55,7 +63,11 @@ activeDownloadCancelButton.addEventListener('click', () => {
 
 async function startDownload(mode) {
   setBusyState(true);
-  setStatus(mode === 'audio' ? 'Запускаю загрузку аудио...' : 'Запускаю загрузку видео...');
+  setStatus(
+    mode === 'audio'
+      ? 'Запускаю загрузку аудио...'
+      : 'Запускаю загрузку видео...'
+  );
 
   const [tab] = await chrome.tabs.query({
     active: true,
@@ -94,7 +106,9 @@ async function loadRecentDownloads() {
     return;
   }
 
-  const items = Array.isArray(response?.payload?.items) ? response.payload.items.slice(0, 5) : [];
+  const items = Array.isArray(response?.payload?.items)
+    ? response.payload.items.slice(0, 5)
+    : [];
   renderRecentDownloads(items);
 }
 
@@ -136,7 +150,11 @@ function renderRecentDownloads(items) {
     openButton.className = 'recent-button';
     openButton.textContent = 'Открыть';
     openButton.addEventListener('click', () => {
-      runRecentAction('ytd:open-recent-download', item?.id, `Открываю ${title.textContent}...`);
+      runRecentAction(
+        'ytd:open-recent-download',
+        item?.id,
+        `Открываю ${title.textContent}...`
+      );
     });
     actions.appendChild(openButton);
 
@@ -145,7 +163,11 @@ function renderRecentDownloads(items) {
     revealButton.className = 'recent-button';
     revealButton.textContent = 'Finder';
     revealButton.addEventListener('click', () => {
-      runRecentAction('ytd:reveal-recent-download', item?.id, `Показываю ${title.textContent} в Finder...`);
+      runRecentAction(
+        'ytd:reveal-recent-download',
+        item?.id,
+        `Показываю ${title.textContent} в Finder...`
+      );
     });
     actions.appendChild(revealButton);
 
@@ -159,7 +181,12 @@ function renderRecentDownloads(items) {
         return;
       }
 
-      await runRecentAction('ytd:delete-recent-download', item?.id, `Удаляю ${title.textContent}...`, true);
+      await runRecentAction(
+        'ytd:delete-recent-download',
+        item?.id,
+        `Удаляю ${title.textContent}...`,
+        true
+      );
     });
     actions.appendChild(deleteButton);
 
@@ -197,7 +224,12 @@ async function playRecentVideo(entryId, title, filePath) {
   window.close();
 }
 
-async function runRecentAction(type, entryId, pendingMessage, reloadOnSuccess = false) {
+async function runRecentAction(
+  type,
+  entryId,
+  pendingMessage,
+  reloadOnSuccess = false
+) {
   if (typeof entryId !== 'string' || entryId === '') {
     setStatus('Файл из списка больше недоступен.');
     return;
@@ -241,7 +273,9 @@ async function cancelActiveDownload() {
   });
 
   if (!response?.ok) {
-    renderActiveDownloadError(response?.errorMessage || 'Не удалось отменить загрузку.');
+    renderActiveDownloadError(
+      response?.errorMessage || 'Не удалось отменить загрузку.'
+    );
     return;
   }
 
@@ -270,7 +304,9 @@ async function forceCancelActiveDownload() {
   });
 
   if (!response?.ok) {
-    renderActiveDownloadError(response?.errorMessage || 'Не удалось остановить загрузку.');
+    renderActiveDownloadError(
+      response?.errorMessage || 'Не удалось остановить загрузку.'
+    );
     return;
   }
 
@@ -280,20 +316,41 @@ async function forceCancelActiveDownload() {
 }
 
 function renderActiveDownload(payload) {
-  const status = typeof payload?.status === 'string' ? payload.status : 'starting';
-  const progressText = typeof payload?.progressText === 'string' ? payload.progressText : 'Подготавливаю загрузку...';
-  const progressPercent = typeof payload?.progressPercent === 'number' ? payload.progressPercent : null;
+  const status =
+    typeof payload?.status === 'string' ? payload.status : 'starting';
+  const progressText =
+    typeof payload?.progressText === 'string'
+      ? payload.progressText
+      : 'Подготавливаю загрузку...';
+  const progressPercent =
+    typeof payload?.progressPercent === 'number'
+      ? payload.progressPercent
+      : null;
   const canCancel = Boolean(payload?.canCancel);
 
-  activeJobId = typeof payload?.jobId === 'string' && payload.jobId !== '' ? payload.jobId : activeJobId;
+  activeJobId =
+    typeof payload?.jobId === 'string' && payload.jobId !== ''
+      ? payload.jobId
+      : activeJobId;
   activeDownloadNode.hidden = false;
   activeDownloadStatusNode.textContent = progressText;
-  activeDownloadPhaseNode.textContent = STATUS_LABELS[status] || STATUS_LABELS.starting;
-  activeDownloadPercentNode.textContent = progressPercent === null ? '--' : `${Math.round(progressPercent)}%`;
-  activeDownloadCancelButton.textContent = isTerminalStatus(status) ? 'Готово' : (status === 'cancelling' ? 'Принудительно остановить' : 'Отменить');
-  activeDownloadCancelButton.disabled = isTerminalStatus(status) || (!canCancel && status !== 'cancelling');
+  activeDownloadPhaseNode.textContent =
+    STATUS_LABELS[status] || STATUS_LABELS.starting;
+  activeDownloadPercentNode.textContent =
+    progressPercent === null ? '--' : `${Math.round(progressPercent)}%`;
+  activeDownloadCancelButton.textContent = isTerminalStatus(status)
+    ? 'Готово'
+    : status === 'cancelling'
+      ? 'Принудительно остановить'
+      : 'Отменить';
+  activeDownloadCancelButton.disabled =
+    isTerminalStatus(status) || (!canCancel && status !== 'cancelling');
 
-  if (progressPercent === null || status === 'starting' || status === 'cancelling') {
+  if (
+    progressPercent === null ||
+    status === 'starting' ||
+    status === 'cancelling'
+  ) {
     activeDownloadFillNode.dataset.indeterminate = 'true';
     activeDownloadFillNode.style.width = '38%';
     return;
@@ -325,7 +382,9 @@ function hideActiveDownload() {
 }
 
 function isTerminalStatus(status) {
-  return status === 'completed' || status === 'failed' || status === 'cancelled';
+  return (
+    status === 'completed' || status === 'failed' || status === 'cancelled'
+  );
 }
 
 function setBusyState(isBusy) {

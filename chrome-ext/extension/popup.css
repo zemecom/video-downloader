@@ -1,6 +1,11 @@
 :root {
   color-scheme: dark;
-  font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family:
+    ui-sans-serif,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
   --ytd-blue-1: #7ddcff;
   --ytd-blue-2: #4fb6ff;
   --ytd-blue-3: #1f8fff;
@@ -19,8 +24,16 @@ body {
 .popup {
   padding: 8px 8px;
   background:
-    radial-gradient(circle at top left, rgba(79, 182, 255, 0.2), transparent 42%),
-    radial-gradient(circle at bottom right, rgba(15, 92, 255, 0.18), transparent 38%),
+    radial-gradient(
+      circle at top left,
+      rgba(79, 182, 255, 0.2),
+      transparent 42%
+    ),
+    radial-gradient(
+      circle at bottom right,
+      rgba(15, 92, 255, 0.18),
+      transparent 38%
+    ),
     linear-gradient(180deg, rgba(18, 28, 48, 0.78), rgba(8, 13, 24, 0.86));
   backdrop-filter: blur(16px) saturate(145%);
   -webkit-backdrop-filter: blur(16px) saturate(145%);
@@ -51,18 +64,29 @@ body {
 .action {
   border: 1px solid rgba(125, 220, 255, 0.16);
   border-radius: 10px;
-  background: linear-gradient(180deg, rgba(18, 36, 62, 0.68), rgba(11, 22, 40, 0.72));
+  background: linear-gradient(
+    180deg,
+    rgba(18, 36, 62, 0.68),
+    rgba(11, 22, 40, 0.72)
+  );
   color: inherit;
   padding: 8px 10px;
   text-align: left;
   cursor: pointer;
-  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    background 160ms ease;
 }
 
 .action:hover:not(:disabled) {
   transform: translateY(-1px);
   border-color: var(--ytd-border-strong);
-  background: linear-gradient(180deg, rgba(25, 56, 96, 0.78), rgba(14, 31, 58, 0.82));
+  background: linear-gradient(
+    180deg,
+    rgba(25, 56, 96, 0.78),
+    rgba(14, 31, 58, 0.82)
+  );
 }
 
 .action:disabled {
@@ -81,7 +105,11 @@ body {
   padding: 8px;
   border-radius: 10px;
   border: 1px solid rgba(125, 220, 255, 0.14);
-  background: linear-gradient(180deg, rgba(15, 35, 60, 0.76), rgba(10, 22, 40, 0.82));
+  background: linear-gradient(
+    180deg,
+    rgba(15, 35, 60, 0.76),
+    rgba(10, 22, 40, 0.82)
+  );
 }
 
 .active-download[hidden] {
@@ -148,13 +176,23 @@ body {
   height: 100%;
   width: 0%;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--ytd-blue-1), var(--ytd-blue-2), var(--ytd-blue-4));
+  background: linear-gradient(
+    90deg,
+    var(--ytd-blue-1),
+    var(--ytd-blue-2),
+    var(--ytd-blue-4)
+  );
   transition: width 180ms ease;
 }
 
-.active-download-fill[data-indeterminate="true"] {
+.active-download-fill[data-indeterminate='true'] {
   width: 38%;
-  background: linear-gradient(90deg, rgba(125, 220, 255, 0.08), var(--ytd-blue-1), rgba(15, 92, 255, 0.18));
+  background: linear-gradient(
+    90deg,
+    rgba(125, 220, 255, 0.08),
+    var(--ytd-blue-1),
+    rgba(15, 92, 255, 0.18)
+  );
   animation: ytd-popup-progress-slide 1.25s ease-in-out infinite;
 }
 
@@ -202,7 +240,11 @@ body {
 .recent-item {
   padding: 7px 8px;
   border-radius: 10px;
-  background: linear-gradient(180deg, rgba(14, 29, 50, 0.78), rgba(10, 19, 34, 0.82));
+  background: linear-gradient(
+    180deg,
+    rgba(14, 29, 50, 0.78),
+    rgba(10, 19, 34, 0.82)
+  );
   border: 1px solid rgba(125, 220, 255, 0.1);
 }
 

@@ -6,18 +6,18 @@ namespace YtdPhp\Download\YtDlp;
 
 final class YtDlpCommandBuilder
 {
-    private const BEST_FORMAT = 'bestvideo+bestaudio/best';
-    private const BEST_NON_AV1_FORMAT = 'bestvideo[vcodec!^=av01]+bestaudio/best[vcodec!^=av01]';
-    private const BEST_BROWSER_MP4_FORMAT = 'bestvideo[ext=mp4][vcodec^=avc1]+bestaudio[ext=m4a]/best[ext=mp4][vcodec^=avc1][acodec^=mp4a]/best[ext=mp4]';
-    private const MEDIUM_FORMAT = 'bestvideo[height<=720]+bestaudio/best[height<=720]/bestvideo+bestaudio/best';
-    private const MEDIUM_NON_AV1_FORMAT = 'bestvideo[vcodec!^=av01][height<=720]+bestaudio/best[vcodec!^=av01][height<=720]/bestvideo[vcodec!^=av01]+bestaudio/best[vcodec!^=av01]/bestvideo[height<=720]+bestaudio/best[height<=720]/bestvideo+bestaudio/best';
-    private const MEDIUM_BROWSER_MP4_FORMAT = 'bestvideo[ext=mp4][vcodec^=avc1][height<=720]+bestaudio[ext=m4a]/best[ext=mp4][vcodec^=avc1][acodec^=mp4a][height<=720]/bestvideo[ext=mp4][vcodec^=avc1]+bestaudio[ext=m4a]/best[ext=mp4][vcodec^=avc1][acodec^=mp4a]';
-    private const LOW_FORMAT = 'bestvideo[height<=480]+bestaudio/best[height<=480]/bestvideo+bestaudio/best';
-    private const LOW_NON_AV1_FORMAT = 'bestvideo[vcodec!^=av01][height<=480]+bestaudio/best[vcodec!^=av01][height<=480]/bestvideo[vcodec!^=av01]+bestaudio/best[vcodec!^=av01]/bestvideo[height<=480]+bestaudio/best[height<=480]/bestvideo+bestaudio/best';
-    private const LOW_BROWSER_MP4_FORMAT = 'bestvideo[ext=mp4][vcodec^=avc1][height<=480]+bestaudio[ext=m4a]/best[ext=mp4][vcodec^=avc1][acodec^=mp4a][height<=480]/bestvideo[ext=mp4][vcodec^=avc1]+bestaudio[ext=m4a]/best[ext=mp4][vcodec^=avc1][acodec^=mp4a]';
+    private const string BEST_FORMAT = 'bestvideo+bestaudio/best';
+    private const string BEST_NON_AV1_FORMAT = 'bestvideo[vcodec!^=av01]+bestaudio/best[vcodec!^=av01]';
+    private const string BEST_BROWSER_MP4_FORMAT = 'bestvideo[ext=mp4][vcodec^=avc1]+bestaudio[ext=m4a]/best[ext=mp4][vcodec^=avc1][acodec^=mp4a]/best[ext=mp4]';
+    private const string MEDIUM_FORMAT = 'bestvideo[height<=720]+bestaudio/best[height<=720]/bestvideo+bestaudio/best';
+    private const string MEDIUM_NON_AV1_FORMAT = 'bestvideo[vcodec!^=av01][height<=720]+bestaudio/best[vcodec!^=av01][height<=720]/bestvideo[vcodec!^=av01]+bestaudio/best[vcodec!^=av01]/bestvideo[height<=720]+bestaudio/best[height<=720]/bestvideo+bestaudio/best';
+    private const string MEDIUM_BROWSER_MP4_FORMAT = 'bestvideo[ext=mp4][vcodec^=avc1][height<=720]+bestaudio[ext=m4a]/best[ext=mp4][vcodec^=avc1][acodec^=mp4a][height<=720]/bestvideo[ext=mp4][vcodec^=avc1]+bestaudio[ext=m4a]/best[ext=mp4][vcodec^=avc1][acodec^=mp4a]';
+    private const string LOW_FORMAT = 'bestvideo[height<=480]+bestaudio/best[height<=480]/bestvideo+bestaudio/best';
+    private const string LOW_NON_AV1_FORMAT = 'bestvideo[vcodec!^=av01][height<=480]+bestaudio/best[vcodec!^=av01][height<=480]/bestvideo[vcodec!^=av01]+bestaudio/best[vcodec!^=av01]/bestvideo[height<=480]+bestaudio/best[height<=480]/bestvideo+bestaudio/best';
+    private const string LOW_BROWSER_MP4_FORMAT = 'bestvideo[ext=mp4][vcodec^=avc1][height<=480]+bestaudio[ext=m4a]/best[ext=mp4][vcodec^=avc1][acodec^=mp4a][height<=480]/bestvideo[ext=mp4][vcodec^=avc1]+bestaudio[ext=m4a]/best[ext=mp4][vcodec^=avc1][acodec^=mp4a]';
 
     /** @var list<string> */
-    private array $command;
+    private array $command = ['yt-dlp'];
 
     /**
      * @param list<string> $baseFlags
@@ -27,7 +27,6 @@ final class YtDlpCommandBuilder
         bool $allowPlaylist = false,
         array $baseFlags = ['--no-warnings', '--ignore-config'],
     ) {
-        $this->command = ['yt-dlp'];
         $flags = $baseFlags;
         if (!$allowPlaylist) {
             array_unshift($flags, '--no-playlist');

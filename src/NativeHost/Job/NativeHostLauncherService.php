@@ -9,15 +9,15 @@ use RuntimeException;
 use Symfony\Component\Filesystem\Filesystem;
 use YtdPhp\Runtime\RuntimeBootstrap;
 
-final class NativeHostLauncherService
+final readonly class NativeHostLauncherService
 {
     /**
      * @var Closure(array<int, string>, string): void
      */
-    private readonly Closure $starter;
+    private Closure $starter;
 
     public function __construct(
-        private readonly RuntimeBootstrap $bootstrap,
+        private RuntimeBootstrap $bootstrap,
         ?Closure $starter = null,
     ) {
         $this->starter = $starter ?? $this->makeDefaultStarter();
@@ -40,7 +40,7 @@ final class NativeHostLauncherService
     private function makeDefaultStarter(): Closure
     {
         return function (array $command, string $logPath): void {
-            (new Filesystem())->mkdir(\dirname($logPath));
+            new Filesystem()->mkdir(\dirname($logPath));
 
             $process = \proc_open(
                 $command,

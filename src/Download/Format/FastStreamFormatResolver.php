@@ -23,7 +23,7 @@ final class FastStreamFormatResolver
         $mp4Only = $outputFormat === 'mp4';
         $video = $this->selectBestVideoFormat($formats, $maxHeight, $preferNonAv1, $mp4Only);
         $audio = $this->selectBestAudioFormat($formats, $mp4Only);
-        if ($video === null || $audio === null) {
+        if (!$video instanceof \YtdPhp\Download\Format\FastStreamFormat || !$audio instanceof \YtdPhp\Download\Format\FastStreamFormat) {
             return null;
         }
 
@@ -45,7 +45,7 @@ final class FastStreamFormatResolver
     private function selectBestVideoFormat(array $formats, ?int $maxHeight, bool $preferNonAv1, bool $mp4Only): ?FastStreamFormat
     {
         $preferred = $this->findBestVideoFormat($formats, $maxHeight, $preferNonAv1, $mp4Only);
-        if ($preferred !== null || !$preferNonAv1) {
+        if ($preferred instanceof \YtdPhp\Download\Format\FastStreamFormat || !$preferNonAv1) {
             return $preferred;
         }
 
@@ -61,19 +61,27 @@ final class FastStreamFormatResolver
         $bestScore = -1;
 
         foreach ($formats as $format) {
-            if (!\is_array($format) || !$this->isVideoOnlyFormat($format)) {
+            if (!\is_array($format)) {
                 continue;
             }
-
-            if (($excludeAv1 && $this->isAv1Format($format))
-                || !$this->matchesHeightCap($format, $maxHeight)
-                || ($mp4Only && !$this->isMp4CompatibleVideo($format))) {
+            if (!$this->isVideoOnlyFormat($format)) {
                 continue;
             }
-
+            if ($excludeAv1 && $this->isAv1Format($format)) {
+                continue;
+            }
+            if (!$this->matchesHeightCap($format, $maxHeight)) {
+                continue;
+            }
+            if ($mp4Only && !$this->isMp4CompatibleVideo($format)) {
+                continue;
+            }
             $formatId = $this->formatId($format);
             $extension = $this->extension($format);
-            if ($formatId === null || $extension === null) {
+            if ($formatId === null) {
+                continue;
+            }
+            if ($extension === null) {
                 continue;
             }
 
@@ -96,17 +104,22 @@ final class FastStreamFormatResolver
         $bestScore = -1;
 
         foreach ($formats as $format) {
-            if (!\is_array($format) || !$this->isAudioOnlyFormat($format)) {
+            if (!\is_array($format)) {
                 continue;
             }
-
+            if (!$this->isAudioOnlyFormat($format)) {
+                continue;
+            }
             if ($mp4Only && !$this->isMp4CompatibleAudio($format)) {
                 continue;
             }
 
             $formatId = $this->formatId($format);
             $extension = $this->extension($format);
-            if ($formatId === null || $extension === null) {
+            if ($formatId === null) {
+                continue;
+            }
+            if ($extension === null) {
                 continue;
             }
 

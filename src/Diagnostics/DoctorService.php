@@ -102,13 +102,7 @@ final readonly class DoctorService
         try {
             $routingConfig = $this->routingService->loadRoutingConfig($rulesPath);
             $results[] = new DoctorResult(self::STATUS_OK, 'Маршрутизация прокси загружается', $routingConfig->path);
-            $hasGlobalFallback = false;
-            foreach ($routingConfig->orderedRules as $rule) {
-                if ($rule->pattern === '*') {
-                    $hasGlobalFallback = true;
-                    break;
-                }
-            }
+            $hasGlobalFallback = array_any($routingConfig->orderedRules, fn($rule): bool => $rule->pattern === '*');
             if (!$hasGlobalFallback) {
                 $results[] = new DoctorResult(
                     self::STATUS_WARN,

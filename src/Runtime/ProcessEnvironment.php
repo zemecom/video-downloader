@@ -35,10 +35,15 @@ final class ProcessEnvironment
 
         $ordered = [];
         foreach (\array_merge($preferred, $segments) as $segment) {
-            if (!\is_string($segment) || $segment === '' || isset($ordered[$segment])) {
+            if (!\is_string($segment)) {
                 continue;
             }
-
+            if ($segment === '') {
+                continue;
+            }
+            if (isset($ordered[$segment])) {
+                continue;
+            }
             $ordered[$segment] = true;
         }
 

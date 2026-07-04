@@ -149,7 +149,7 @@ final class NativeHostHandlerServiceTest extends TestCase
             $manager = new NativeHostJobManagerService(
                 $bootstrap,
                 $store,
-                static function (): void {
+                static function (): never {
                     throw new \RuntimeException('process_start_failed');
                 },
                 static function (): void {},
@@ -167,7 +167,7 @@ final class NativeHostHandlerServiceTest extends TestCase
             self::assertIsString($response->details['jobId'] ?? null);
             self::assertSame(
                 'failed',
-                $store->read((string) $response->details['jobId'])['status'] ?? null,
+                $store->read($response->details['jobId'])['status'] ?? null,
             );
         } finally {
             putenv('YTD_PROJECT_ROOT');
@@ -192,7 +192,7 @@ final class NativeHostHandlerServiceTest extends TestCase
                 static function (): void {},
                 static function (): void {},
                 recentDownloads: $recentDownloads,
-                opener: static function (): void {
+                opener: static function (): never {
                     throw new \RuntimeException('boom');
                 },
                 revealer: static function (): void {},

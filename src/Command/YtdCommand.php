@@ -23,7 +23,7 @@ use YtdPhp\Download\YtDlp\YtDlpGateway;
 
 final class YtdCommand extends Command
 {
-    protected static $defaultName = 'ytd';
+    private static string $defaultName = 'ytd';
 
     public function __construct(
         private readonly RuntimeBootstrap $bootstrap,

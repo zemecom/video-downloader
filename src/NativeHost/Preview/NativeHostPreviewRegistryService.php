@@ -104,7 +104,13 @@ final readonly class NativeHostPreviewRegistryService
             }
 
             $path = $entry['path'] ?? null;
-            if (!is_string($path) || $path === '' || !\file_exists($path)) {
+            if (!is_string($path)) {
+                continue;
+            }
+            if ($path === '') {
+                continue;
+            }
+            if (!\file_exists($path)) {
                 continue;
             }
 
@@ -163,7 +169,7 @@ final readonly class NativeHostPreviewRegistryService
     private function writeAll(array $entries): void
     {
         $path = $this->bootstrap->getNativeHostPreviewRegistryPath();
-        (new Filesystem())->mkdir(\dirname($path));
+        new Filesystem()->mkdir(\dirname($path));
 
         try {
             $encoded = \json_encode($entries, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . PHP_EOL;
@@ -189,7 +195,7 @@ final readonly class NativeHostPreviewRegistryService
     private function withExclusiveLock(Closure $callback): mixed
     {
         $lockPath = $this->bootstrap->getNativeHostPreviewRegistryPath() . '.lock';
-        (new Filesystem())->mkdir(\dirname($lockPath));
+        new Filesystem()->mkdir(\dirname($lockPath));
 
         $handle = \fopen($lockPath, 'c+');
         if (!\is_resource($handle)) {

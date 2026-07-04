@@ -8,7 +8,7 @@ use Normalizer;
 use Symfony\Component\Dotenv\Dotenv;
 use Symfony\Component\Dotenv\Exception\FormatException;
 
-final class RuntimeBootstrap
+final readonly class RuntimeBootstrap
 {
     public const string LOCAL_PROXY_RULES_FILE = 'proxy_rules.yaml';
 
@@ -27,7 +27,7 @@ final class RuntimeBootstrap
     ];
 
     public function __construct(
-        private readonly ?string $packageRoot = null,
+        private ?string $packageRoot = null,
     ) {}
 
     public function getPackageRoot(): string
@@ -235,7 +235,7 @@ final class RuntimeBootstrap
 
         $normalized = \strtolower(\trim($value));
 
-        return $normalized !== '' && $normalized !== '0' && $normalized !== 'false' && $normalized !== 'no';
+        return !in_array($normalized, ['', '0', 'false', 'no'], true);
     }
 
     public function isYoutubeUrl(string $videoUrl): bool
@@ -267,7 +267,7 @@ final class RuntimeBootstrap
         if (\str_contains($proxyUrl, '@')) {
             $parts = \explode('@', $proxyUrl);
 
-            return (string) end($parts);
+            return end($parts);
         }
 
         if (\str_contains($proxyUrl, '://')) {
@@ -315,9 +315,7 @@ final class RuntimeBootstrap
     {
         $extensionOffset = \strrpos($filename, '.');
         if (
-            $extensionOffset === false
-            || $extensionOffset === 0
-            || $extensionOffset === \strlen($filename) - 1
+            in_array($extensionOffset, [false, 0, \strlen($filename) - 1], true)
         ) {
             return $this->sanitizeTerminalLinkPathComponent($filename, 'download');
         }
@@ -365,7 +363,7 @@ final class RuntimeBootstrap
         }
 
         try {
-            $parsed = (new Dotenv())->parse($contents, $path);
+            $parsed = new Dotenv()->parse($contents, $path);
         } catch (FormatException) {
             return $values;
         }
@@ -465,13 +463,7 @@ final class RuntimeBootstrap
 
     private function hasRuntimeMarker(string $path): bool
     {
-        foreach (self::RUNTIME_MARKERS as $marker) {
-            if (\is_file($path . DIRECTORY_SEPARATOR . $marker)) {
-                return true;
-            }
-        }
-
-        return false;
+        return array_any(self::RUNTIME_MARKERS, fn($marker): bool => \is_file($path . DIRECTORY_SEPARATOR . $marker));
     }
 
     private function normalizePath(string $path): string

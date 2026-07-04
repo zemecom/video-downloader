@@ -35,7 +35,7 @@ final readonly class PlaylistSelectionParser
         }
 
         $indexes = [];
-        $tokens = \array_filter(\array_map('trim', explode(',', $cleaned)), static fn(string $value): bool => $value !== '');
+        $tokens = \array_filter(\array_map(trim(...), explode(',', $cleaned)), static fn(string $value): bool => $value !== '');
         if ($tokens === []) {
             throw new InvalidArgumentException('Пустой выбор.');
         }
@@ -58,7 +58,7 @@ final readonly class PlaylistSelectionParser
             throw new InvalidArgumentException('Не выбрано ни одного ролика.');
         }
 
-        $result = \array_map('intval', array_keys($indexes));
+        $result = \array_map(intval(...), array_keys($indexes));
         sort($result);
 
         return $result;

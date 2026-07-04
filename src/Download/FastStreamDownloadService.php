@@ -224,7 +224,7 @@ final readonly class FastStreamDownloadService
             $this->flushProcessOutput($label, $process, $progress);
         }
 
-        if ($progress !== null) {
+        if ($progress instanceof \YtdPhp\Download\YtDlp\YtDlpProgressRenderer) {
             $progress->finish();
         }
     }
@@ -254,20 +254,14 @@ final readonly class FastStreamDownloadService
      */
     private function hasRunningProcess(array $processes): bool
     {
-        foreach ($processes as $process) {
-            if ($process->isRunning()) {
-                return true;
-            }
-        }
-
-        return false;
+        return array_any($processes, fn($process) => $process->isRunning());
     }
 
     private function flushProcessOutput(string $label, Process $process, ?YtDlpProgressRenderer $progress): void
     {
         $output = $process->getIncrementalOutput();
         if ($output !== '') {
-            if ($progress !== null) {
+            if ($progress instanceof \YtdPhp\Download\YtDlp\YtDlpProgressRenderer) {
                 $progress->consume($label, $output);
             } else {
                 $this->logger->raw($output);
@@ -276,7 +270,7 @@ final readonly class FastStreamDownloadService
 
         $errorOutput = $process->getIncrementalErrorOutput();
         if ($errorOutput !== '') {
-            if ($progress !== null) {
+            if ($progress instanceof \YtdPhp\Download\YtDlp\YtDlpProgressRenderer) {
                 $progress->consume($label, $errorOutput);
             } else {
                 $this->logger->raw($errorOutput);

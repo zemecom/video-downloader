@@ -18,17 +18,17 @@ use YtdPhp\Download\SingleVideoFlowService;
 use YtdPhp\Download\YtDlp\YtDlpClient;
 use YtdPhp\Download\YtDlp\YtDlpGateway;
 
-final class Application
+final readonly class Application
 {
     public function __construct(
-        private readonly RuntimeBootstrap $bootstrap,
-        private readonly ConsoleLogger $logger,
-        private readonly DoctorService $doctorService,
-        private readonly RoutingService $routingService,
-        private readonly YtDlpGateway $ytDlpClient,
-        private readonly PlaylistService $playlistService,
-        private readonly SingleVideoFlowService $singleVideoFlowService,
-        private readonly PlaylistFlowService $playlistFlowService,
+        private RuntimeBootstrap $bootstrap,
+        private ConsoleLogger $logger,
+        private DoctorService $doctorService,
+        private RoutingService $routingService,
+        private YtDlpGateway $ytDlpClient,
+        private PlaylistService $playlistService,
+        private SingleVideoFlowService $singleVideoFlowService,
+        private PlaylistFlowService $playlistFlowService,
     ) {}
 
     public static function createDefault(RuntimeBootstrap $bootstrap): self

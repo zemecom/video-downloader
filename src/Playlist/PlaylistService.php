@@ -26,44 +26,33 @@ final readonly class PlaylistService
     public const string OVERWRITE_SKIP_ALL = 'skip_all';
     public const string OVERWRITE_OVERWRITE_ALL = 'overwrite_all';
     public const string OVERWRITE_CANCEL = 'cancel';
-
-    private RuntimeBootstrap $bootstrap;
-    private DownloaderService $downloader;
-    private ConsoleLogger $logger;
-    private InputPrompter $prompter;
-    private PlaylistSelectionParser $selectionParser;
     private PlaylistDownloadQueueRunner $downloadQueueRunner;
     private PlaylistMetadataService $playlistMetadataService;
     private PlaylistItemPreflightService $itemPreflightService;
 
     public function __construct(
         YtDlpGateway $ytDlpClient,
-        RuntimeBootstrap $bootstrap,
-        DownloaderService $downloader,
-        ConsoleLogger $logger,
-        InputPrompter $prompter,
-        PlaylistSelectionParser $selectionParser = new PlaylistSelectionParser(),
+        private RuntimeBootstrap $bootstrap,
+        private DownloaderService $downloader,
+        private ConsoleLogger $logger,
+        private InputPrompter $prompter,
+        private PlaylistSelectionParser $selectionParser = new PlaylistSelectionParser(),
         ?PlaylistDownloadQueueRunner $downloadQueueRunner = null,
         ?PlaylistPayloadMapper $playlistPayloadMapper = null,
         ?PlaylistMetadataService $playlistMetadataService = null,
         ?PlaylistItemPreflightService $itemPreflightService = null,
     ) {
-        $this->bootstrap = $bootstrap;
-        $this->downloader = $downloader;
-        $this->logger = $logger;
-        $this->prompter = $prompter;
-        $this->selectionParser = $selectionParser;
-        $this->downloadQueueRunner = $downloadQueueRunner ?? new PlaylistDownloadQueueRunner($downloader, $logger);
+        $this->downloadQueueRunner = $downloadQueueRunner ?? new PlaylistDownloadQueueRunner($this->downloader, $this->logger);
         $payloadMapper = $playlistPayloadMapper ?? new PlaylistPayloadMapper();
         $this->playlistMetadataService = $playlistMetadataService ?? new PlaylistMetadataService(
             $ytDlpClient,
-            $logger,
+            $this->logger,
             $payloadMapper,
         );
         $this->itemPreflightService = $itemPreflightService ?? new PlaylistItemPreflightService(
             $ytDlpClient,
-            $bootstrap,
-            $downloader,
+            $this->bootstrap,
+            $this->downloader,
             $payloadMapper,
         );
     }
@@ -252,7 +241,7 @@ final readonly class PlaylistService
             return false;
         }
 
-        (new Filesystem())->mkdir($summary->targetDir);
+        new Filesystem()->mkdir($summary->targetDir);
 
         $workItems = $this->filterWorkItems($summary, $overwritePolicy);
         if ($workItems === []) {

@@ -112,7 +112,7 @@ final readonly class NativeHostPreviewServerCoordinator
     private function withStartupLock(Closure $callback): mixed
     {
         $lockPath = $this->bootstrap->getNativeHostPreviewServerStatePath() . '.startup.lock';
-        (new Filesystem())->mkdir(\dirname($lockPath));
+        new Filesystem()->mkdir(\dirname($lockPath));
 
         $handle = \fopen($lockPath, 'c+');
         if (!\is_resource($handle)) {
@@ -138,7 +138,7 @@ final readonly class NativeHostPreviewServerCoordinator
     {
         return function (): void {
             $logPath = $this->bootstrap->getNativeHostPreviewServerLogPath();
-            (new Filesystem())->mkdir(\dirname($logPath));
+            new Filesystem()->mkdir(\dirname($logPath));
 
             $process = \proc_open(
                 [

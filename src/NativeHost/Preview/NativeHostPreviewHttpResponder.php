@@ -46,7 +46,7 @@ final readonly class NativeHostPreviewHttpResponder
             return $this->response(404, [], 'Not found.');
         }
 
-        $entry = $this->registry->resolve(\rawurldecode((string) $matches['jobId']), $token);
+        $entry = $this->registry->resolve(\rawurldecode($matches['jobId']), $token);
         if (!\is_array($entry)) {
             return $this->response(404, [], 'Not found.');
         }
@@ -161,7 +161,7 @@ final readonly class NativeHostPreviewHttpResponder
 
     private function guessContentType(string $path): string
     {
-        $extension = \strtolower((string) \pathinfo($path, PATHINFO_EXTENSION));
+        $extension = \strtolower(\pathinfo($path, PATHINFO_EXTENSION));
 
         return match ($extension) {
             'mp4', 'm4v' => 'video/mp4',

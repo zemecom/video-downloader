@@ -24,7 +24,7 @@ final readonly class PlaylistFlowService
         }
 
         $summary = $this->playlistService->fetchAndPreparePlaylist($videoUrl, $options);
-        if ($summary === null) {
+        if (!$summary instanceof \YtdPhp\Playlist\Dto\PlaylistSelectionSummary) {
             return Command::FAILURE;
         }
 

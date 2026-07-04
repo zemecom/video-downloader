@@ -1,37 +1,50 @@
 <!doctype html>
 <html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>YTD Preview</title>
+    <link rel="stylesheet" href="preview.css" />
+  </head>
 
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>YTD Preview</title>
-  <link rel="stylesheet" href="preview.css">
-</head>
+  <body>
+    <main class="preview">
+      <header class="header">
+        <div>
+          <div class="eyebrow">YTD</div>
+          <p class="file-path" hidden></p>
+        </div>
+        <div class="actions">
+          <button class="button button-secondary reveal-action" type="button">
+            Finder
+          </button>
+          <button class="button button-secondary open-action" type="button">
+            Открыть файл
+          </button>
+        </div>
+      </header>
 
-<body>
-  <main class="preview">
-    <header class="header">
-      <div>
-        <div class="eyebrow">YTD</div>
-        <p class="file-path" hidden></p>
-      </div>
-      <div class="actions">
-        <button class="button button-secondary reveal-action" type="button">Finder</button>
-        <button class="button button-secondary open-action" type="button">Открыть файл</button>
-      </div>
-    </header>
+      <section class="player-shell">
+        <video
+          class="player"
+          controls
+          playsinline
+          preload="metadata"
+          crossorigin="anonymous"
+        ></video>
+      </section>
 
-    <section class="player-shell">
-      <video class="player" controls playsinline preload="metadata" crossorigin="anonymous"></video>
-    </section>
+      <footer class="footer">
+        <p class="status" role="status" aria-live="polite">Открываю видео...</p>
+        <button
+          class="button button-primary play-action button-hidden"
+          type="button"
+        >
+          Смотреть
+        </button>
+      </footer>
+    </main>
 
-    <footer class="footer">
-      <p class="status" role="status" aria-live="polite">Открываю видео...</p>
-      <button class="button button-primary play-action button-hidden" type="button">Смотреть</button>
-    </footer>
-  </main>
-
-  <script src="preview.js"></script>
-</body>
-
+    <script src="preview.js"></script>
+  </body>
 </html>

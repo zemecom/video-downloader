@@ -78,7 +78,7 @@ PHP);
 
             $exitCode = $runner->run('job-tail', 'https://example.com/watch?v=tail', 'audio');
             $state = $store->read('job-tail');
-            $recentDownloads = (new NativeHostRecentDownloadsStore($bootstrap))->list();
+            $recentDownloads = new NativeHostRecentDownloadsStore($bootstrap)->list();
 
             self::assertSame(0, $exitCode);
             self::assertSame(\realpath($root . '/downloads/final-output.opus'), \realpath((string) ($state['outputPath'] ?? '')));
@@ -205,7 +205,7 @@ PHP,
 
             $process->wait();
             $state = $store->read('job-late-cancel');
-            $recentDownloads = (new NativeHostRecentDownloadsStore($bootstrap))->list();
+            $recentDownloads = new NativeHostRecentDownloadsStore($bootstrap)->list();
 
             self::assertSame(0, $process->getExitCode());
             self::assertSame('completed', $state['status'] ?? null);

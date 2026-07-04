@@ -133,10 +133,15 @@ final class ArchitectureNamespacesTest extends TestCase
         $files = [];
         $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($directory));
         foreach ($iterator as $file) {
-            if (!$file instanceof SplFileInfo || !$file->isFile() || $file->getExtension() !== 'php') {
+            if (!$file instanceof SplFileInfo) {
                 continue;
             }
-
+            if (!$file->isFile()) {
+                continue;
+            }
+            if ($file->getExtension() !== 'php') {
+                continue;
+            }
             $files[] = $file;
         }
 
@@ -156,10 +161,12 @@ final class ArchitectureNamespacesTest extends TestCase
         $files = [];
         $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($directory));
         foreach ($iterator as $file) {
-            if (!$file instanceof SplFileInfo || !$file->isFile()) {
+            if (!$file instanceof SplFileInfo) {
                 continue;
             }
-
+            if (!$file->isFile()) {
+                continue;
+            }
             $files[] = $file;
         }
 

@@ -24,6 +24,6 @@ final readonly class NativeHostLogService
 
     public function appendException(Throwable $error): void
     {
-        $this->append($error->getMessage() . "\n" . (string) $error);
+        $this->append($error->getMessage() . "\n" . $error);
     }
 }

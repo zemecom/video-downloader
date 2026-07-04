@@ -19,40 +19,40 @@ use YtdPhp\Runtime\RuntimeBootstrap;
 use YtdPhp\NativeHost\Protocol\NativeHostRequest;
 use YtdPhp\NativeHost\Protocol\NativeHostResponse;
 
-final class NativeHostJobManagerService
+final readonly class NativeHostJobManagerService
 {
-    private readonly NativeHostRecentDownloadsStore $recentDownloads;
+    private NativeHostRecentDownloadsStore $recentDownloads;
 
     /**
      * @var Closure(string, string, string, string): void
      */
-    private readonly Closure $starter;
+    private Closure $starter;
 
     /**
      * @var Closure(int): void
      */
-    private readonly Closure $signalSender;
+    private Closure $signalSender;
 
     /**
      * @var Closure(string): void
      */
-    private readonly Closure $opener;
+    private Closure $opener;
 
     /**
      * @var Closure(string): void
      */
-    private readonly Closure $revealer;
+    private Closure $revealer;
 
-    private readonly NativeHostPreviewRegistryService $previewRegistry;
+    private NativeHostPreviewRegistryService $previewRegistry;
 
     /**
      * @var Closure(): int
      */
-    private readonly Closure $previewPortResolver;
+    private Closure $previewPortResolver;
 
     public function __construct(
-        private readonly RuntimeBootstrap $bootstrap,
-        private readonly NativeHostJobStateStore $store,
+        private RuntimeBootstrap $bootstrap,
+        private NativeHostJobStateStore $store,
         ?Closure $starter = null,
         ?Closure $signalSender = null,
         ?NativeHostRecentDownloadsStore $recentDownloads = null,
@@ -155,13 +155,13 @@ final class NativeHostJobManagerService
 
             $downloadPid = $state['downloadPid'] ?? null;
             if (\is_int($downloadPid) && $downloadPid > 0) {
-                (new Process(['pkill', '-9', '-P', (string) $downloadPid]))->run();
-                (new Process(['kill', '-9', (string) $downloadPid]))->run();
+                new Process(['pkill', '-9', '-P', (string) $downloadPid])->run();
+                new Process(['kill', '-9', (string) $downloadPid])->run();
             }
 
             $workerPid = $state['workerPid'] ?? null;
             if (\is_int($workerPid) && $workerPid > 0) {
-                (new Process(['kill', '-9', (string) $workerPid]))->run();
+                new Process(['kill', '-9', (string) $workerPid])->run();
             }
         }
 
@@ -250,7 +250,7 @@ final class NativeHostJobManagerService
 
         $path = $entry['path'] ?? null;
         if (\is_string($path) && $path !== '' && \file_exists($path)) {
-            (new Filesystem())->remove($path);
+            new Filesystem()->remove($path);
         }
 
         $this->recentDownloads->remove($entryId);
@@ -308,7 +308,7 @@ final class NativeHostJobManagerService
     private function makeDefaultStarter(): Closure
     {
         return function (string $jobId, string $url, string $mode, string $logPath): void {
-            (new Filesystem())->mkdir(\dirname($logPath));
+            new Filesystem()->mkdir(\dirname($logPath));
 
             $process = proc_open(
                 [
@@ -347,14 +347,14 @@ final class NativeHostJobManagerService
     private function makeDefaultSignalSender(): Closure
     {
         return static function (int $pid): void {
-            (new Process(['pkill', '-TERM', '-P', (string) $pid]))->run();
-            (new Process(['kill', '-TERM', (string) $pid]))->run();
+            new Process(['pkill', '-TERM', '-P', (string) $pid])->run();
+            new Process(['kill', '-TERM', (string) $pid])->run();
         };
     }
 
     private function now(): string
     {
-        return (new DateTimeImmutable())->format(DATE_ATOM);
+        return new DateTimeImmutable()->format(DATE_ATOM);
     }
 
     /**
@@ -415,6 +415,6 @@ final class NativeHostJobManagerService
             new NativeHostPreviewServerStateStore($this->bootstrap),
         );
 
-        return static fn(): int => $coordinator->ensureRunning();
+        return $coordinator->ensureRunning(...);
     }
 }

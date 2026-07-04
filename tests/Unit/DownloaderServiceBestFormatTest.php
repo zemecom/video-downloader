@@ -105,89 +105,89 @@ final class DownloaderServiceBestFormatTest extends TestCase
 
     private function fakeYtDlpScriptThatRejectsYoutubeOnlyBestFormat(): string
     {
-        return <<<'PHP'
-#!/usr/bin/env php
-<?php
-
-$args = $argv;
-array_shift($args);
-
-$metadata = [
-    'title' => 'My Cool Video',
-    'id' => 'abc 123',
-    'ext' => 'webm',
-    'requested_formats' => [
-        ['format_id' => '137'],
-        ['format_id' => '251'],
-    ],
-];
-
-foreach ($args as $index => $arg) {
-    if ($arg === '--load-info-json' && isset($args[$index + 1]) && is_file($args[$index + 1])) {
-        $loaded = json_decode((string) file_get_contents($args[$index + 1]), true);
-        if (is_array($loaded)) {
-            $metadata = array_replace($metadata, $loaded);
+        return <<<'PHP_WRAP'
+        #!/usr/bin/env php
+        <?php
+        
+        $args = $argv;
+        array_shift($args);
+        
+        $metadata = [
+            'title' => 'My Cool Video',
+            'id' => 'abc 123',
+            'ext' => 'webm',
+            'requested_formats' => [
+                ['format_id' => '137'],
+                ['format_id' => '251'],
+            ],
+        ];
+        
+        foreach ($args as $index => $arg) {
+            if ($arg === '--load-info-json' && isset($args[$index + 1]) && is_file($args[$index + 1])) {
+                $loaded = json_decode((string) file_get_contents($args[$index + 1]), true);
+                if (is_array($loaded)) {
+                    $metadata = array_replace($metadata, $loaded);
+                }
+            }
         }
-    }
-}
-
-$outputPath = null;
-$formatCode = null;
-foreach ($args as $index => $arg) {
-    if ($arg === '-o' && isset($args[$index + 1])) {
-        $outputPath = $args[$index + 1];
-    }
-    if ($arg === '-f' && isset($args[$index + 1])) {
-        $formatCode = $args[$index + 1];
-    }
-}
-
-$resolveOutputPath = static function (?string $path) use ($metadata): string {
-    $resolved = (string) $path;
-
-    return str_replace(
-        ['%(title)s', '%(id)s', '%(ext)s'],
-        [
-            (string) ($metadata['title'] ?? ''),
-            (string) ($metadata['id'] ?? ''),
-            (string) ($metadata['ext'] ?? 'mp4'),
-        ],
-        $resolved,
-    );
-};
-
-if (in_array('--dump-json', $args, true)) {
-    fwrite(STDOUT, json_encode($metadata, JSON_UNESCAPED_UNICODE) . PHP_EOL);
-
-    exit(0);
-}
-
-if (in_array('--get-filename', $args, true)) {
-    fwrite(STDOUT, $resolveOutputPath($outputPath) . PHP_EOL);
-
-    exit(0);
-}
-
-if (is_string($formatCode) && str_contains($formatCode, 'vcodec!^=av01')) {
-    fwrite(STDERR, "ERROR: Requested format is not available\n");
-
-    exit(1);
-}
-
-if (!is_string($outputPath) || $outputPath === '') {
-    fwrite(STDERR, "missing output path\n");
-
-    exit(1);
-}
-
-$resolvedPath = $resolveOutputPath($outputPath);
-$directory = dirname($resolvedPath);
-if (!is_dir($directory)) {
-    mkdir($directory, 0777, true);
-}
-file_put_contents($resolvedPath, 'video-bytes');
-
-exit(0);
-PHP;
+        
+        $outputPath = null;
+        $formatCode = null;
+        foreach ($args as $index => $arg) {
+            if ($arg === '-o' && isset($args[$index + 1])) {
+                $outputPath = $args[$index + 1];
+            }
+            if ($arg === '-f' && isset($args[$index + 1])) {
+                $formatCode = $args[$index + 1];
+            }
+        }
+        
+        $resolveOutputPath = static function (?string $path) use ($metadata): string {
+            $resolved = (string) $path;
+        
+            return str_replace(
+                ['%(title)s', '%(id)s', '%(ext)s'],
+                [
+                    (string) ($metadata['title'] ?? ''),
+                    (string) ($metadata['id'] ?? ''),
+                    (string) ($metadata['ext'] ?? 'mp4'),
+                ],
+                $resolved,
+            );
+        };
+        
+        if (in_array('--dump-json', $args, true)) {
+            fwrite(STDOUT, json_encode($metadata, JSON_UNESCAPED_UNICODE) . PHP_EOL);
+        
+            exit(0);
+        }
+        
+        if (in_array('--get-filename', $args, true)) {
+            fwrite(STDOUT, $resolveOutputPath($outputPath) . PHP_EOL);
+        
+            exit(0);
+        }
+        
+        if (is_string($formatCode) && str_contains($formatCode, 'vcodec!^=av01')) {
+            fwrite(STDERR, "ERROR: Requested format is not available\n");
+        
+            exit(1);
+        }
+        
+        if (!is_string($outputPath) || $outputPath === '') {
+            fwrite(STDERR, "missing output path\n");
+        
+            exit(1);
+        }
+        
+        $resolvedPath = $resolveOutputPath($outputPath);
+        $directory = dirname($resolvedPath);
+        if (!is_dir($directory)) {
+            mkdir($directory, 0777, true);
+        }
+        file_put_contents($resolvedPath, 'video-bytes');
+        
+        exit(0);
+        PHP_WRAP;
     }
 }

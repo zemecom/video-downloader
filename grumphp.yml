@@ -1,0 +1,10 @@
+grumphp:
+    tasks:
+        phpcsfixer:
+            config: .php-cs-fixer.dist.php
+        phpstan:
+            configuration: phpstan.neon
+            memory_limit: "-1"
+        phpunit:
+            config_file: phpunit.xml
+            testsuite: unit

@@ -61,11 +61,7 @@ final readonly class NativeHostJobRunnerService
             $this->bootstrap->getPackageRoot() . '/bin/ytd',
         ];
 
-        if ($mode === 'audio') {
-            $command[] = '--audio';
-        } else {
-            $command[] = '--mp4';
-        }
+        $command[] = $mode === 'audio' ? '--audio' : '--mp4';
 
         $command[] = $url;
 
@@ -123,7 +119,10 @@ final readonly class NativeHostJobRunnerService
                 foreach ($read as $stream) {
                     $index = $stream === $pipes[1] ? 1 : 2;
                     $chunk = \stream_get_contents($stream);
-                    if ($chunk === false || $chunk === '') {
+                    if ($chunk === false) {
+                        continue;
+                    }
+                    if ($chunk === '') {
                         continue;
                     }
 
@@ -285,7 +284,7 @@ final readonly class NativeHostJobRunnerService
     {
         $pid = $state['downloadPid'] ?? null;
         if (\is_int($pid) && $pid > 0) {
-            (new Process(['pkill', '-TERM', '-P', (string) $pid]))->run();
+            new Process(['pkill', '-TERM', '-P', (string) $pid])->run();
         }
 
         \proc_terminate($process);
@@ -321,7 +320,10 @@ final readonly class NativeHostJobRunnerService
      */
     private function isCancelling(string $jobId, array $state): bool
     {
-        return $this->store->cancelRequested($jobId) || ($state['status'] ?? null) === 'cancelling';
+        if ($this->store->cancelRequested($jobId)) {
+            return true;
+        }
+        return ($state['status'] ?? null) === 'cancelling';
     }
 
     /**
@@ -340,12 +342,12 @@ final readonly class NativeHostJobRunnerService
     private function outputPath(array $state): ?string
     {
         return \is_string($state['outputPath'] ?? null) && $state['outputPath'] !== ''
-            ? (string) $state['outputPath']
+            ? $state['outputPath']
             : null;
     }
 
     private function now(): string
     {
-        return (new DateTimeImmutable())->format(DATE_ATOM);
+        return new DateTimeImmutable()->format(DATE_ATOM);
     }
 }

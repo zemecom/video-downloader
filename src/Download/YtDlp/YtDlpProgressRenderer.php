@@ -29,7 +29,7 @@ final class YtDlpProgressRenderer
      * @param list<string> $labels
      */
     public function __construct(
-        private ConsoleLogger $logger,
+        private readonly ConsoleLogger $logger,
         array $labels = ['audio', 'video'],
     ) {
         foreach ($labels as $label) {

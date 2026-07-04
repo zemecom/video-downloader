@@ -69,17 +69,33 @@
     update(payload) {
       this.overlay.hidden = false;
 
-      const status = typeof payload?.status === 'string' ? payload.status : 'starting';
-      const progressText = typeof payload?.progressText === 'string' ? payload.progressText : 'Подготавливаю загрузку...';
-      const progressPercent = typeof payload?.progressPercent === 'number' ? payload.progressPercent : null;
+      const status =
+        typeof payload?.status === 'string' ? payload.status : 'starting';
+      const progressText =
+        typeof payload?.progressText === 'string'
+          ? payload.progressText
+          : 'Подготавливаю загрузку...';
+      const progressPercent =
+        typeof payload?.progressPercent === 'number'
+          ? payload.progressPercent
+          : null;
       const canCancel = Boolean(payload?.canCancel);
-      const nextPreviewUrl = typeof payload?.previewUrl === 'string' && payload.previewUrl !== '' ? payload.previewUrl : null;
-      const nextFilePath = typeof payload?.outputPath === 'string' && payload.outputPath !== '' ? payload.outputPath : '';
-      const previewReady = payload?.previewReady === true && nextPreviewUrl !== null;
+      const nextPreviewUrl =
+        typeof payload?.previewUrl === 'string' && payload.previewUrl !== ''
+          ? payload.previewUrl
+          : null;
+      const nextFilePath =
+        typeof payload?.outputPath === 'string' && payload.outputPath !== ''
+          ? payload.outputPath
+          : '';
+      const previewReady =
+        payload?.previewReady === true && nextPreviewUrl !== null;
 
-      const recentDownloadId = typeof payload?.recentDownloadId === 'string' && payload.recentDownloadId !== ''
-        ? payload.recentDownloadId
-        : null;
+      const recentDownloadId =
+        typeof payload?.recentDownloadId === 'string' &&
+        payload.recentDownloadId !== ''
+          ? payload.recentDownloadId
+          : null;
 
       if (payload.jobId) {
         this.jobId = payload.jobId;
@@ -94,11 +110,19 @@
       }
 
       this.statusNode.textContent = progressText;
-      this.phaseNode.textContent = STATUS_LABELS[status] || STATUS_LABELS.starting;
-      this.percentNode.textContent = progressPercent === null ? '--' : `${Math.round(progressPercent)}%`;
-      
-      this.cancelButton.disabled = this.isTerminalStatus(status) || (!canCancel && status !== 'cancelling');
-      this.cancelButton.textContent = this.isTerminalStatus(status) ? 'Готово' : (status === 'cancelling' ? 'Принудительно остановить' : 'Отменить');
+      this.phaseNode.textContent =
+        STATUS_LABELS[status] || STATUS_LABELS.starting;
+      this.percentNode.textContent =
+        progressPercent === null ? '--' : `${Math.round(progressPercent)}%`;
+
+      this.cancelButton.disabled =
+        this.isTerminalStatus(status) ||
+        (!canCancel && status !== 'cancelling');
+      this.cancelButton.textContent = this.isTerminalStatus(status)
+        ? 'Готово'
+        : status === 'cancelling'
+          ? 'Принудительно остановить'
+          : 'Отменить';
 
       if (this.isTerminalStatus(status)) {
         this.cancelButton.disabled = true;
@@ -116,7 +140,11 @@
         this.playButton.hidden = true;
       }
 
-      if (progressPercent === null || status === 'starting' || status === 'cancelling') {
+      if (
+        progressPercent === null ||
+        status === 'starting' ||
+        status === 'cancelling'
+      ) {
         this.fillNode.dataset.indeterminate = 'true';
         this.fillNode.style.width = '38%';
       } else {
@@ -126,7 +154,9 @@
     }
 
     isTerminalStatus(status) {
-      return status === 'completed' || status === 'failed' || status === 'cancelled';
+      return (
+        status === 'completed' || status === 'failed' || status === 'cancelled'
+      );
     }
 
     startAutoHide(delayMs) {
@@ -144,7 +174,11 @@
       }
     }
 
-    async requestPreviewPage(nextPreviewUrl, nextRecentDownloadId, nextFilePath = '') {
+    async requestPreviewPage(
+      nextPreviewUrl,
+      nextRecentDownloadId,
+      nextFilePath = ''
+    ) {
       this.stopAutoHide();
       this.overlay.hidden = true;
       await this.sendRuntimeMessage({
@@ -181,14 +215,20 @@
 
   try {
     const response = await new Promise((resolve) => {
-      chrome.runtime.sendMessage({ type: 'ytd:get-overlay-resources' }, resolve);
+      chrome.runtime.sendMessage(
+        { type: 'ytd:get-overlay-resources' },
+        resolve
+      );
     });
-    
+
     if (chrome.runtime.lastError || !response?.html) {
-      console.error('YTD Overlay failed to load resources:', chrome.runtime.lastError);
+      console.error(
+        'YTD Overlay failed to load resources:',
+        chrome.runtime.lastError
+      );
       return;
     }
-    
+
     shadowRoot.innerHTML = `<style>\n${response.css}\n</style>\n${response.html}`;
   } catch (error) {
     console.error('YTD Overlay failed to load resources:', error);

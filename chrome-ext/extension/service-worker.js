@@ -36,7 +36,8 @@ const TITLES = {
 const MESSAGES = {
   accepted: 'Ссылка отправлена в локальный downloader.',
   invalid_url: 'Chrome передал некорректный URL вкладки.',
-  host_not_found: 'Установи native host или переустанови его с правильным extension ID.',
+  host_not_found:
+    'Установи native host или переустанови его с правильным extension ID.',
   spawn_failed: 'Локальный downloader не удалось запустить.',
   unsupported_page: 'Работают только обычные http/https-вкладки.',
   unexpected_error: 'Native host вернул неожиданный ответ.',
@@ -124,7 +125,12 @@ class DownloadManager {
   }
 
   async doPoll(generation) {
-    console.log('[YTD] doPoll executing, generation:', generation, 'activeJobId:', this.activeJobId);
+    console.log(
+      '[YTD] doPoll executing, generation:',
+      generation,
+      'activeJobId:',
+      this.activeJobId
+    );
     if (generation !== this.pollGeneration || !this.activeJobId) {
       console.log('[YTD] doPoll aborted (generation mismatch or no job ID)');
       return;
@@ -150,7 +156,8 @@ class DownloadManager {
         const terminalPayload = {
           status: 'failed',
           progressPercent: null,
-          progressText: 'Связь с загрузкой потеряна (возможно файл был удалён).',
+          progressText:
+            'Связь с загрузкой потеряна (возможно файл был удалён).',
           canCancel: false,
         };
         this.broadcast(terminalPayload);
@@ -165,7 +172,10 @@ class DownloadManager {
     this.broadcast(payload);
 
     if (isTerminalStatus(payload.status)) {
-      console.log('[YTD] Terminal status reached, stopping poll:', payload.status);
+      console.log(
+        '[YTD] Terminal status reached, stopping poll:',
+        payload.status
+      );
       this.stopPolling();
       return;
     }
@@ -189,14 +199,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message?.type === 'ytd:get-overlay-resources') {
     Promise.all([
-      fetch(chrome.runtime.getURL('overlay.html')).then(res => res.text()),
-      fetch(chrome.runtime.getURL('overlay.css')).then(res => res.text())
-    ]).then(([html, css]) => {
-      sendResponse({ html, css });
-    }).catch(err => {
-      console.warn('[YTD] Failed to read resources:', err);
-      sendResponse({ html: '', css: '' });
-    });
+      fetch(chrome.runtime.getURL('overlay.html')).then((res) => res.text()),
+      fetch(chrome.runtime.getURL('overlay.css')).then((res) => res.text()),
+    ])
+      .then(([html, css]) => {
+        sendResponse({ html, css });
+      })
+      .catch((err) => {
+        console.warn('[YTD] Failed to read resources:', err);
+        sendResponse({ html: '', css: '' });
+      });
     return true;
   }
 
@@ -284,7 +296,10 @@ async function startDownload(message) {
     jobId: 'pending',
     status: 'starting',
     progressPercent: null,
-    progressText: mode === 'audio' ? 'Подготавливаю загрузку аудио...' : 'Подготавливаю загрузку...',
+    progressText:
+      mode === 'audio'
+        ? 'Подготавливаю загрузку аудио...'
+        : 'Подготавливаю загрузку...',
     canCancel: false,
     mode,
     url,
@@ -306,11 +321,12 @@ async function startDownload(message) {
   if (!response.ok) {
     console.warn('[YTD] start_download failed:', response);
     const code = response.errorCode || 'unexpected_error';
-    const messageText = code === 'unexpected_error'
-      ? (response.errorMessage || MESSAGES.unexpected_error)
-      : (MESSAGES[code] || response.errorMessage || MESSAGES.unexpected_error);
+    const messageText =
+      code === 'unexpected_error'
+        ? response.errorMessage || MESSAGES.unexpected_error
+        : MESSAGES[code] || response.errorMessage || MESSAGES.unexpected_error;
     notify(code, messageText);
-    
+
     const errorPayload = {
       jobId: 'pending',
       status: 'failed',
@@ -320,7 +336,7 @@ async function startDownload(message) {
     };
     await rememberActiveDownload(errorPayload);
     downloadManager.broadcast(errorPayload);
-    
+
     return {
       ok: false,
       errorCode: code,
@@ -334,7 +350,7 @@ async function startDownload(message) {
     mode,
     url,
   });
-  
+
   downloadManager.broadcast(payload);
   downloadManager.startPolling(payload.jobId);
 
@@ -396,7 +412,7 @@ async function cancelDownload(message) {
     if (response.errorCode === 'job_not_found') {
       await forgetActiveDownload(jobId);
       downloadManager.stopPolling();
-      
+
       const payload = {
         status: 'cancelled',
         progressPercent: null,
@@ -436,7 +452,10 @@ async function previewRecentDownload(message) {
     return response;
   }
 
-  if (typeof response.payload?.previewUrl !== 'string' || response.payload.previewUrl === '') {
+  if (
+    typeof response.payload?.previewUrl !== 'string' ||
+    response.payload.previewUrl === ''
+  ) {
     return {
       ok: false,
       errorCode: 'unexpected_error',
@@ -447,15 +466,23 @@ async function previewRecentDownload(message) {
   return openPreviewPage({
     previewUrl: response.payload.previewUrl,
     recentDownloadId: response.payload?.recentDownloadId ?? entryId,
-    filePath: normalizeText(response.payload?.filePath) || normalizeText(message?.filePath),
+    filePath:
+      normalizeText(response.payload?.filePath) ||
+      normalizeText(message?.filePath),
     originTabId,
   });
 }
 
 async function openPreviewPage(message, sender = null) {
-  const previewUrl = typeof message?.previewUrl === 'string' ? message.previewUrl : '';
-  const recentDownloadId = typeof message?.recentDownloadId === 'string' ? message.recentDownloadId : '';
-  const filePath = normalizeText(message?.filePath) || await findRecentDownloadPath(recentDownloadId);
+  const previewUrl =
+    typeof message?.previewUrl === 'string' ? message.previewUrl : '';
+  const recentDownloadId =
+    typeof message?.recentDownloadId === 'string'
+      ? message.recentDownloadId
+      : '';
+  const filePath =
+    normalizeText(message?.filePath) ||
+    (await findRecentDownloadPath(recentDownloadId));
   const originTabId = resolveYoutubeOriginTabId(message, sender);
   if (previewUrl === '') {
     return {
@@ -477,7 +504,9 @@ async function openPreviewPage(message, sender = null) {
   });
 
   await chrome.tabs.create({
-    url: chrome.runtime.getURL(`preview.html?id=${encodeURIComponent(previewId)}`),
+    url: chrome.runtime.getURL(
+      `preview.html?id=${encodeURIComponent(previewId)}`
+    ),
     active: true,
   });
 
@@ -501,14 +530,17 @@ async function findRecentDownloadPath(recentDownloadId) {
     return '';
   }
 
-  const items = Array.isArray(response.payload?.items) ? response.payload.items : [];
+  const items = Array.isArray(response.payload?.items)
+    ? response.payload.items
+    : [];
   const entry = items.find((item) => item?.id === recentDownloadId);
 
   return normalizeText(entry?.path);
 }
 
 async function getRecentDownloadPath(message) {
-  const recentDownloadId = typeof message?.entryId === 'string' ? message.entryId : '';
+  const recentDownloadId =
+    typeof message?.entryId === 'string' ? message.entryId : '';
   const filePath = await findRecentDownloadPath(recentDownloadId);
 
   return {
@@ -520,7 +552,9 @@ async function getRecentDownloadPath(message) {
 }
 
 async function pauseOriginVideo(message) {
-  const originTabId = Number.isInteger(message?.originTabId) ? message.originTabId : null;
+  const originTabId = Number.isInteger(message?.originTabId)
+    ? message.originTabId
+    : null;
   if (!Number.isInteger(originTabId)) {
     return {
       ok: true,
@@ -566,10 +600,15 @@ function resolveYoutubeOriginTabId(message, sender = null) {
 
   const tabId = Number.isInteger(message?.tabId)
     ? message.tabId
-    : (Number.isInteger(sender?.tab?.id) ? sender.tab.id : null);
-  const url = typeof message?.url === 'string'
-    ? message.url
-    : (typeof sender?.tab?.url === 'string' ? sender.tab.url : '');
+    : Number.isInteger(sender?.tab?.id)
+      ? sender.tab.id
+      : null;
+  const url =
+    typeof message?.url === 'string'
+      ? message.url
+      : typeof sender?.tab?.url === 'string'
+        ? sender.tab.url
+        : '';
 
   return Number.isInteger(tabId) && isYoutubeUrl(url) ? tabId : null;
 }
@@ -582,7 +621,9 @@ async function readActiveDownload() {
   const items = await chrome.storage.session.get(ACTIVE_DOWNLOAD_KEY);
   const activeDownload = items[ACTIVE_DOWNLOAD_KEY];
 
-  return activeDownload && typeof activeDownload === 'object' ? activeDownload : null;
+  return activeDownload && typeof activeDownload === 'object'
+    ? activeDownload
+    : null;
 }
 
 async function rememberActiveDownload(payload) {
@@ -599,15 +640,55 @@ async function rememberActiveDownload(payload) {
       jobId,
       mode: payload?.mode === 'audio' ? 'audio' : 'video',
       status: normalizeText(payload?.status) || 'starting',
-      progressText: typeof payload?.progressText === 'string' ? payload.progressText : (isExistingDownload ? existing?.progressText : ''),
-      progressPercent: typeof payload?.progressPercent === 'number' ? payload.progressPercent : (isExistingDownload ? existing?.progressPercent : null),
-      canCancel: typeof payload?.canCancel === 'boolean' ? payload.canCancel : (isExistingDownload ? existing?.canCancel : false),
-      previewReady: typeof payload?.previewReady === 'boolean' ? payload.previewReady : (isExistingDownload ? existing?.previewReady : false),
-      previewUrl: typeof payload?.previewUrl === 'string' ? payload.previewUrl : (isExistingDownload ? existing?.previewUrl : ''),
-      outputPath: typeof payload?.outputPath === 'string' ? payload.outputPath : (isExistingDownload ? existing?.outputPath : ''),
-      recentDownloadId: typeof payload?.recentDownloadId === 'string' ? payload.recentDownloadId : (isExistingDownload ? existing?.recentDownloadId : ''),
-      url: normalizeText(payload?.url) || (isExistingDownload ? normalizeText(existing?.url) : ''),
-      startedAt: isExistingDownload && Number.isFinite(existing?.startedAt) ? existing.startedAt : Date.now(),
+      progressText:
+        typeof payload?.progressText === 'string'
+          ? payload.progressText
+          : isExistingDownload
+            ? existing?.progressText
+            : '',
+      progressPercent:
+        typeof payload?.progressPercent === 'number'
+          ? payload.progressPercent
+          : isExistingDownload
+            ? existing?.progressPercent
+            : null,
+      canCancel:
+        typeof payload?.canCancel === 'boolean'
+          ? payload.canCancel
+          : isExistingDownload
+            ? existing?.canCancel
+            : false,
+      previewReady:
+        typeof payload?.previewReady === 'boolean'
+          ? payload.previewReady
+          : isExistingDownload
+            ? existing?.previewReady
+            : false,
+      previewUrl:
+        typeof payload?.previewUrl === 'string'
+          ? payload.previewUrl
+          : isExistingDownload
+            ? existing?.previewUrl
+            : '',
+      outputPath:
+        typeof payload?.outputPath === 'string'
+          ? payload.outputPath
+          : isExistingDownload
+            ? existing?.outputPath
+            : '',
+      recentDownloadId:
+        typeof payload?.recentDownloadId === 'string'
+          ? payload.recentDownloadId
+          : isExistingDownload
+            ? existing?.recentDownloadId
+            : '',
+      url:
+        normalizeText(payload?.url) ||
+        (isExistingDownload ? normalizeText(existing?.url) : ''),
+      startedAt:
+        isExistingDownload && Number.isFinite(existing?.startedAt)
+          ? existing.startedAt
+          : Date.now(),
       updatedAt: Date.now(),
     },
   });
@@ -631,7 +712,9 @@ function createPreviewId() {
   const bytes = new Uint8Array(16);
   globalThis.crypto.getRandomValues(bytes);
 
-  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join(
+    ''
+  );
 }
 
 function isSupportedTabUrl(url) {
@@ -656,10 +739,12 @@ function isYoutubeUrl(url) {
   try {
     const hostname = new URL(url).hostname.toLowerCase();
 
-    return hostname === 'youtube.com'
-      || hostname === 'youtu.be'
-      || hostname.endsWith('.youtube.com')
-      || hostname.endsWith('.youtu.be');
+    return (
+      hostname === 'youtube.com' ||
+      hostname === 'youtu.be' ||
+      hostname.endsWith('.youtube.com') ||
+      hostname.endsWith('.youtu.be')
+    );
   } catch {
     return false;
   }
@@ -672,7 +757,11 @@ function mapRuntimeError(message) {
     return 'host_not_found';
   }
 
-  if (normalized.includes('access to the specified native messaging host is forbidden')) {
+  if (
+    normalized.includes(
+      'access to the specified native messaging host is forbidden'
+    )
+  ) {
     return 'host_not_found';
   }
 
@@ -681,7 +770,8 @@ function mapRuntimeError(message) {
 
 function notify(code, messageOverride) {
   const title = TITLES[code] || TITLES.unexpected_error;
-  const message = messageOverride || MESSAGES[code] || MESSAGES.unexpected_error;
+  const message =
+    messageOverride || MESSAGES[code] || MESSAGES.unexpected_error;
 
   chrome.notifications.create({
     type: 'basic',
@@ -711,7 +801,9 @@ function sendTabMessage(tabId, payload) {
 }
 
 function isTerminalStatus(status) {
-  return status === 'completed' || status === 'failed' || status === 'cancelled';
+  return (
+    status === 'completed' || status === 'failed' || status === 'cancelled'
+  );
 }
 
 function callNativeHost(payload) {
@@ -741,8 +833,14 @@ function callNativeHost(payload) {
       if (response.ok === false) {
         resolve({
           ok: false,
-          errorCode: typeof response.code === 'string' ? response.code : 'unexpected_error',
-          errorMessage: typeof response.message === 'string' ? response.message : MESSAGES.unexpected_error,
+          errorCode:
+            typeof response.code === 'string'
+              ? response.code
+              : 'unexpected_error',
+          errorMessage:
+            typeof response.message === 'string'
+              ? response.message
+              : MESSAGES.unexpected_error,
           payload: response,
         });
 
