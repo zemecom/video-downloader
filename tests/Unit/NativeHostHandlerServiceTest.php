@@ -6,11 +6,11 @@ namespace YtdPhp\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
 use YtdPhp\Runtime\RuntimeBootstrap;
-use YtdPhp\NativeHost\NativeHostHandlerService;
-use YtdPhp\NativeHost\NativeHostJobManagerService;
-use YtdPhp\NativeHost\NativeHostRecentDownloadsStore;
-use YtdPhp\NativeHost\NativeHostJobStateStore;
-use YtdPhp\NativeHost\NativeHostLogService;
+use YtdPhp\NativeHost\Protocol\NativeHostHandlerService;
+use YtdPhp\NativeHost\Job\NativeHostJobManagerService;
+use YtdPhp\NativeHost\Store\NativeHostRecentDownloadsStore;
+use YtdPhp\NativeHost\Store\NativeHostJobStateStore;
+use YtdPhp\NativeHost\Log\NativeHostLogService;
 
 final class NativeHostHandlerServiceTest extends TestCase
 {

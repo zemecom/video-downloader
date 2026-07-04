@@ -6,7 +6,7 @@ namespace YtdPhp\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
 use YtdPhp\Runtime\RuntimeBootstrap;
-use YtdPhp\NativeHost\NativeHostRecentDownloadsStore;
+use YtdPhp\NativeHost\Store\NativeHostRecentDownloadsStore;
 
 use const JSON_THROW_ON_ERROR;
 

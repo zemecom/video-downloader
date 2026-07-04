@@ -19,7 +19,7 @@ use YtdPhp\Playlist\PlaylistFlowService;
 use YtdPhp\Playlist\PlaylistService;
 use YtdPhp\Routing\RoutingService;
 use YtdPhp\Download\SingleVideoFlowService;
-use YtdPhp\Download\YtDlpGateway;
+use YtdPhp\Download\YtDlp\YtDlpGateway;
 
 final class YtdCommand extends Command
 {

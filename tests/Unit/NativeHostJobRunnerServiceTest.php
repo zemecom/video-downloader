@@ -7,10 +7,10 @@ namespace YtdPhp\Tests\Unit;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Process\Process;
 use YtdPhp\Runtime\RuntimeBootstrap;
-use YtdPhp\NativeHost\NativeHostJobRunnerService;
-use YtdPhp\NativeHost\NativeHostJobStateStore;
-use YtdPhp\NativeHost\NativeHostProgressParserService;
-use YtdPhp\NativeHost\NativeHostRecentDownloadsStore;
+use YtdPhp\NativeHost\Job\NativeHostJobRunnerService;
+use YtdPhp\NativeHost\Store\NativeHostJobStateStore;
+use YtdPhp\NativeHost\Job\NativeHostProgressParserService;
+use YtdPhp\NativeHost\Store\NativeHostRecentDownloadsStore;
 
 final class NativeHostJobRunnerServiceTest extends TestCase
 {
@@ -115,11 +115,11 @@ require %s;
 putenv(%s);
 $root = %s;
 $bootstrap = new \YtdPhp\Runtime\RuntimeBootstrap($root);
-$runner = new \YtdPhp\NativeHost\NativeHostJobRunnerService(
+$runner = new \YtdPhp\NativeHost\Job\NativeHostJobRunnerService(
     $bootstrap,
-    new \YtdPhp\NativeHost\NativeHostJobStateStore($bootstrap),
-    new \YtdPhp\NativeHost\NativeHostProgressParserService(),
-    new \YtdPhp\NativeHost\NativeHostRecentDownloadsStore($bootstrap),
+    new \YtdPhp\NativeHost\Store\NativeHostJobStateStore($bootstrap),
+    new \YtdPhp\NativeHost\Job\NativeHostProgressParserService(),
+    new \YtdPhp\NativeHost\Store\NativeHostRecentDownloadsStore($bootstrap),
 );
 exit($runner->run('job-cancel', 'https://example.com/watch?v=cancel', 'video'));
 PHP,
@@ -182,11 +182,11 @@ require %s;
 putenv(%s);
 $root = %s;
 $bootstrap = new \YtdPhp\Runtime\RuntimeBootstrap($root);
-$runner = new \YtdPhp\NativeHost\NativeHostJobRunnerService(
+$runner = new \YtdPhp\NativeHost\Job\NativeHostJobRunnerService(
     $bootstrap,
-    new \YtdPhp\NativeHost\NativeHostJobStateStore($bootstrap),
-    new \YtdPhp\NativeHost\NativeHostProgressParserService(),
-    new \YtdPhp\NativeHost\NativeHostRecentDownloadsStore($bootstrap),
+    new \YtdPhp\NativeHost\Store\NativeHostJobStateStore($bootstrap),
+    new \YtdPhp\NativeHost\Job\NativeHostProgressParserService(),
+    new \YtdPhp\NativeHost\Store\NativeHostRecentDownloadsStore($bootstrap),
 );
 exit($runner->run('job-late-cancel', 'https://example.com/watch?v=late-cancel', 'video'));
 PHP,

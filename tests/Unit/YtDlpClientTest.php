@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace YtdPhp\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
-use YtdPhp\Download\YtDlpClient;
+use YtdPhp\Download\YtDlp\YtDlpClient;
 use YtdPhp\Runtime\ProcessEnvironment;
 
 final class YtDlpClientTest extends TestCase

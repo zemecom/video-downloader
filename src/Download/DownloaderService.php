@@ -4,6 +4,17 @@ declare(strict_types=1);
 
 namespace YtdPhp\Download;
 
+use YtdPhp\Download\YtDlp\YtDlpCommandBuilder;
+use YtdPhp\Download\YtDlp\YtDlpGateway;
+use YtdPhp\Download\Format\AutomaticFormatResolver;
+use YtdPhp\Download\Format\FastStreamFormatResolver;
+use YtdPhp\Download\Metadata\DownloadMetadata;
+use YtdPhp\Download\Metadata\DownloadMetadataService;
+use YtdPhp\Download\Process\DownloadProcessRunner;
+use YtdPhp\Download\Process\DownloadOutputFormatter;
+use YtdPhp\Download\Process\DownloadArtifactCleaner;
+use YtdPhp\Download\Process\DownloadTemporaryStorage;
+use YtdPhp\Download\Process\ExpectedOutputResolver;
 use Symfony\Component\Process\Process;
 use YtdPhp\Runtime\RuntimeBootstrap;
 use YtdPhp\Shared\ConsoleLogger;

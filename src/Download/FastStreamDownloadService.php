@@ -4,6 +4,14 @@ declare(strict_types=1);
 
 namespace YtdPhp\Download;
 
+use YtdPhp\Download\YtDlp\YtDlpCommandBuilder;
+use YtdPhp\Download\YtDlp\YtDlpGateway;
+use YtdPhp\Download\YtDlp\YtDlpProgressRenderer;
+use YtdPhp\Download\Format\FastStreamFormatPair;
+use YtdPhp\Download\Process\DownloadProcessRunner;
+use YtdPhp\Download\Process\DownloadOutputFormatter;
+use YtdPhp\Download\Process\DownloadArtifactCleaner;
+use YtdPhp\Download\Process\DownloadTemporaryStorage;
 use LogicException;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Process\Process;

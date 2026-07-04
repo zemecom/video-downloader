@@ -4,9 +4,18 @@ declare(strict_types=1);
 
 namespace YtdPhp\Playlist;
 
+use YtdPhp\Playlist\Dto\PlaylistInfo;
+use YtdPhp\Playlist\Dto\PlaylistItem;
+use YtdPhp\Playlist\Dto\PlaylistSelectionSummary;
+use YtdPhp\Playlist\Dto\PlaylistDownloadWorkItem;
+use YtdPhp\Playlist\Dto\SelectedItemMetadata;
+use YtdPhp\Playlist\Metadata\PlaylistMetadataService;
+use YtdPhp\Playlist\Metadata\PlaylistPayloadMapper;
+use YtdPhp\Playlist\Metadata\PlaylistItemPreflightService;
+use YtdPhp\Playlist\Metadata\PlaylistSelectionParser;
 use Symfony\Component\Filesystem\Filesystem;
 use YtdPhp\Download\DownloaderService;
-use YtdPhp\Download\YtDlpGateway;
+use YtdPhp\Download\YtDlp\YtDlpGateway;
 use YtdPhp\Runtime\RuntimeBootstrap;
 use YtdPhp\Runtime\RuntimeOptions;
 use YtdPhp\Shared\ConsoleLogger;

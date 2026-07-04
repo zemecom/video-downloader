@@ -6,7 +6,7 @@ namespace YtdPhp\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
 use YtdPhp\Runtime\RuntimeBootstrap;
-use YtdPhp\NativeHost\NativeHostJobStateStore;
+use YtdPhp\NativeHost\Store\NativeHostJobStateStore;
 
 final class NativeHostJobStateStoreTest extends TestCase
 {

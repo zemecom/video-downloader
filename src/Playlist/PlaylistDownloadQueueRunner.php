@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace YtdPhp\Playlist;
 
+use YtdPhp\Playlist\Dto\PlaylistSelectionSummary;
+use YtdPhp\Playlist\Dto\PlaylistDownloadWorkItem;
+use YtdPhp\Playlist\Dto\PlaylistRunningDownload;
+use YtdPhp\Playlist\Dto\SelectedItemMetadata;
 use YtdPhp\Download\DownloaderService;
 use YtdPhp\Download\DownloadOptions;
 use YtdPhp\Download\DownloadResult;

@@ -19,7 +19,7 @@ use YtdPhp\Playlist\PlaylistFlowService;
 use YtdPhp\Playlist\PlaylistService;
 use YtdPhp\Routing\RoutingService;
 use YtdPhp\Download\SingleVideoFlowService;
-use YtdPhp\Download\YtDlpClient;
+use YtdPhp\Download\YtDlp\YtDlpClient;
 
 final class YtdCommandTest extends TestCase
 {

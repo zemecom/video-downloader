@@ -6,16 +6,16 @@ namespace YtdPhp\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
 use YtdPhp\Runtime\RuntimeBootstrap;
-use YtdPhp\Playlist\PlaylistInfo;
-use YtdPhp\Playlist\PlaylistItem;
-use YtdPhp\Playlist\PlaylistSelectionSummary;
+use YtdPhp\Playlist\Dto\PlaylistInfo;
+use YtdPhp\Playlist\Dto\PlaylistItem;
+use YtdPhp\Playlist\Dto\PlaylistSelectionSummary;
 use YtdPhp\Runtime\RuntimeOptions;
-use YtdPhp\Playlist\SelectedItemMetadata;
+use YtdPhp\Playlist\Dto\SelectedItemMetadata;
 use YtdPhp\Shared\ConsoleLogger;
 use YtdPhp\Download\DownloaderService;
 use YtdPhp\Shared\InputPrompter;
 use YtdPhp\Playlist\PlaylistService;
-use YtdPhp\Download\YtDlpClient;
+use YtdPhp\Download\YtDlp\YtDlpClient;
 
 final class PlaylistServiceTest extends TestCase
 {

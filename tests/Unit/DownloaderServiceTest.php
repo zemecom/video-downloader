@@ -10,7 +10,7 @@ use YtdPhp\Runtime\RuntimeBootstrap;
 use YtdPhp\Shared\ConsoleLogger;
 use YtdPhp\Download\DownloaderService;
 use YtdPhp\Shared\InputPrompter;
-use YtdPhp\Download\YtDlpClient;
+use YtdPhp\Download\YtDlp\YtDlpClient;
 use YtdPhp\Tests\Support\FakeDownloaderBinaries;
 
 final class DownloaderServiceTest extends TestCase

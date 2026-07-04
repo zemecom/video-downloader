@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace YtdPhp\Download;
 
+use YtdPhp\Download\YtDlp\YtDlpGateway;
 use Symfony\Component\Console\Command\Command;
 use YtdPhp\Runtime\RuntimeOptions;
 use YtdPhp\Shared\ConsoleLogger;

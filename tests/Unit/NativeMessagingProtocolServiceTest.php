@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace YtdPhp\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
-use YtdPhp\NativeHost\NativeMessagingProtocolService;
+use YtdPhp\NativeHost\Protocol\NativeMessagingProtocolService;
 
 final class NativeMessagingProtocolServiceTest extends TestCase
 {

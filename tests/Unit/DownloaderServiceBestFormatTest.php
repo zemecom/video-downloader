@@ -9,7 +9,7 @@ use YtdPhp\Runtime\RuntimeBootstrap;
 use YtdPhp\Shared\ConsoleLogger;
 use YtdPhp\Download\DownloaderService;
 use YtdPhp\Shared\InputPrompter;
-use YtdPhp\Download\YtDlpClient;
+use YtdPhp\Download\YtDlp\YtDlpClient;
 
 final class DownloaderServiceBestFormatTest extends TestCase
 {

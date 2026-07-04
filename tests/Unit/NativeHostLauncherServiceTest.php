@@ -6,7 +6,7 @@ namespace YtdPhp\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
 use YtdPhp\Runtime\RuntimeBootstrap;
-use YtdPhp\NativeHost\NativeHostLauncherService;
+use YtdPhp\NativeHost\Job\NativeHostLauncherService;
 
 final class NativeHostLauncherServiceTest extends TestCase
 {
