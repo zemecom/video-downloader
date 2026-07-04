@@ -26,6 +26,7 @@ final class NativeHostJobRunnerServiceTest extends TestCase
         self::assertStringNotContainsString('use YtdPhp\\NativeHost\\NativeHostProgressParserService;', $script);
         self::assertStringNotContainsString('use YtdPhp\\NativeHost\\NativeHostJobStateStore;', $script);
         self::assertStringNotContainsString('use YtdPhp\\NativeHost\\NativeHostRecentDownloadsStore;', $script);
+        self::assertStringNotContainsString('use YtdPhp\\NativeHost\\NativeHostRecentDownloadsStore;', $script);
     }
 
     public function testRunForVideoInvokesCliWithMp4FlagForBrowserPreview(): void
