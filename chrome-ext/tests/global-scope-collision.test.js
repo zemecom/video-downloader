@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
-const EXTENSION_DIR = path.join(__dirname, 'extension');
+const EXTENSION_DIR = path.join(__dirname, '..', 'extension');
 
 // Игнорируем асинхронные ошибки (например, проблемы с моками DOM API в промисах),
 // так как нас интересует исключительно парсинг и коллизии области видимости (SyntaxError).

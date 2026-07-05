@@ -5,7 +5,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 const scriptSource = fs.readFileSync(
-  path.join(__dirname, 'extension', 'shared', 'recent-downloads-ui.js'),
+  path.join(__dirname, '..', 'extension', 'shared', 'recent-downloads-ui.js'),
   'utf8'
 );
 const sandbox = {
