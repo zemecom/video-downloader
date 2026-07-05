@@ -21,9 +21,9 @@
       transparent 34%
     ),
     linear-gradient(180deg, rgba(15, 24, 42, 0.96), rgba(8, 12, 22, 0.98));
-  color: #f7f4ee;
+  color: var(--ytd-text-primary);
   box-shadow: 0 20px 60px rgba(2, 8, 20, 0.42);
-  border: 1px solid rgba(125, 220, 255, 0.14);
+  border: 1px solid var(--ytd-border-light-hover);
   font-family:
     ui-sans-serif,
     -apple-system,
@@ -39,6 +39,12 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  cursor: grab;
+  user-select: none;
+}
+
+.header:active {
+  cursor: grabbing;
 }
 
 .title {
@@ -68,7 +74,7 @@
   margin-top: 14px;
   height: 10px;
   border-radius: 999px;
-  background: rgba(125, 220, 255, 0.08);
+  background: var(--ytd-bg-action);
   overflow: hidden;
 }
 
@@ -84,7 +90,7 @@
   width: 38%;
   background: linear-gradient(
     90deg,
-    rgba(125, 220, 255, 0.08),
+    var(--ytd-bg-action),
     #7ddcff,
     rgba(15, 92, 255, 0.18)
   );
@@ -119,7 +125,7 @@
 
 .button-secondary {
   background: rgba(125, 220, 255, 0.1);
-  color: #f7f4ee;
+  color: var(--ytd-text-primary);
 }
 
 .button-primary {

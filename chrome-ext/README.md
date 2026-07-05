@@ -26,17 +26,17 @@ make chrome-ext-install CHROME_EXT_ID=YOUR_EXTENSION_ID
 ## Быстрый старт
 
 1. Открой `chrome://extensions`.
-2. Включи `Developer mode`.
-3. Загрузи распакованное расширение из каталога:
+1. Включи `Developer mode`.
+1. Загрузи распакованное расширение из каталога:
    - `chrome-ext/extension`
-4. Установи native host:
+1. Установи native host:
 
    ```bash
    cd chrome-ext/native-host
    ./install-macos.sh
    ```
 
-5. Открой поддерживаемую страницу по `http://` или `https://` с видео и нажми на иконку расширения.
+1. Открой поддерживаемую страницу по `http://` или `https://` с видео и нажми на иконку расширения.
 
 ## Хранение списка недавних файлов
 

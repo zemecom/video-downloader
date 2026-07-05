@@ -26,6 +26,7 @@ const statusNode = document.querySelector('.status');
 const recentListNode = document.querySelector('.recent-list');
 const recentEmptyNode = document.querySelector('.recent-empty');
 const recentOpenAllButton = document.querySelector('.recent-open-all');
+const recentClearAllButton = document.querySelector('.recent-clear-all');
 const activeDownloadNode = document.querySelector('.active-download');
 const activeDownloadStatusNode = document.querySelector(
   '.active-download-status'
@@ -39,6 +40,9 @@ const activeDownloadPercentNode = document.querySelector(
 );
 const activeDownloadCancelButton = document.querySelector(
   '.active-download-cancel'
+);
+const activeDownloadCloseButton = document.querySelector(
+  '.active-download-close'
 );
 
 let activeJobId = null;
@@ -68,6 +72,14 @@ recentOpenAllButton?.addEventListener('click', () => {
   void openAllDownloadsPage();
 });
 
+recentClearAllButton?.addEventListener('click', async () => {
+  const confirmed = confirm('Очистить всю историю загрузок?');
+  if (!confirmed) return;
+  
+  await chrome.runtime.sendMessage({ type: 'ytd:clear-recent-downloads-history' });
+  await loadRecentDownloads();
+});
+
 activeDownloadCancelButton.addEventListener('click', () => {
   if (activeDownloadCancelButton.disabled) return;
 
@@ -78,6 +90,10 @@ activeDownloadCancelButton.addEventListener('click', () => {
   } else {
     hideActiveDownload();
   }
+});
+
+activeDownloadCloseButton?.addEventListener('click', () => {
+  hideActiveDownload();
 });
 
 async function startDownload(mode) {
@@ -115,7 +131,7 @@ async function startDownload(mode) {
 
 async function loadRecentDownloads() {
   renderRecentDownloads([]);
-  toggleRecentOpenAllButton(false);
+  toggleRecentOpenAllButton(true);
 
   const response = await sendMessage({
     type: 'ytd:list-recent-downloads',
@@ -132,7 +148,7 @@ async function loadRecentDownloads() {
   });
 
   renderRecentDownloads(viewModel.visibleItems);
-  toggleRecentOpenAllButton(viewModel.hasHiddenItems);
+  toggleRecentOpenAllButton(true);
 }
 
 function renderRecentDownloads(items) {
@@ -220,11 +236,12 @@ async function handleRecentDownloadAction(actionKind, entryId, title, filePath) 
 }
 
 function toggleRecentOpenAllButton(visible) {
-  if (!recentOpenAllButton) {
-    return;
+  if (recentOpenAllButton) {
+    recentOpenAllButton.hidden = !visible;
   }
-
-  recentOpenAllButton.hidden = !visible;
+  if (recentClearAllButton) {
+    recentClearAllButton.hidden = !visible;
+  }
 }
 
 async function openAllDownloadsPage() {
@@ -385,6 +402,10 @@ function renderActiveDownload(payload) {
   activeDownloadCancelButton.disabled =
     isTerminalStatus(status) || (!canCancel && status !== 'cancelling');
 
+  if (activeDownloadCloseButton) {
+    activeDownloadCloseButton.hidden = !isTerminalStatus(status);
+  }
+
   if (
     progressPercent === null ||
     status === 'starting' ||
@@ -405,6 +426,9 @@ function renderActiveDownloadError(message) {
   activeDownloadPhaseNode.textContent = STATUS_LABELS.failed;
   activeDownloadPercentNode.textContent = '--';
   activeDownloadCancelButton.disabled = true;
+  if (activeDownloadCloseButton) {
+    activeDownloadCloseButton.hidden = false;
+  }
   activeDownloadFillNode.dataset.indeterminate = 'true';
   activeDownloadFillNode.style.width = '38%';
 }

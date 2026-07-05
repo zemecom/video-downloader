@@ -200,10 +200,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.type === 'ytd:get-overlay-resources') {
     Promise.all([
       fetch(chrome.runtime.getURL('content/overlay.html')).then((res) => res.text()),
+      fetch(chrome.runtime.getURL('shared/theme.css')).then((res) => res.text()),
       fetch(chrome.runtime.getURL('content/overlay.css')).then((res) => res.text()),
     ])
-      .then(([html, css]) => {
-        sendResponse({ html, css });
+      .then(([html, themeCss, overlayCss]) => {
+        sendResponse({ html, css: themeCss + '\n' + overlayCss });
       })
       .catch((err) => {
         console.warn('[YTD] Failed to read resources:', err);

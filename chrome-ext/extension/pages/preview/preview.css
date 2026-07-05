@@ -1,18 +1,3 @@
-:root {
-  color-scheme: dark;
-  font-family:
-    ui-sans-serif,
-    -apple-system,
-    BlinkMacSystemFont,
-    'Segoe UI',
-    sans-serif;
-  --ytd-blue-1: #7ddcff;
-  --ytd-blue-2: #4fb6ff;
-  --ytd-blue-4: #0f5cff;
-  --ytd-border: rgba(146, 214, 255, 0.18);
-  --ytd-border-strong: rgba(112, 200, 255, 0.45);
-}
-
 * {
   box-sizing: border-box;
 }
@@ -23,7 +8,7 @@ body {
   height: 100dvh;
   overflow: hidden;
   background: #000;
-  color: #f7f4ee;
+  color: var(--ytd-text-primary);
 }
 
 .preview {
@@ -100,7 +85,7 @@ body {
 }
 
 .button {
-  border: 1px solid rgba(125, 220, 255, 0.16);
+  border: 1px solid var(--ytd-border-light);
   border-radius: 999px;
   padding: 10px 14px;
   font-size: 13px;
@@ -109,13 +94,13 @@ body {
 }
 
 .button-secondary {
-  background: rgba(125, 220, 255, 0.08);
+  background: var(--ytd-bg-action);
   color: #dff5ff;
 }
 
 .button-secondary:hover {
   border-color: var(--ytd-border-strong);
-  background: rgba(125, 220, 255, 0.14);
+  background: var(--ytd-border-light-hover);
 }
 
 .button-primary {

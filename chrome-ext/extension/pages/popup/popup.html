@@ -4,6 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>YTD</title>
+    <link rel="stylesheet" href="../../shared/theme.css" />
     <link rel="stylesheet" href="popup.css" />
   </head>
 
@@ -24,7 +25,12 @@
       <section class="active-download" hidden>
         <div class="active-download-header">
           <div class="active-download-title">Загрузка</div>
-          <button class="active-download-cancel" type="button">Отменить</button>
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <button class="active-download-cancel" type="button">Отменить</button>
+            <button class="active-download-close" type="button" aria-label="Закрыть" hidden>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+          </div>
         </div>
         <div class="active-download-status"></div>
         <div class="active-download-progress" aria-hidden="true">
@@ -39,9 +45,10 @@
       <section class="recent">
         <div class="recent-header-row">
           <div class="recent-header">Недавние</div>
-          <button class="recent-open-all" type="button" hidden>
-            Все загрузки
-          </button>
+          <div style="display: flex; gap: 6px;">
+            <button class="recent-clear-all" type="button" hidden>Очистить</button>
+            <button class="recent-open-all" type="button" hidden>Все загрузки</button>
+          </div>
         </div>
         <div class="recent-list"></div>
         <p class="recent-empty">Пока пусто</p>

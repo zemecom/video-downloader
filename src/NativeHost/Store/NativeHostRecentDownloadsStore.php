@@ -39,9 +39,16 @@ final readonly class NativeHostRecentDownloadsStore
 
         $database = $this->openDatabase();
         $this->migrateLegacyJsonIfNeeded($database);
+
+        $existingItems = $this->fetchItems($database);
+        $filteredItems = \array_filter(
+            $existingItems,
+            static fn(array $item): bool => ($item['path'] ?? '') !== $path,
+        );
+
         $this->persistItems($database, [
             $entry,
-            ...$this->fetchItems($database),
+            ...$filteredItems,
         ]);
 
         return $entry;

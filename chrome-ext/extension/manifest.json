@@ -34,7 +34,7 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["content/overlay.html", "content/overlay.css"],
+      "resources": ["content/overlay.html", "content/overlay.css", "shared/theme.css"],
       "matches": ["<all_urls>"]
     }
   ]

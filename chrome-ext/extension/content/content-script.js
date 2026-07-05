@@ -24,9 +24,13 @@
       this.playButton = shadowRoot.querySelector('.play-action');
       this.openButton = shadowRoot.querySelector('.open-action');
       this.closeButtons = shadowRoot.querySelectorAll('.close, .close-action');
+      this.header = shadowRoot.querySelector('.header');
 
       this.autoHideTimer = null;
       this.jobId = null;
+      
+      this.isDragging = false;
+      this.dragOffset = { x: 0, y: 0 };
 
       this.bindEvents();
     }
@@ -75,6 +79,47 @@
           });
         }
       });
+
+      this.header.addEventListener('mousedown', this.onDragStart.bind(this));
+      globalThis.addEventListener('mousemove', this.onDragMove.bind(this));
+      globalThis.addEventListener('mouseup', this.onDragEnd.bind(this));
+    }
+
+    onDragStart(e) {
+      if (e.target.closest('button')) return;
+      this.isDragging = true;
+      const rect = this.overlay.getBoundingClientRect();
+      
+      this.dragOffset.x = e.clientX - rect.left;
+      this.dragOffset.y = e.clientY - rect.top;
+      
+      this.overlay.style.right = 'auto';
+      this.overlay.style.bottom = 'auto';
+      this.overlay.style.left = `${rect.left}px`;
+      this.overlay.style.top = `${rect.top}px`;
+      
+      e.preventDefault();
+    }
+
+    onDragMove(e) {
+      if (!this.isDragging) return;
+      
+      let left = e.clientX - this.dragOffset.x;
+      let top = e.clientY - this.dragOffset.y;
+      
+      const rect = this.overlay.getBoundingClientRect();
+      const maxX = globalThis.innerWidth - rect.width;
+      const maxY = globalThis.innerHeight - rect.height;
+      
+      left = Math.max(0, Math.min(left, maxX));
+      top = Math.max(0, Math.min(top, maxY));
+      
+      this.overlay.style.left = `${left}px`;
+      this.overlay.style.top = `${top}px`;
+    }
+
+    onDragEnd() {
+      this.isDragging = false;
     }
 
     update(payload) {
