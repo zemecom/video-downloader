@@ -169,6 +169,34 @@ final class RuntimeBootstrapTest extends TestCase
         }
     }
 
+    public function testNativeHostRecentDownloadsDatabasePathDefaultsToChromeExtensionDirectory(): void
+    {
+        $projectRoot = sys_get_temp_dir() . '/ytd_php_recent_downloads_db_' . uniqid();
+        mkdir($projectRoot, 0777, true);
+        putenv('YTD_PROJECT_ROOT=' . $projectRoot);
+
+        try {
+            $bootstrap = new RuntimeBootstrap($projectRoot);
+            self::assertStringEndsWith('/chrome-ext/logs/native-host-recent-downloads.sqlite', $bootstrap->getNativeHostRecentDownloadsPath());
+        } finally {
+            putenv('YTD_PROJECT_ROOT');
+        }
+    }
+
+    public function testNativeHostRecentDownloadsLegacyPathDefaultsToChromeExtensionDirectory(): void
+    {
+        $projectRoot = sys_get_temp_dir() . '/ytd_php_recent_downloads_legacy_' . uniqid();
+        mkdir($projectRoot, 0777, true);
+        putenv('YTD_PROJECT_ROOT=' . $projectRoot);
+
+        try {
+            $bootstrap = new RuntimeBootstrap($projectRoot);
+            self::assertStringEndsWith('/chrome-ext/logs/native-host-recent-downloads.json', $bootstrap->getLegacyNativeHostRecentDownloadsPath());
+        } finally {
+            putenv('YTD_PROJECT_ROOT');
+        }
+    }
+
     public function testLoadEnvFileParsesQuotedValuesAndComments(): void
     {
         $projectRoot = sys_get_temp_dir() . '/ytd_php_env_' . uniqid();

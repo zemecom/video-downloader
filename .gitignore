@@ -2,6 +2,7 @@
 /.phpunit.result.cache
 /.php-cs-fixer.cache
 /logs/
+/chrome-ext/logs/
 /.env
 /proxy_rules.yaml
 .DS_Store

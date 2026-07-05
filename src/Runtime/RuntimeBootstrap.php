@@ -145,9 +145,27 @@ final readonly class RuntimeBootstrap
 
     public function getNativeHostRecentDownloadsPath(): string
     {
+        $legacyConfiguredPath = \getenv('YTD_NATIVE_HOST_RECENT_DOWNLOADS_FILE');
+        if (\is_string($legacyConfiguredPath) && $legacyConfiguredPath !== '' && $this->looksLikeSqlitePath($legacyConfiguredPath)) {
+            return $this->resolveConfiguredPath($legacyConfiguredPath);
+        }
+
         return $this->resolveRuntimePath(
-            'YTD_NATIVE_HOST_RECENT_DOWNLOADS_FILE',
-            'logs' . DIRECTORY_SEPARATOR . 'native-host-recent-downloads.json',
+            'YTD_NATIVE_HOST_RECENT_DOWNLOADS_DB_FILE',
+            'chrome-ext' . DIRECTORY_SEPARATOR . 'logs' . DIRECTORY_SEPARATOR . 'native-host-recent-downloads.sqlite',
+        );
+    }
+
+    public function getLegacyNativeHostRecentDownloadsPath(): string
+    {
+        $legacyConfiguredPath = \getenv('YTD_NATIVE_HOST_RECENT_DOWNLOADS_FILE');
+        if (\is_string($legacyConfiguredPath) && $legacyConfiguredPath !== '' && !$this->looksLikeSqlitePath($legacyConfiguredPath)) {
+            return $this->resolveConfiguredPath($legacyConfiguredPath);
+        }
+
+        return $this->resolveRuntimePath(
+            'YTD_NATIVE_HOST_RECENT_DOWNLOADS_LEGACY_FILE',
+            'chrome-ext' . DIRECTORY_SEPARATOR . 'logs' . DIRECTORY_SEPARATOR . 'native-host-recent-downloads.json',
         );
     }
 
@@ -424,12 +442,30 @@ final readonly class RuntimeBootstrap
             return $this->normalizePath($this->getProjectRoot() . DIRECTORY_SEPARATOR . $defaultRelativePath);
         }
 
+        return $this->resolveConfiguredPath($configuredPath);
+    }
+
+    private function resolveConfiguredPath(string $configuredPath): string
+    {
+        if ($configuredPath === '') {
+            return $this->getProjectRoot();
+        }
+
         $expandedPath = $this->expandPath($configuredPath);
         if ($this->isAbsolutePath($expandedPath)) {
             return $this->normalizePath($expandedPath);
         }
 
         return $this->normalizePath($this->getProjectRoot() . DIRECTORY_SEPARATOR . $expandedPath);
+    }
+
+    private function looksLikeSqlitePath(string $path): bool
+    {
+        $normalizedPath = \strtolower($path);
+
+        return \str_ends_with($normalizedPath, '.sqlite')
+            || \str_ends_with($normalizedPath, '.sqlite3')
+            || \str_ends_with($normalizedPath, '.db');
     }
 
     /**

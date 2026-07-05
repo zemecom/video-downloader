@@ -213,17 +213,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message?.type === 'ytd:list-recent-downloads') {
-    callNativeHost({
-      action: 'list_recent_downloads',
-    }).then(sendResponse);
+    listRecentDownloads().then(sendResponse);
     return true;
   }
 
   if (message?.type === 'ytd:open-recent-download') {
-    callNativeHost({
-      action: 'open_recent_download',
-      entryId: message.entryId,
-    }).then(sendResponse);
+    runRecentDownloadNativeAction('open_recent_download', message).then(
+      sendResponse
+    );
     return true;
   }
 
@@ -248,18 +245,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message?.type === 'ytd:reveal-recent-download') {
-    callNativeHost({
-      action: 'reveal_recent_download',
-      entryId: message.entryId,
-    }).then(sendResponse);
+    runRecentDownloadNativeAction('reveal_recent_download', message).then(
+      sendResponse
+    );
     return true;
   }
 
   if (message?.type === 'ytd:delete-recent-download') {
-    callNativeHost({
-      action: 'delete_recent_download',
-      entryId: message.entryId,
-    }).then(sendResponse);
+    deleteRecentDownload(message).then(sendResponse);
     return true;
   }
 
@@ -518,19 +511,19 @@ async function openPreviewPage(message, sender = null) {
   };
 }
 
+async function listRecentDownloads() {
+  return callNativeHost({
+    action: 'list_recent_downloads',
+  });
+}
+
 async function findRecentDownloadPath(recentDownloadId) {
   if (typeof recentDownloadId !== 'string' || recentDownloadId === '') {
     return '';
   }
 
-  const response = await callNativeHost({
-    action: 'list_recent_downloads',
-  });
-  if (!response.ok) {
-    return '';
-  }
-
-  const items = Array.isArray(response.payload?.items)
+  const response = await listRecentDownloads();
+  const items = response.ok && Array.isArray(response.payload?.items)
     ? response.payload.items
     : [];
   const entry = items.find((item) => item?.id === recentDownloadId);
@@ -635,63 +628,107 @@ async function rememberActiveDownload(payload) {
 
   const existing = await readActiveDownload();
   const isExistingDownload = normalizeText(existing?.jobId) === jobId;
+  const nextActiveDownload = {
+    jobId,
+    mode: payload?.mode === 'audio' ? 'audio' : 'video',
+    status: normalizeText(payload?.status) || 'starting',
+    progressText:
+      typeof payload?.progressText === 'string'
+        ? payload.progressText
+        : isExistingDownload
+          ? existing?.progressText
+          : '',
+    progressPercent:
+      typeof payload?.progressPercent === 'number'
+        ? payload.progressPercent
+        : isExistingDownload
+          ? existing?.progressPercent
+          : null,
+    canCancel:
+      typeof payload?.canCancel === 'boolean'
+        ? payload.canCancel
+        : isExistingDownload
+          ? existing?.canCancel
+          : false,
+    previewReady:
+      typeof payload?.previewReady === 'boolean'
+        ? payload.previewReady
+        : isExistingDownload
+          ? existing?.previewReady
+          : false,
+    previewUrl:
+      typeof payload?.previewUrl === 'string'
+        ? payload.previewUrl
+        : isExistingDownload
+          ? existing?.previewUrl
+          : '',
+    outputPath:
+      typeof payload?.outputPath === 'string'
+        ? payload.outputPath
+        : isExistingDownload
+          ? existing?.outputPath
+          : '',
+    recentDownloadId:
+      typeof payload?.recentDownloadId === 'string'
+        ? payload.recentDownloadId
+        : isExistingDownload
+          ? existing?.recentDownloadId
+          : '',
+    url:
+      normalizeText(payload?.url) ||
+      (isExistingDownload ? normalizeText(existing?.url) : ''),
+    startedAt:
+      isExistingDownload && Number.isFinite(existing?.startedAt)
+        ? existing.startedAt
+        : Date.now(),
+    updatedAt: Date.now(),
+  };
+
   await chrome.storage.session.set({
-    [ACTIVE_DOWNLOAD_KEY]: {
-      jobId,
-      mode: payload?.mode === 'audio' ? 'audio' : 'video',
-      status: normalizeText(payload?.status) || 'starting',
-      progressText:
-        typeof payload?.progressText === 'string'
-          ? payload.progressText
-          : isExistingDownload
-            ? existing?.progressText
-            : '',
-      progressPercent:
-        typeof payload?.progressPercent === 'number'
-          ? payload.progressPercent
-          : isExistingDownload
-            ? existing?.progressPercent
-            : null,
-      canCancel:
-        typeof payload?.canCancel === 'boolean'
-          ? payload.canCancel
-          : isExistingDownload
-            ? existing?.canCancel
-            : false,
-      previewReady:
-        typeof payload?.previewReady === 'boolean'
-          ? payload.previewReady
-          : isExistingDownload
-            ? existing?.previewReady
-            : false,
-      previewUrl:
-        typeof payload?.previewUrl === 'string'
-          ? payload.previewUrl
-          : isExistingDownload
-            ? existing?.previewUrl
-            : '',
-      outputPath:
-        typeof payload?.outputPath === 'string'
-          ? payload.outputPath
-          : isExistingDownload
-            ? existing?.outputPath
-            : '',
-      recentDownloadId:
-        typeof payload?.recentDownloadId === 'string'
-          ? payload.recentDownloadId
-          : isExistingDownload
-            ? existing?.recentDownloadId
-            : '',
-      url:
-        normalizeText(payload?.url) ||
-        (isExistingDownload ? normalizeText(existing?.url) : ''),
-      startedAt:
-        isExistingDownload && Number.isFinite(existing?.startedAt)
-          ? existing.startedAt
-          : Date.now(),
-      updatedAt: Date.now(),
-    },
+    [ACTIVE_DOWNLOAD_KEY]: nextActiveDownload,
   });
+
+  await rememberRecentDownloadFromActiveState(nextActiveDownload);
+}
+
+async function rememberRecentDownloadFromActiveState(activeDownload) {
+  void activeDownload;
+}
+
+async function runRecentDownloadNativeAction(action, message) {
+  const entryId = normalizeText(message?.entryId);
+  if (entryId === '') {
+    return {
+      ok: false,
+      errorCode: 'unexpected_error',
+      errorMessage: 'Не удалось определить файл.',
+    };
+  }
+
+  const response = await callNativeHost({
+    action,
+    entryId,
+  });
+
+  return response;
+}
+
+async function deleteRecentDownload(message) {
+  const entryId = normalizeText(message?.entryId);
+  if (entryId === '') {
+    return {
+      ok: false,
+      errorCode: 'unexpected_error',
+      errorMessage: 'Не удалось определить файл.',
+    };
+  }
+
+  const response = await callNativeHost({
+    action: 'delete_recent_download',
+    entryId,
+  });
+
+  return response;
 }
 
 async function forgetActiveDownload(jobId) {
