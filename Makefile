@@ -1,4 +1,4 @@
-.PHONY: help install install-deps alias init doctor doctor-smoke clean-logs phpcs test test-integration lint lint-fix check check-entrypoint-local ci-current chrome-ext-paths chrome-ext-install chrome-ext-uninstall
+.PHONY: help install install-deps alias init doctor doctor-smoke clean-logs test test-integration lint lint-fix check check-entrypoint-local ci-current chrome-ext-paths chrome-ext-install chrome-ext-uninstall
 
 PHP ?= php
 COMPOSER ?= composer
@@ -27,13 +27,10 @@ help:
 	@echo "  make chrome-ext-uninstall - uninstall Chrome native host manifest"
 	@echo ""
 	@echo "Checks:"
-	@echo "  make phpcs         - run PHP_CodeSniffer"
 	@echo "  make test          - run unit tests"
 	@echo "  make test-integration - run manual integration tests"
 	@echo "  make lint          - run PHP CS Fixer and PHPStan"
 	@echo "  make lint-fix      - auto-fix PHP code style and then re-run lint"
-	@echo "  make rector        - run Rector to auto-upgrade code"
-	@echo "  make rector-dry-run - run Rector in dry-run mode"
 	@echo "  make check         - run lint and unit tests"
 	@echo "  make check-entrypoint-local - verify bin/ytd and ytd.php help output parity"
 	@echo "  make ci-current    - run the local CI equivalent for the current PHP version"
@@ -97,9 +94,6 @@ chrome-ext-uninstall:
 	fi
 	@"$(CHROME_EXT_UNINSTALLER)"
 
-phpcs:
-	$(COMPOSER) phpcs
-
 test:
 	$(COMPOSER) test
 
@@ -111,18 +105,6 @@ lint:
 
 lint-fix:
 	$(COMPOSER) lint-fix
-
-rector:
-	vendor/bin/rector process
-
-rector-dry-run:
-	vendor/bin/rector process --dry-run
-
-infection:
-	phpdbg -qrr vendor/bin/infection --threads=4 --show-mutations
-
-deptrac:
-	vendor/bin/deptrac analyse --config-file=deptrac.yaml
 
 build:
 	bin/box compile

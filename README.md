@@ -371,14 +371,10 @@ ytd URL
 - `make chrome-ext-install` — устанавливает native host для Chrome-расширения.
 - `make chrome-ext-uninstall` — удаляет manifest native host из профиля Chrome.
 - `make clean-logs` — удаляет все файлы логов.
-- `make phpcs` — запускает PHP_CodeSniffer по конфигу `phpcs.xml.dist`.
 - `make test` — запускает unit-тесты.
 - `make test-integration` — запускает integration-suite.
 - `make lint` — запускает PHP CS Fixer и PHPStan.
 - `make lint-fix` — автоматически исправляет проблемы со стилем кода.
-- `make rector` — запускает автоматический рефакторинг кода (Rector).
-- `make infection` — запускает мутационное тестирование (требует PCOV или Xdebug).
-- `make deptrac` — проверяет архитектурные границы слоев.
 - `make check` — удобный локальный минимум: сначала lint, потом unit-тесты.
 - `make build` — собирает готовый исполняемый файл `ytd.phar` с помощью Box.
 
@@ -390,16 +386,12 @@ ytd URL
 Можно запускать и напрямую через Composer:
 
 ```bash
-composer phpcs
 composer test
 composer test-integration
 composer lint
 composer lint-fix
 composer check
 ```
-
-> [!TIP]
-> `PHP_CodeSniffer` сейчас подключён как отдельная команда `composer phpcs` / `make phpcs`. Это удобно для постепенной чистки style-debt, не ломая текущий `lint`-пайплайн, который уже завязан на `PHP CS Fixer` и `PHPStan`.
 
 ## Integration-тесты
 

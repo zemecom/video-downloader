@@ -15,11 +15,7 @@
     "friendsofphp/php-cs-fixer": "^3.82",
     "phpstan/phpstan": "^2.1",
     "phpunit/phpunit": "^11.5",
-    "phpro/grumphp": "^2.22",
-    "rector/rector": "^2.4",
-    "infection/infection": "^0.34.0",
-    "deptrac/deptrac": "^4.6",
-    "squizlabs/php_codesniffer": "^4.0"
+    "phpro/grumphp": "^2.22"
   },
   "autoload": {
     "psr-4": {
@@ -35,7 +31,6 @@
     "bin/ytd"
   ],
   "scripts": {
-    "phpcs": "vendor/bin/phpcs",
     "test": "vendor/bin/phpunit --testsuite unit",
     "test-integration": "vendor/bin/phpunit --testsuite integration",
     "lint": [
@@ -53,8 +48,7 @@
   },
   "config": {
     "allow-plugins": {
-      "phpro/grumphp": true,
-      "infection/extension-installer": true
+      "phpro/grumphp": true
     }
   }
 }
