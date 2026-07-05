@@ -1,0 +1,19 @@
+{
+  "name": "chrome-ext",
+  "version": "1.0.0",
+  "description": "Расширение Chrome с запуском в один клик и native host для локального проекта-загрузчика `YTD` внутри основного репозитория `video-downloader`.",
+  "main": "index.js",
+  "scripts": {
+    "lint": "eslint \"extension/**/*.js\"",
+    "test": "node --test"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "eslint": "^10.6.0",
+    "globals": "^17.7.0",
+    "prettier": "^3.9.4"
+  }
+}

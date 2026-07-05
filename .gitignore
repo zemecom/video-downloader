@@ -2,6 +2,20 @@
 /.phpunit.result.cache
 /.php-cs-fixer.cache
 /logs/
+/chrome-ext/logs/
 /.env
 /proxy_rules.yaml
-/.DS_Store
+.DS_Store
+.idea/
+.phpunit.cache/
+*.log
+
+node_modules/
+
+# Build
+ytd.phar
+bin/box
+package.xml
+
+# Cache
+.deptrac.cache

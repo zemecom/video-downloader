@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace YtdPhp\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
-use YtdPhp\Bootstrap\RuntimeBootstrap;
-use YtdPhp\Service\DoctorService;
-use YtdPhp\Service\RoutingService;
+use YtdPhp\Runtime\RuntimeBootstrap;
+use YtdPhp\Diagnostics\DoctorService;
+use YtdPhp\Routing\RoutingService;
 
 final class DoctorServiceTest extends TestCase
 {
@@ -30,7 +30,7 @@ YAML);
         try {
             $service = new DoctorService(new RuntimeBootstrap($root), new RoutingService(new RuntimeBootstrap($root)));
             $results = $service->collectResults($root);
-            $titles = array_map(static fn($result) => $result->title, $results);
+            $titles = array_map(static fn(\YtdPhp\Diagnostics\DoctorResult $result): string => $result->title, $results);
 
             self::assertContains('PROXY_LOCAL выглядит как значение из шаблона', $titles);
             self::assertContains('PROXY_REMOTE выглядит как шаблонное значение', $titles);

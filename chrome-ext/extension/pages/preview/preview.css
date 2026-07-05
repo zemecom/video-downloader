@@ -1,0 +1,139 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  background: #000;
+  color: var(--ytd-text-primary);
+}
+
+.preview {
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 16px;
+  padding: 18px 22px 20px;
+}
+
+.header,
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.eyebrow {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ytd-blue-1);
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.player-shell {
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #000;
+  box-shadow: 0 20px 60px rgba(2, 8, 20, 0.42);
+}
+
+.player {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  max-height: 100%;
+  object-fit: contain;
+  background: #000;
+}
+
+.status {
+  margin: 0;
+  min-height: 20px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: rgba(225, 240, 255, 0.78);
+}
+
+.file-path {
+  margin: 3px 0 0;
+  min-width: 0;
+  max-width: calc(100vw - 44px);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
+  font-size: 14px;
+  line-height: 1.35;
+  color: #686868;
+}
+
+.button {
+  border: 1px solid var(--ytd-border-light);
+  border-radius: 999px;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.button-secondary {
+  background: var(--ytd-bg-action);
+  color: #dff5ff;
+}
+
+.button-secondary:hover {
+  border-color: var(--ytd-border-strong);
+  background: var(--ytd-border-light-hover);
+}
+
+.button-primary {
+  border: 0;
+  background: linear-gradient(135deg, var(--ytd-blue-2), var(--ytd-blue-4));
+  color: #eff8ff;
+}
+
+.button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.button-hidden {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .preview {
+    padding: 14px;
+  }
+
+  .header,
+  .footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .actions {
+    justify-content: flex-start;
+  }
+
+  .file-path {
+    max-width: calc(100vw - 28px);
+  }
+}

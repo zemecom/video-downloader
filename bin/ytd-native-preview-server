@@ -1,0 +1,23 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use YtdPhp\Runtime\RuntimeBootstrap;
+use YtdPhp\NativeHost\Preview\NativeHostPreviewHttpResponder;
+use YtdPhp\NativeHost\Preview\NativeHostPreviewRegistryService;
+use YtdPhp\NativeHost\Preview\NativeHostPreviewServerService;
+use YtdPhp\NativeHost\Store\NativeHostPreviewServerStateStore;
+
+require dirname(__DIR__) . '/vendor/autoload.php';
+
+$bootstrap = new RuntimeBootstrap(dirname(__DIR__));
+$bootstrap->ensureProjectRoot();
+$bootstrap->initializeEnvironment();
+
+$server = new NativeHostPreviewServerService(
+    new NativeHostPreviewServerStateStore($bootstrap),
+    new NativeHostPreviewHttpResponder(new NativeHostPreviewRegistryService($bootstrap)),
+);
+
+exit($server->run());

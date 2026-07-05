@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - dev
+  pull_request:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php-version:
+          - "8.4"
+          - "8.5"
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php-version }}
+          tools: composer:v2
+
+      - name: Validate Composer files
+        run: composer validate --strict
+
+      - name: Install dependencies
+        run: make install-deps
+
+      - name: Run unit tests
+        run: make test
+
+      - name: Run lint checks
+        run: make lint
+
+      - name: Validate CLI entrypoint parity
+        run: make check-entrypoint-local
+
+      - name: Install runtime tools for doctor smoke test
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          python3 -m pip install yt-dlp
+
+      - name: Smoke-test doctor on template config
+        run: make doctor-smoke

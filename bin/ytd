@@ -3,4 +3,6 @@
 
 declare(strict_types=1);
 
-exit(require dirname(__DIR__) . '/run.php');
+require dirname(__DIR__) . '/ytd.php';
+
+exit(ytd_run(dirname(__DIR__)));

@@ -1,0 +1,35 @@
+#!/bin/sh
+set -eu
+
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+REPO_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)
+
+# Chrome launches native hosts with a minimal PATH.
+# Ensure common binary locations are available so that yt-dlp, ffmpeg, etc. are found.
+export PATH="$HOME/.local/bin:$HOME/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
+
+PHP_BIN="${PHP_BIN:-}"
+
+if [ -z "$PHP_BIN" ]; then
+  for candidate in \
+    /opt/homebrew/bin/php \
+    /usr/local/bin/php \
+    /usr/bin/php
+  do
+    if [ -x "$candidate" ]; then
+      PHP_BIN="$candidate"
+      break
+    fi
+  done
+fi
+
+if [ -z "$PHP_BIN" ]; then
+  PHP_BIN=$(command -v php || true)
+fi
+
+if [ -z "$PHP_BIN" ] || [ ! -x "$PHP_BIN" ]; then
+  echo "php binary not found for native host wrapper" >&2
+  exit 1
+fi
+
+exec "$PHP_BIN" "$REPO_ROOT/bin/ytd-native-host"

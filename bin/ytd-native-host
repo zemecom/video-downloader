@@ -1,0 +1,47 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use YtdPhp\Runtime\RuntimeBootstrap;
+use YtdPhp\NativeHost\Protocol\NativeHostResponse;
+use YtdPhp\NativeHost\Protocol\NativeHostException;
+use YtdPhp\NativeHost\Protocol\NativeHostHandlerService;
+use YtdPhp\NativeHost\Job\NativeHostJobManagerService;
+use YtdPhp\NativeHost\Store\NativeHostRecentDownloadsStore;
+use YtdPhp\NativeHost\Store\NativeHostJobStateStore;
+use YtdPhp\NativeHost\Log\NativeHostLogService;
+use YtdPhp\NativeHost\Protocol\NativeMessagingProtocolService;
+
+require dirname(__DIR__) . '/vendor/autoload.php';
+
+$bootstrap = new RuntimeBootstrap(dirname(__DIR__));
+$bootstrap->ensureProjectRoot();
+$bootstrap->initializeEnvironment();
+
+$protocol = new NativeMessagingProtocolService();
+$logger = new NativeHostLogService($bootstrap);
+$store = new NativeHostJobStateStore($bootstrap);
+$manager = new NativeHostJobManagerService($bootstrap, $store, recentDownloads: new NativeHostRecentDownloadsStore($bootstrap));
+$handler = new NativeHostHandlerService($manager, $logger);
+
+try {
+    $payload = $protocol->readFromStream(STDIN);
+    $logger->append('[DEBUG] Received action: ' . ($payload['action'] ?? 'UNKNOWN') . ' | payload keys: ' . implode(',', array_keys($payload)));
+    $response = $handler->handle($payload);
+    $logger->append('[DEBUG] Response ok=' . ($response->toPayload()['ok'] ? 'true' : 'false') . ' | code=' . ($response->toPayload()['code'] ?? 'N/A'));
+} catch (NativeHostException $exception) {
+    $logger->append('[DEBUG] NativeHostException: ' . $exception->getMessage());
+    $response = NativeHostResponse::error($exception->getResponseCode(), $exception->getMessage());
+} catch (Throwable $exception) {
+    $logger->append('[DEBUG] Throwable: ' . $exception->getMessage() . ' in ' . $exception->getFile() . ':' . $exception->getLine());
+    $logger->appendException($exception);
+    $response = NativeHostResponse::error('unexpected_error', 'Unexpected native host error.');
+}
+
+$encoded = $response->toPayload();
+$logger->append('[DEBUG] Writing response, payload size: ' . strlen(json_encode($encoded)) . ' bytes');
+$protocol->writeToStream(STDOUT, $encoded);
+
+$logger->append('[DEBUG] Done. Exiting.');
+exit(0);
