@@ -31,10 +31,10 @@ make chrome-ext-install CHROME_EXT_ID=YOUR_EXTENSION_ID
    - `chrome-ext/extension`
 4. Установи native host:
 
-```bash
-cd chrome-ext/native-host
-./install-macos.sh
-```
+   ```bash
+   cd chrome-ext/native-host
+   ./install-macos.sh
+   ```
 
 5. Открой поддерживаемую страницу по `http://` или `https://` с видео и нажми на иконку расширения.
 
