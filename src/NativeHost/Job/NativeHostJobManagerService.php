@@ -210,7 +210,7 @@ final readonly class NativeHostJobManagerService
 
         $port = ($this->previewPortResolver)();
         $preview = $this->previewRegistry->register(
-            'recent-' . $entryId . '-' . \uniqid(),
+            'recent-' . $entryId,
             (string) $entry['path'],
             $port,
         );

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace YtdPhp\NativeHost\Preview;
 
 use Closure;
-use DateTimeImmutable;
 use JsonException;
 use Symfony\Component\Filesystem\Filesystem;
 use YtdPhp\Runtime\RuntimeBootstrap;
@@ -19,37 +18,34 @@ use const JSON_UNESCAPED_UNICODE;
 
 final readonly class NativeHostPreviewRegistryService
 {
-    /**
-     * @var Closure(): DateTimeImmutable
-     */
-    private Closure $nowProvider;
-
     public function __construct(
         private RuntimeBootstrap $bootstrap,
-        private int $ttlSeconds = 3600,
-        ?Closure $nowProvider = null,
-    ) {
-        $this->nowProvider = $nowProvider ?? static fn(): DateTimeImmutable => new DateTimeImmutable();
-    }
+    ) {}
 
     /**
      * @return array<string, mixed>
      */
     public function register(string $jobId, string $path, int $port): array
     {
-        $token = \bin2hex(\random_bytes(16));
-        $now = $this->now();
-        $entry = [
-            'jobId' => $jobId,
-            'path' => $path,
-            'token' => $token,
-            'createdAt' => $now->format(DATE_ATOM),
-        ];
+        $token = $this->withExclusiveLock(function () use ($jobId, $path): string {
+            $entries = $this->pruneInactiveEntries($this->readAll());
+            $existingEntry = $entries[$jobId] ?? null;
+            $existingToken = \is_array($existingEntry) ? ($existingEntry['token'] ?? null) : null;
 
-        $this->withExclusiveLock(function () use ($jobId, $entry): void {
-            $entries = $this->pruneExpiredEntries($this->readAll());
-            $entries[$jobId] = $entry;
+            $token = \is_string($existingToken)
+                && $existingToken !== ''
+                && ($existingEntry['path'] ?? null) === $path
+                ? $existingToken
+                : \bin2hex(\random_bytes(16));
+
+            $entries[$jobId] = [
+                'jobId' => $jobId,
+                'path' => $path,
+                'token' => $token,
+            ];
             $this->writeAll($entries);
+
+            return $token;
         });
 
         return [
@@ -66,7 +62,7 @@ final readonly class NativeHostPreviewRegistryService
     public function resolve(string $jobId, string $token): ?array
     {
         return $this->withExclusiveLock(function () use ($jobId, $token): ?array {
-            $entries = $this->pruneExpiredEntries($this->readAll());
+            $entries = $this->pruneInactiveEntries($this->readAll());
             $entry = $entries[$jobId] ?? null;
 
             if (!\is_array($entry) || ($entry['token'] ?? null) !== $token) {
@@ -93,10 +89,9 @@ final readonly class NativeHostPreviewRegistryService
      * @param array<string, array<string, mixed>> $entries
      * @return array<string, array<string, mixed>>
      */
-    private function pruneExpiredEntries(array $entries): array
+    private function pruneInactiveEntries(array $entries): array
     {
         $active = [];
-        $now = $this->now()->getTimestamp();
 
         foreach ($entries as $jobId => $entry) {
             if (!\is_array($entry)) {
@@ -114,17 +109,8 @@ final readonly class NativeHostPreviewRegistryService
                 continue;
             }
 
-            $createdAtStr = $entry['createdAt'] ?? null;
-            if (!\is_string($createdAtStr)) {
-                continue;
-            }
-
-            $createdAt = DateTimeImmutable::createFromFormat(DATE_ATOM, $createdAtStr);
-            if (!$createdAt instanceof DateTimeImmutable) {
-                continue;
-            }
-
-            if ($now - $createdAt->getTimestamp() > $this->ttlSeconds) {
+            $token = $entry['token'] ?? null;
+            if (!\is_string($token) || $token === '') {
                 continue;
             }
 
@@ -214,8 +200,4 @@ final readonly class NativeHostPreviewRegistryService
         }
     }
 
-    private function now(): DateTimeImmutable
-    {
-        return ($this->nowProvider)();
-    }
 }

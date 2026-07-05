@@ -4,11 +4,10 @@ declare(strict_types=1);
 
 namespace YtdPhp\Tests\Unit;
 
-use DateTimeImmutable;
 use PHPUnit\Framework\TestCase;
-use YtdPhp\Runtime\RuntimeBootstrap;
 use YtdPhp\NativeHost\Preview\NativeHostPreviewHttpResponder;
 use YtdPhp\NativeHost\Preview\NativeHostPreviewRegistryService;
+use YtdPhp\Runtime\RuntimeBootstrap;
 
 final class NativeHostPreviewHttpResponderTest extends TestCase
 {
@@ -88,33 +87,36 @@ final class NativeHostPreviewHttpResponderTest extends TestCase
         }
     }
 
-    public function testRespondReturnsNotFoundForExpiredToken(): void
+    public function testRespondReturnsFileForLegacyPreviewRecordRegardlessOfCreatedAt(): void
     {
-        $root = \sys_get_temp_dir() . '/ytd_native_preview_http_expired_' . \uniqid();
+        $root = \sys_get_temp_dir() . '/ytd_native_preview_http_legacy_' . \uniqid();
         \mkdir($root, 0777, true);
         putenv('YTD_PROJECT_ROOT=' . $root);
 
         try {
             $filePath = $root . '/preview-video.mp4';
             \file_put_contents($filePath, 'abcdefghijklmnopqrstuvwxyz');
-
-            $registry = new NativeHostPreviewRegistryService(
-                new RuntimeBootstrap($root),
-                30,
-                static fn(): DateTimeImmutable => new DateTimeImmutable('2026-05-30T12:00:00+00:00'),
+            $bootstrap = new RuntimeBootstrap($root);
+            $registryPath = $bootstrap->getNativeHostPreviewRegistryPath();
+            \mkdir(\dirname($registryPath), 0777, true);
+            \file_put_contents(
+                $registryPath,
+                (string) \json_encode([
+                    'job-123' => [
+                        'jobId' => 'job-123',
+                        'path' => $filePath,
+                        'token' => 'abc123',
+                        'createdAt' => '2020-01-01T00:00:00+00:00',
+                    ],
+                ], JSON_THROW_ON_ERROR),
             );
-            $preview = $registry->register('job-123', $filePath, 38123);
 
-            $expiredRegistry = new NativeHostPreviewRegistryService(
-                new RuntimeBootstrap($root),
-                30,
-                static fn(): DateTimeImmutable => new DateTimeImmutable('2026-05-30T12:01:00+00:00'),
-            );
-            $responder = new NativeHostPreviewHttpResponder($expiredRegistry);
+            $responder = new NativeHostPreviewHttpResponder(new NativeHostPreviewRegistryService($bootstrap));
 
-            $response = $responder->respond('GET', '/preview/job-123?token=' . $preview['token'], []);
+            $response = $responder->respond('GET', '/preview/job-123?token=abc123', []);
 
-            self::assertSame(404, $response['status']);
+            self::assertSame(200, $response['status']);
+            self::assertSame('abcdefghijklmnopqrstuvwxyz', $response['body']);
         } finally {
             putenv('YTD_PROJECT_ROOT');
         }
@@ -146,11 +148,7 @@ final class NativeHostPreviewHttpResponderTest extends TestCase
         $filePath = $root . '/preview-video.mp4';
         \file_put_contents($filePath, $body);
 
-        $registry = new NativeHostPreviewRegistryService(
-            new RuntimeBootstrap($root),
-            3600,
-            static fn(): DateTimeImmutable => new DateTimeImmutable('2026-05-30T12:00:00+00:00'),
-        );
+        $registry = new NativeHostPreviewRegistryService(new RuntimeBootstrap($root));
         $preview = $registry->register('job-123', $filePath, 38123);
 
         return [$preview, new NativeHostPreviewHttpResponder($registry), $filePath];

@@ -295,7 +295,7 @@ final class NativeHostJobManagerServiceTest extends TestCase
         }
     }
 
-    public function testPreviewRecentDownloadReturnsLoopbackPreviewForVideoEntry(): void
+    public function testPreviewRecentDownloadReturnsStableLoopbackPreviewForVideoEntry(): void
     {
         $root = \sys_get_temp_dir() . '/ytd_native_recent_preview_' . \uniqid();
         \mkdir($root, 0777, true);
@@ -318,16 +318,18 @@ final class NativeHostJobManagerServiceTest extends TestCase
                 previewPortResolver: static fn(): int => 38123,
             );
 
-            $payload = $manager->previewRecentDownload((string) $entry['id'])->toPayload();
+            $firstPayload = $manager->previewRecentDownload((string) $entry['id'])->toPayload();
+            $secondPayload = $manager->previewRecentDownload((string) $entry['id'])->toPayload();
 
-            self::assertTrue($payload['ok']);
-            self::assertTrue($payload['previewReady']);
-            self::assertSame($entry['id'], $payload['recentDownloadId']);
-            self::assertSame($filePath, $payload['filePath']);
+            self::assertTrue($firstPayload['ok']);
+            self::assertTrue($firstPayload['previewReady']);
+            self::assertSame($entry['id'], $firstPayload['recentDownloadId']);
+            self::assertSame($filePath, $firstPayload['filePath']);
             self::assertMatchesRegularExpression(
-                '#^http://127\.0\.0\.1:38123/preview/recent-' . preg_quote((string) $entry['id'], '#') . '-[a-f0-9]+\?token=[a-f0-9]+$#',
-                (string) $payload['previewUrl'],
+                '#^http://127\.0\.0\.1:38123/preview/recent-' . preg_quote((string) $entry['id'], '#') . '\?token=[a-f0-9]+$#',
+                (string) $firstPayload['previewUrl'],
             );
+            self::assertSame($firstPayload['previewUrl'], $secondPayload['previewUrl']);
         } finally {
             putenv('YTD_PROJECT_ROOT');
         }
