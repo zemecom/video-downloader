@@ -15,7 +15,6 @@ use const JSON_THROW_ON_ERROR;
 
 final readonly class NativeHostRecentDownloadsStore
 {
-    private const int MAX_ITEMS = 20;
     private const string TABLE_NAME = 'recent_downloads';
     private const string META_TABLE_NAME = 'recent_downloads_meta';
     private const string LEGACY_MIGRATION_FLAG = 'legacy_json_migrated';
@@ -88,6 +87,14 @@ final readonly class NativeHostRecentDownloadsStore
         $statement = $database->prepare('DELETE FROM ' . self::TABLE_NAME . ' WHERE id = :id');
         $statement->bindValue(':id', $entryId);
         $statement->execute();
+    }
+
+    public function clear(): void
+    {
+        $database = $this->openDatabase();
+        $this->migrateLegacyJsonIfNeeded($database);
+
+        $database->exec('DELETE FROM ' . self::TABLE_NAME);
     }
 
     private function openDatabase(): PDO
@@ -214,7 +221,7 @@ final readonly class NativeHostRecentDownloadsStore
      */
     private function persistItems(PDO $database, array $items): void
     {
-        $items = \array_slice($this->normalizeItems($items), 0, self::MAX_ITEMS);
+        $items = $this->normalizeItems($items);
 
         $database->beginTransaction();
 

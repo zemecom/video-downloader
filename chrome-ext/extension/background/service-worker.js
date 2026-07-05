@@ -199,8 +199,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message?.type === 'ytd:get-overlay-resources') {
     Promise.all([
-      fetch(chrome.runtime.getURL('overlay.html')).then((res) => res.text()),
-      fetch(chrome.runtime.getURL('overlay.css')).then((res) => res.text()),
+      fetch(chrome.runtime.getURL('content/overlay.html')).then((res) => res.text()),
+      fetch(chrome.runtime.getURL('content/overlay.css')).then((res) => res.text()),
     ])
       .then(([html, css]) => {
         sendResponse({ html, css });
@@ -253,6 +253,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message?.type === 'ytd:delete-recent-download') {
     deleteRecentDownload(message).then(sendResponse);
+    return true;
+  }
+
+  if (message?.type === 'ytd:clear-recent-downloads-history') {
+    callNativeHost({ action: 'clear_recent_downloads_history' }).then(sendResponse);
+    return true;
+  }
+
+  if (message?.type === 'ytd:delete-all-recent-downloads') {
+    callNativeHost({ action: 'delete_all_recent_downloads' }).then(sendResponse);
+    return true;
+  }
+
+  if (message?.type === 'ytd:open-downloads-directory') {
+    callNativeHost({ action: 'open_downloads_directory' }).then(sendResponse);
     return true;
   }
 
@@ -497,9 +512,7 @@ async function openPreviewPage(message, sender = null) {
   });
 
   await chrome.tabs.create({
-    url: chrome.runtime.getURL(
-      `preview.html?id=${encodeURIComponent(previewId)}`
-    ),
+    url: chrome.runtime.getURL(`pages/preview/preview.html?id=${encodeURIComponent(previewId)}`),
     active: true,
   });
 
@@ -826,7 +839,7 @@ async function ensureOverlay(tabId) {
   try {
     await chrome.scripting.executeScript({
       target: { tabId },
-      files: ['content-script.js'],
+      files: ['content/content-script.js'],
     });
   } catch (error) {
     console.warn('YTD: Failed to inject content script:', error);

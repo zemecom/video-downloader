@@ -223,12 +223,35 @@ body {
   border-top: 1px solid rgba(125, 220, 255, 0.12);
 }
 
+.recent-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .recent-header {
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: rgba(173, 227, 255, 0.82);
+}
+
+.recent-open-all {
+  border: 1px solid rgba(125, 220, 255, 0.16);
+  border-radius: 999px;
+  background: rgba(125, 220, 255, 0.08);
+  color: var(--ytd-blue-1);
+  padding: 3px 8px;
+  font-size: 9px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.recent-open-all:hover {
+  border-color: var(--ytd-border-strong);
+  background: rgba(125, 220, 255, 0.14);
 }
 
 .recent-list {

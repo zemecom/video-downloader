@@ -6,7 +6,7 @@ namespace YtdPhp\NativeHost\Protocol\Request;
 
 use YtdPhp\NativeHost\Protocol\NativeHostRequest;
 
-final readonly class ListRecentDownloadsRequest extends NativeHostRequest
+final readonly class ActionRequest extends NativeHostRequest
 {
     public function __construct(
         public string $action,

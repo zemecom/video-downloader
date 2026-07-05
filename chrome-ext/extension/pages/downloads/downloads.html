@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>YTD Downloads</title>
+    <link rel="stylesheet" href="downloads.css" />
+  </head>
+
+  <body>
+    <main class="downloads">
+      <header class="downloads-header">
+        <div>
+          <div class="eyebrow">YTD</div>
+          <h1 class="downloads-title">Все загрузки</h1>
+          <p class="downloads-summary">Обновляю список...</p>
+        </div>
+        <div class="header-actions">
+          <button class="bulk-button" id="openDirButton" type="button">Открыть каталог</button>
+          <div class="bulk-actions" hidden>
+            <button class="bulk-button bulk-button-danger" id="deleteAllButton" type="button">Удалить всё</button>
+            <button class="bulk-button" id="clearHistoryButton" type="button">Очистить историю</button>
+          </div>
+          <button class="refresh-button" type="button">Обновить</button>
+        </div>
+      </header>
+
+      <p class="status" role="status" aria-live="polite"></p>
+      <div class="downloads-list"></div>
+      <p class="downloads-empty" hidden>Пока пусто</p>
+    </main>
+
+    <script src="../../shared/recent-downloads-ui.js"></script>
+    <script src="downloads.js"></script>
+  </body>
+</html>

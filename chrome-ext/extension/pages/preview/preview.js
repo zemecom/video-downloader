@@ -116,7 +116,7 @@ async function attemptPlayback(fromUserGesture) {
     player.muted = false;
     statusNode.textContent = fromUserGesture
       ? 'Браузер не смог начать воспроизведение.'
-      : 'Нажми "Смотреть", если браузер заблокировал автозапуск.';
+      : 'Нажми "Воспроизвести", если браузер заблокировал автозапуск.';
   }
 }
 

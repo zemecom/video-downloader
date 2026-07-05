@@ -37,7 +37,12 @@
       </section>
 
       <section class="recent">
-        <div class="recent-header">Недавние</div>
+        <div class="recent-header-row">
+          <div class="recent-header">Недавние</div>
+          <button class="recent-open-all" type="button" hidden>
+            Все загрузки
+          </button>
+        </div>
         <div class="recent-list"></div>
         <p class="recent-empty">Пока пусто</p>
       </section>
@@ -45,6 +50,7 @@
       <p class="status" role="status" aria-live="polite"></p>
     </main>
 
+    <script src="../../shared/recent-downloads-ui.js"></script>
     <script src="popup.js"></script>
   </body>
 </html>

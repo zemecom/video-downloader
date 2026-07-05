@@ -4,7 +4,7 @@
   "description": "Расширение Chrome с запуском в один клик и native host для локального проекта-загрузчика `YTD` внутри основного репозитория `video-downloader`.",
   "main": "index.js",
   "scripts": {
-    "lint": "eslint extension/*.js",
+    "lint": "eslint \"extension/**/*.js\"",
     "test": "node --test"
   },
   "keywords": [],

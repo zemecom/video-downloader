@@ -260,6 +260,43 @@ final readonly class NativeHostJobManagerService
         ]);
     }
 
+    public function clearRecentDownloadsHistory(): NativeHostResponse
+    {
+        $this->recentDownloads->clear();
+
+        return NativeHostResponse::success('recent_downloads_history_cleared', 'Recent downloads history cleared.');
+    }
+
+    public function deleteAllRecentDownloads(): NativeHostResponse
+    {
+        $items = $this->recentDownloads->list();
+        $filesystem = new Filesystem();
+
+        foreach ($items as $entry) {
+            $path = $entry['path'] ?? null;
+            if (\is_string($path) && $path !== '' && \file_exists($path)) {
+                $filesystem->remove($path);
+            }
+        }
+
+        $this->recentDownloads->clear();
+
+        return NativeHostResponse::success('all_recent_downloads_deleted', 'All recent downloads deleted and history cleared.');
+    }
+
+    public function openDownloadsDirectory(): NativeHostResponse
+    {
+        $path = $this->bootstrap->getDownloadBasePath('');
+
+        if (!\is_dir($path)) {
+            new Filesystem()->mkdir($path);
+        }
+
+        ($this->opener)($path);
+
+        return NativeHostResponse::success('downloads_directory_opened', 'Downloads directory opened.');
+    }
+
     /**
      * @return array<string, mixed>
      */

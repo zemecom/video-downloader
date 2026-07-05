@@ -7,7 +7,7 @@ namespace YtdPhp\NativeHost\Protocol;
 use YtdPhp\NativeHost\Protocol\NativeHostException;
 use YtdPhp\NativeHost\Protocol\Request\StartDownloadRequest;
 use YtdPhp\NativeHost\Protocol\Request\JobActionRequest;
-use YtdPhp\NativeHost\Protocol\Request\ListRecentDownloadsRequest;
+use YtdPhp\NativeHost\Protocol\Request\ActionRequest;
 use YtdPhp\NativeHost\Protocol\Request\EntryActionRequest;
 use YtdPhp\NativeHost\Protocol\Request\LogClientErrorRequest;
 
@@ -27,6 +27,9 @@ abstract readonly class NativeHostRequest
     public const string OPEN_RECENT_DOWNLOAD = 'open_recent_download';
     public const string REVEAL_RECENT_DOWNLOAD = 'reveal_recent_download';
     public const string DELETE_RECENT_DOWNLOAD = 'delete_recent_download';
+    public const string CLEAR_RECENT_DOWNLOADS_HISTORY = 'clear_recent_downloads_history';
+    public const string DELETE_ALL_RECENT_DOWNLOADS = 'delete_all_recent_downloads';
+    public const string OPEN_DOWNLOADS_DIRECTORY = 'open_downloads_directory';
     public const string LOG_CLIENT_ERROR = 'log_client_error';
 
     /**
@@ -53,7 +56,7 @@ abstract readonly class NativeHostRequest
         return match ($action) {
             self::START_DOWNLOAD => new StartDownloadRequest($action, self::validateUrl($url), self::validateMode($mode)),
             self::GET_JOB_STATUS, self::CANCEL_DOWNLOAD, self::FORCE_CANCEL_DOWNLOAD => new JobActionRequest($action, self::validateJobId($jobId)),
-            self::LIST_RECENT_DOWNLOADS => new ListRecentDownloadsRequest($action),
+            self::LIST_RECENT_DOWNLOADS, self::CLEAR_RECENT_DOWNLOADS_HISTORY, self::DELETE_ALL_RECENT_DOWNLOADS, self::OPEN_DOWNLOADS_DIRECTORY => new ActionRequest($action),
             self::PREVIEW_RECENT_DOWNLOAD, self::OPEN_RECENT_DOWNLOAD, self::REVEAL_RECENT_DOWNLOAD, self::DELETE_RECENT_DOWNLOAD => new EntryActionRequest($action, self::validateEntryId($entryId)),
             self::LOG_CLIENT_ERROR => new LogClientErrorRequest($action, \is_string($errorMessage) ? $errorMessage : 'Unknown JS error', \is_string($errorStack) ? $errorStack : null),
             default => throw new NativeHostException('invalid_payload', 'Invalid native host payload.'),

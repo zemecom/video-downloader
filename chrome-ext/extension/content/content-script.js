@@ -22,6 +22,7 @@
       this.percentNode = shadowRoot.querySelector('.percent');
       this.cancelButton = shadowRoot.querySelector('.cancel-action');
       this.playButton = shadowRoot.querySelector('.play-action');
+      this.openButton = shadowRoot.querySelector('.open-action');
       this.closeButtons = shadowRoot.querySelectorAll('.close, .close-action');
 
       this.autoHideTimer = null;
@@ -37,6 +38,16 @@
         const filePath = this.playButton.dataset.filePath;
         if (url) {
           this.requestPreviewPage(url, recentId, filePath);
+        }
+      });
+
+      this.openButton.addEventListener('click', async () => {
+        const recentId = this.openButton.dataset.recentDownloadId;
+        if (recentId) {
+          await chrome.runtime.sendMessage({
+            type: 'ytd:open-recent-download',
+            entryId: recentId,
+          });
         }
       });
 
@@ -138,6 +149,13 @@
         this.playButton.dataset.filePath = nextFilePath || '';
       } else {
         this.playButton.hidden = true;
+      }
+
+      if (status === 'completed' && recentDownloadId) {
+        this.openButton.hidden = false;
+        this.openButton.dataset.recentDownloadId = recentDownloadId || '';
+      } else {
+        this.openButton.hidden = true;
       }
 
       if (

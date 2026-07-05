@@ -12,7 +12,7 @@ use YtdPhp\NativeHost\Protocol\NativeHostResponse;
 use YtdPhp\NativeHost\Protocol\NativeHostException;
 use YtdPhp\NativeHost\Protocol\Request\StartDownloadRequest;
 use YtdPhp\NativeHost\Protocol\Request\JobActionRequest;
-use YtdPhp\NativeHost\Protocol\Request\ListRecentDownloadsRequest;
+use YtdPhp\NativeHost\Protocol\Request\ActionRequest;
 use YtdPhp\NativeHost\Protocol\Request\EntryActionRequest;
 use YtdPhp\NativeHost\Protocol\Request\LogClientErrorRequest;
 
@@ -38,7 +38,12 @@ final readonly class NativeHostHandlerService
                     NativeHostRequest::CANCEL_DOWNLOAD => $this->manager->cancelDownload($request->jobId),
                     NativeHostRequest::FORCE_CANCEL_DOWNLOAD => $this->manager->forceCancelDownload($request->jobId),
                 },
-                $request instanceof ListRecentDownloadsRequest => $this->manager->listRecentDownloads(),
+                $request instanceof ActionRequest => match ($request->action) {
+                    NativeHostRequest::LIST_RECENT_DOWNLOADS => $this->manager->listRecentDownloads(),
+                    NativeHostRequest::CLEAR_RECENT_DOWNLOADS_HISTORY => $this->manager->clearRecentDownloadsHistory(),
+                    NativeHostRequest::DELETE_ALL_RECENT_DOWNLOADS => $this->manager->deleteAllRecentDownloads(),
+                    NativeHostRequest::OPEN_DOWNLOADS_DIRECTORY => $this->manager->openDownloadsDirectory(),
+                },
                 $request instanceof EntryActionRequest => match ($request->action) {
                     NativeHostRequest::PREVIEW_RECENT_DOWNLOAD => $this->manager->previewRecentDownload($request->entryId),
                     NativeHostRequest::OPEN_RECENT_DOWNLOAD => $this->manager->openRecentDownload($request->entryId),

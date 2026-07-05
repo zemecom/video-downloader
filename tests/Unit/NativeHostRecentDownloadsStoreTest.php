@@ -62,7 +62,7 @@ final class NativeHostRecentDownloadsStoreTest extends TestCase
         }
     }
 
-    public function testAppendKeepsOnlyTwentyNewestEntries(): void
+    public function testAppendKeepsAllEntriesWithoutTruncation(): void
     {
         $root = \sys_get_temp_dir() . '/ytd_recent_downloads_limit_' . \uniqid();
         \mkdir($root, 0777, true);
@@ -72,7 +72,7 @@ final class NativeHostRecentDownloadsStoreTest extends TestCase
         try {
             $store = new NativeHostRecentDownloadsStore(new RuntimeBootstrap($root));
 
-            for ($index = 1; $index <= 21; ++$index) {
+            for ($index = 1; $index <= 30; ++$index) {
                 $path = $root . '/video-' . $index . '.mkv';
                 \touch($path);
                 $store->append($path, 'https://example.com/' . $index, 'video');
@@ -80,9 +80,9 @@ final class NativeHostRecentDownloadsStoreTest extends TestCase
 
             $items = $store->list();
 
-            self::assertCount(20, $items);
-            self::assertSame('video-21.mkv', $items[0]['name']);
-            self::assertSame('video-2.mkv', $items[19]['name']);
+            self::assertCount(30, $items);
+            self::assertSame('video-30.mkv', $items[0]['name']);
+            self::assertSame('video-1.mkv', $items[29]['name']);
         } finally {
             putenv('YTD_PROJECT_ROOT');
         }

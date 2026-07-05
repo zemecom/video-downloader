@@ -7,10 +7,25 @@ const STATUS_LABELS = {
   starting: 'Подготовка',
 };
 
+const recentDownloadsUi = globalThis.YtdRecentDownloadsUi || {};
+const {
+  RECENT_DOWNLOADS_PREVIEW_LIMIT = 5,
+  buildRecentDownloadActions = () => [],
+  createRecentDownloadsViewModel = (items) => ({
+    totalCount: Array.isArray(items) ? items.length : 0,
+    visibleItems: Array.isArray(items) ? items : [],
+    hasHiddenItems: false,
+  }),
+  getRecentDownloadModeLabel = (mode) => (mode === 'audio' ? 'Аудио' : 'Видео'),
+  normalizeRecentDownloadsPayload = (payload) =>
+    Array.isArray(payload?.items) ? payload.items : [],
+} = recentDownloadsUi;
+
 const buttons = Array.from(document.querySelectorAll('[data-mode]'));
 const statusNode = document.querySelector('.status');
 const recentListNode = document.querySelector('.recent-list');
 const recentEmptyNode = document.querySelector('.recent-empty');
+const recentOpenAllButton = document.querySelector('.recent-open-all');
 const activeDownloadNode = document.querySelector('.active-download');
 const activeDownloadStatusNode = document.querySelector(
   '.active-download-status'
@@ -29,7 +44,7 @@ const activeDownloadCancelButton = document.querySelector(
 let activeJobId = null;
 let lastKnownStatus = null;
 
-loadRecentDownloads();
+void loadRecentDownloads();
 
 const port = chrome.runtime.connect({ name: 'ytd-popup' });
 port.onMessage.addListener(async (message) => {
@@ -45,17 +60,21 @@ port.onMessage.addListener(async (message) => {
 
 buttons.forEach((button) => {
   button.addEventListener('click', () => {
-    startDownload(button.dataset.mode === 'audio' ? 'audio' : 'video');
+    void startDownload(button.dataset.mode === 'audio' ? 'audio' : 'video');
   });
+});
+
+recentOpenAllButton?.addEventListener('click', () => {
+  void openAllDownloadsPage();
 });
 
 activeDownloadCancelButton.addEventListener('click', () => {
   if (activeDownloadCancelButton.disabled) return;
 
   if (activeDownloadCancelButton.textContent === 'Принудительно остановить') {
-    forceCancelActiveDownload();
+    void forceCancelActiveDownload();
   } else if (activeDownloadCancelButton.textContent === 'Отменить') {
-    cancelActiveDownload();
+    void cancelActiveDownload();
   } else {
     hideActiveDownload();
   }
@@ -96,6 +115,7 @@ async function startDownload(mode) {
 
 async function loadRecentDownloads() {
   renderRecentDownloads([]);
+  toggleRecentOpenAllButton(false);
 
   const response = await sendMessage({
     type: 'ytd:list-recent-downloads',
@@ -106,10 +126,13 @@ async function loadRecentDownloads() {
     return;
   }
 
-  const items = Array.isArray(response?.payload?.items)
-    ? response.payload.items.slice(0, 5)
-    : [];
-  renderRecentDownloads(items);
+  const allItems = normalizeRecentDownloadsPayload(response?.payload);
+  const viewModel = createRecentDownloadsViewModel(allItems, {
+    limit: RECENT_DOWNLOADS_PREVIEW_LIMIT,
+  });
+
+  renderRecentDownloads(viewModel.visibleItems);
+  toggleRecentOpenAllButton(viewModel.hasHiddenItems);
 }
 
 function renderRecentDownloads(items) {
@@ -128,71 +151,87 @@ function renderRecentDownloads(items) {
 
     const meta = document.createElement('div');
     meta.className = 'recent-meta';
-    meta.textContent = item?.mode === 'audio' ? 'Аудио' : 'Видео';
+    meta.textContent = getRecentDownloadModeLabel(item?.mode);
     row.appendChild(meta);
 
     const actions = document.createElement('div');
     actions.className = 'recent-actions';
 
-    if (item?.mode === 'video') {
-      const playButton = document.createElement('button');
-      playButton.type = 'button';
-      playButton.className = 'recent-button';
-      playButton.textContent = 'Воспроизвести';
-      playButton.addEventListener('click', () => {
-        playRecentVideo(item?.id, title.textContent, item?.path);
-      });
-      actions.appendChild(playButton);
-    }
-
-    const openButton = document.createElement('button');
-    openButton.type = 'button';
-    openButton.className = 'recent-button';
-    openButton.textContent = 'Открыть';
-    openButton.addEventListener('click', () => {
-      runRecentAction(
-        'ytd:open-recent-download',
-        item?.id,
-        `Открываю ${title.textContent}...`
-      );
-    });
-    actions.appendChild(openButton);
-
-    const revealButton = document.createElement('button');
-    revealButton.type = 'button';
-    revealButton.className = 'recent-button';
-    revealButton.textContent = 'Finder';
-    revealButton.addEventListener('click', () => {
-      runRecentAction(
-        'ytd:reveal-recent-download',
-        item?.id,
-        `Показываю ${title.textContent} в Finder...`
-      );
-    });
-    actions.appendChild(revealButton);
-
-    const deleteButton = document.createElement('button');
-    deleteButton.type = 'button';
-    deleteButton.className = 'recent-button recent-button-danger';
-    deleteButton.textContent = 'Удалить';
-    deleteButton.addEventListener('click', async () => {
-      const shouldDelete = globalThis.confirm(`Удалить ${title.textContent}?`);
-      if (!shouldDelete) {
-        return;
-      }
-
-      await runRecentAction(
-        'ytd:delete-recent-download',
-        item?.id,
-        `Удаляю ${title.textContent}...`,
-        true
-      );
-    });
-    actions.appendChild(deleteButton);
+    appendRecentDownloadActions(actions, item, title.textContent, item?.path);
 
     row.appendChild(actions);
     recentListNode.appendChild(row);
   });
+}
+
+function appendRecentDownloadActions(actionsNode, item, title, filePath) {
+  buildRecentDownloadActions(item).forEach((action) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className =
+      action.kind === 'delete'
+        ? 'recent-button recent-button-danger'
+        : 'recent-button';
+    button.textContent = action.label;
+    button.addEventListener('click', () => {
+      void handleRecentDownloadAction(action.kind, item?.id, title, filePath);
+    });
+    actionsNode.appendChild(button);
+  });
+}
+
+async function handleRecentDownloadAction(actionKind, entryId, title, filePath) {
+  if (actionKind === 'play') {
+    await playRecentVideo(entryId, title, filePath);
+    return;
+  }
+
+  if (actionKind === 'delete') {
+    const shouldDelete = globalThis.confirm(`Удалить ${title}?`);
+    if (!shouldDelete) {
+      return;
+    }
+
+    await runRecentAction(
+      'ytd:delete-recent-download',
+      entryId,
+      `Удаляю ${title}...`,
+      true
+    );
+    return;
+  }
+
+  if (actionKind === 'open') {
+    await runRecentAction(
+      'ytd:open-recent-download',
+      entryId,
+      `Открываю ${title}...`
+    );
+    return;
+  }
+
+  if (actionKind === 'reveal') {
+    await runRecentAction(
+      'ytd:reveal-recent-download',
+      entryId,
+      `Показываю ${title} в Finder...`
+    );
+  }
+}
+
+function toggleRecentOpenAllButton(visible) {
+  if (!recentOpenAllButton) {
+    return;
+  }
+
+  recentOpenAllButton.hidden = !visible;
+}
+
+async function openAllDownloadsPage() {
+  await chrome.tabs.create({
+    url: chrome.runtime.getURL('pages/downloads/downloads.html'),
+  });
+  window.close();
 }
 
 async function playRecentVideo(entryId, title, filePath) {
