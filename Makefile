@@ -1,4 +1,4 @@
-.PHONY: help install install-deps alias init doctor doctor-smoke clean-logs test test-integration lint lint-fix check check-entrypoint-local ci-current chrome-ext-paths chrome-ext-install chrome-ext-uninstall
+.PHONY: help install install-deps alias init doctor doctor-smoke clean-logs test test-integration lint lint-fix check check-entrypoint-local ci-current chrome-ext-paths chrome-ext-install chrome-ext-uninstall build build-release
 
 PHP ?= php
 COMPOSER ?= composer
@@ -25,6 +25,10 @@ help:
 	@echo "  make chrome-ext-paths - print Chrome extension and native host paths"
 	@echo "  make chrome-ext-install - install Chrome native host for the local extension"
 	@echo "  make chrome-ext-uninstall - uninstall Chrome native host manifest"
+	@echo ""
+	@echo "Build:"
+	@echo "  make build         - compile the ytd.phar binary"
+	@echo "  make build-release - compile phar and create zip archive for Chrome extension"
 	@echo ""
 	@echo "Checks:"
 	@echo "  make test          - run unit tests"
@@ -108,6 +112,12 @@ lint-fix:
 
 build:
 	bin/box compile
+
+build-release: build
+	@VERSION=$$(node -p "require('./$(CHROME_EXT_EXTENSION_DIR)/manifest.json').version"); \
+	echo "Packaging Chrome Extension v$$VERSION..."; \
+	cd $(CHROME_EXT_EXTENSION_DIR) && zip -q -r ../../ytd-chrome-extension-v$$VERSION.zip . ; \
+	echo "Release binaries (ytd.phar & ytd-chrome-extension-v$$VERSION.zip) are ready."
 
 check:
 	$(COMPOSER) check
