@@ -39,7 +39,6 @@ Dev-зависимости проекта ставятся через `require-d
 - PHPUnit
 - PHPStan
 - PHP CS Fixer
-- PHP_CodeSniffer
 
 Опционально:
 
