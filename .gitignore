@@ -9,6 +9,7 @@
 .idea/
 .phpunit.cache/
 *.log
+*.zip
 
 node_modules/
 

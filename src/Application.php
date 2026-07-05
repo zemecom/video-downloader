@@ -57,7 +57,11 @@ final readonly class Application
 
     public function toSymfonyApplication(): SymfonyApplication
     {
-        $application = new SymfonyApplication('YTD', '0.1.0');
+        $version = '@git-version@';
+        if (str_starts_with($version, '@')) {
+            $version = 'dev';
+        }
+        $application = new SymfonyApplication('YTD', $version);
         $application->setAutoExit(false);
         $application->addCommand(new YtdCommand(
             $this->bootstrap,
