@@ -200,6 +200,12 @@ ytd https://youtu.be/example
 - `chrome-ext/extension/` - unpacked extension для Chrome
 - `chrome-ext/native-host/` - installer и wrapper для Native Messaging
 
+Что важно для текущего UX расширения:
+
+- список `Недавние` хранится в `sqlite`-базе native host и переживает reload/update extension
+- default-путь этой базы и legacy JSON теперь лежит рядом с расширением: `chrome-ext/logs/`
+- при первом запуске после обновления существующая история из legacy JSON мягко мигрирует в новую `sqlite`
+
 Быстрые команды:
 
 ```bash
@@ -244,6 +250,7 @@ Runtime-конфигурация хранится в:
 - `TEST_PLAYLIST_LOCAL` - необязательный URL плейлиста для ручной проверки playlist flow через local-route
 - `YTD_PROJECT_ROOT` - явный runtime-root, если нужно переопределить автоматическое определение каталога проекта
 - `YTD_ERROR_LOG_FILE` - кастомный путь для лога ошибок
+- `YTD_NATIVE_HOST_RECENT_DOWNLOADS_DB_FILE` - кастомный путь для `sqlite`-базы recent downloads native host
 
 ### Правила маршрутизации
 

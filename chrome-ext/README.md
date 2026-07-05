@@ -38,6 +38,13 @@ cd chrome-ext/native-host
 
 5. Открой поддерживаемую страницу по `http://` или `https://` с видео и нажми на иконку расширения.
 
+## Хранение списка недавних файлов
+
+- Список `Недавние` хранится на стороне native host в `sqlite`-базе `chrome-ext/logs/native-host-recent-downloads.sqlite`.
+- Legacy-история для мягкой миграции по умолчанию тоже лежит рядом: `chrome-ext/logs/native-host-recent-downloads.json`.
+- При первом запуске после обновления существующая история из legacy JSON мягко мигрирует в новую `sqlite`-базу.
+- Операции `Открыть`, `Finder`, `Удалить` и предпросмотр по-прежнему выполняются через native host.
+
 ## Extension ID по умолчанию
 
 Когда Chrome загружает расширение с зафиксированным `key` в manifest, extension ID по умолчанию такой:

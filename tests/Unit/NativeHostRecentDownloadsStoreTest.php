@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace YtdPhp\Tests\Unit;
 
+use PDO;
 use PHPUnit\Framework\TestCase;
 use YtdPhp\Runtime\RuntimeBootstrap;
 use YtdPhp\NativeHost\Store\NativeHostRecentDownloadsStore;
@@ -48,7 +49,9 @@ final class NativeHostRecentDownloadsStoreTest extends TestCase
 
         try {
             $store = new NativeHostRecentDownloadsStore(new RuntimeBootstrap($root));
-            $entry = $store->append('/tmp/video-one.mkv', 'https://example.com/1', 'video');
+            $path = $root . '/video-one.mkv';
+            \touch($path);
+            $entry = $store->append($path, 'https://example.com/1', 'video');
 
             $store->remove((string) $entry['id']);
 
@@ -96,11 +99,11 @@ final class NativeHostRecentDownloadsStoreTest extends TestCase
             $bootstrap = new RuntimeBootstrap($root);
             $store = new NativeHostRecentDownloadsStore($bootstrap);
             $existingPath = $root . '/downloads/existing-video.mp4';
-            \mkdir(\dirname($bootstrap->getNativeHostRecentDownloadsPath()), 0777, true);
+            \mkdir(\dirname($bootstrap->getLegacyNativeHostRecentDownloadsPath()), 0777, true);
             \touch($existingPath);
 
             \file_put_contents(
-                $bootstrap->getNativeHostRecentDownloadsPath(),
+                $bootstrap->getLegacyNativeHostRecentDownloadsPath(),
                 json_encode([
                     [
                         'id' => 'download-missing',
@@ -122,12 +125,16 @@ final class NativeHostRecentDownloadsStoreTest extends TestCase
             );
 
             $items = $store->list();
-            $persisted = json_decode((string) \file_get_contents($bootstrap->getNativeHostRecentDownloadsPath()), true, 512, JSON_THROW_ON_ERROR);
+            $database = new PDO('sqlite:' . $bootstrap->getNativeHostRecentDownloadsPath());
+            $persistedIds = $database->query('SELECT id FROM recent_downloads ORDER BY datetime(created_at) DESC, id DESC')?->fetchAll(PDO::FETCH_COLUMN) ?: [];
 
             self::assertCount(1, $items);
             self::assertSame('download-existing', $items[0]['id']);
-            self::assertCount(1, $persisted);
-            self::assertSame('download-existing', $persisted[0]['id']);
+
+            $store->remove('download-existing');
+
+            self::assertSame(['download-existing'], $persistedIds);
+            self::assertSame([], $store->list());
         } finally {
             putenv('YTD_PROJECT_ROOT');
         }

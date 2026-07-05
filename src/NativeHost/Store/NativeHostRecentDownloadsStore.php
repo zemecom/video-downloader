@@ -4,22 +4,21 @@ declare(strict_types=1);
 
 namespace YtdPhp\NativeHost\Store;
 
-use Closure;
 use DateTimeImmutable;
 use JsonException;
+use PDO;
+use PDOException;
 use Symfony\Component\Filesystem\Filesystem;
 use YtdPhp\Runtime\RuntimeBootstrap;
 
-use const LOCK_EX;
-use const LOCK_UN;
-use const JSON_PRETTY_PRINT;
 use const JSON_THROW_ON_ERROR;
-use const JSON_UNESCAPED_SLASHES;
-use const JSON_UNESCAPED_UNICODE;
 
 final readonly class NativeHostRecentDownloadsStore
 {
     private const int MAX_ITEMS = 20;
+    private const string TABLE_NAME = 'recent_downloads';
+    private const string META_TABLE_NAME = 'recent_downloads_meta';
+    private const string LEGACY_MIGRATION_FLAG = 'legacy_json_migrated';
 
     public function __construct(
         private RuntimeBootstrap $bootstrap,
@@ -39,11 +38,12 @@ final readonly class NativeHostRecentDownloadsStore
             'createdAt' => new DateTimeImmutable()->format(DATE_ATOM),
         ];
 
-        $this->withExclusiveLock(function () use ($entry): void {
-            $items = $this->filterExistingItems($this->readAll());
-            \array_unshift($items, $entry);
-            $this->writeAll(\array_slice($items, 0, self::MAX_ITEMS));
-        });
+        $database = $this->openDatabase();
+        $this->migrateLegacyJsonIfNeeded($database);
+        $this->persistItems($database, [
+            $entry,
+            ...$this->fetchItems($database),
+        ]);
 
         return $entry;
     }
@@ -53,16 +53,15 @@ final readonly class NativeHostRecentDownloadsStore
      */
     public function list(): array
     {
-        $items = [];
+        $database = $this->openDatabase();
+        $this->migrateLegacyJsonIfNeeded($database);
 
-        $this->withExclusiveLock(function () use (&$items): void {
-            $stored = $this->readAll();
-            $items = $this->filterExistingItems($stored);
+        $storedItems = $this->fetchItems($database);
+        $items = $this->filterExistingItems($storedItems);
 
-            if ($items !== $stored) {
-                $this->writeAll($items);
-            }
-        });
+        if ($items !== $storedItems) {
+            $this->persistItems($database, $items);
+        }
 
         return $items;
     }
@@ -83,57 +82,203 @@ final readonly class NativeHostRecentDownloadsStore
 
     public function remove(string $entryId): void
     {
-        $this->withExclusiveLock(function () use ($entryId): void {
-            $items = \array_values(\array_filter(
-                $this->filterExistingItems($this->readAll()),
-                static fn(array $item): bool => ($item['id'] ?? null) !== $entryId,
-            ));
+        $database = $this->openDatabase();
+        $this->migrateLegacyJsonIfNeeded($database);
 
-            $this->writeAll($items);
-        });
+        $statement = $database->prepare('DELETE FROM ' . self::TABLE_NAME . ' WHERE id = :id');
+        $statement->bindValue(':id', $entryId);
+        $statement->execute();
     }
 
-    /**
-     * @param list<array<string, mixed>> $items
-     */
-    private function writeAll(array $items): void
+    private function openDatabase(): PDO
     {
         $path = $this->bootstrap->getNativeHostRecentDownloadsPath();
         new Filesystem()->mkdir(\dirname($path));
 
         try {
-            $encoded = \json_encode($items, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . PHP_EOL;
+            $database = new PDO('sqlite:' . $path, null, null, [
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            ]);
+        } catch (PDOException $exception) {
+            throw new \RuntimeException('Failed to open recent downloads SQLite database.', 0, $exception);
+        }
+
+        $this->ensureSchema($database);
+
+        return $database;
+    }
+
+    private function ensureSchema(PDO $database): void
+    {
+        $database->exec(
+            'CREATE TABLE IF NOT EXISTS ' . self::TABLE_NAME . ' (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                path TEXT NOT NULL,
+                url TEXT NOT NULL DEFAULT \'\',
+                mode TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            )',
+        );
+        $database->exec(
+            'CREATE TABLE IF NOT EXISTS ' . self::META_TABLE_NAME . ' (
+                meta_key TEXT PRIMARY KEY,
+                meta_value TEXT NOT NULL
+            )',
+        );
+    }
+
+    private function migrateLegacyJsonIfNeeded(PDO $database): void
+    {
+        if ($this->isMigrationCompleted($database, self::LEGACY_MIGRATION_FLAG)) {
+            return;
+        }
+
+        $legacyPath = $this->bootstrap->getLegacyNativeHostRecentDownloadsPath();
+        if (!\file_exists($legacyPath)) {
+            $this->markMigrationCompleted($database, self::LEGACY_MIGRATION_FLAG);
+
+            return;
+        }
+
+        try {
+            $decoded = \json_decode((string) \file_get_contents($legacyPath), true, 512, JSON_THROW_ON_ERROR);
         } catch (JsonException) {
+            $this->markMigrationCompleted($database, self::LEGACY_MIGRATION_FLAG);
+
             return;
         }
 
-        $tempPath = \sprintf('%s.%s.tmp', $path, \uniqid());
-        if (\file_put_contents($tempPath, $encoded) === false) {
-            return;
+        $items = $this->filterExistingItems(\is_array($decoded) ? \array_values(\array_filter($decoded, is_array(...))) : []);
+        if ($items !== []) {
+            $this->persistItems($database, [
+                ...$items,
+                ...$this->fetchItems($database),
+            ]);
         }
 
-        if (!\rename($tempPath, $path) && \file_exists($tempPath)) {
-            \unlink($tempPath);
-        }
+        $this->markMigrationCompleted($database, self::LEGACY_MIGRATION_FLAG);
+    }
+
+    private function isMigrationCompleted(PDO $database, string $flag): bool
+    {
+        $statement = $database->prepare(
+            'SELECT meta_value FROM ' . self::META_TABLE_NAME . ' WHERE meta_key = :key LIMIT 1',
+        );
+        $statement->bindValue(':key', $flag);
+        $statement->execute();
+
+        return $statement->fetchColumn() === '1';
+    }
+
+    private function markMigrationCompleted(PDO $database, string $flag): void
+    {
+        $statement = $database->prepare(
+            'INSERT INTO ' . self::META_TABLE_NAME . ' (meta_key, meta_value)
+             VALUES (:key, :value)
+             ON CONFLICT(meta_key) DO UPDATE SET meta_value = excluded.meta_value',
+        );
+        $statement->bindValue(':key', $flag);
+        $statement->bindValue(':value', '1');
+        $statement->execute();
     }
 
     /**
      * @return list<array<string, mixed>>
      */
-    private function readAll(): array
+    private function fetchItems(PDO $database): array
     {
-        $path = $this->bootstrap->getNativeHostRecentDownloadsPath();
-        if (!\file_exists($path)) {
-            return [];
-        }
+        $statement = $database->query(
+            'SELECT id, name, path, url, mode, created_at
+             FROM ' . self::TABLE_NAME . '
+             ORDER BY datetime(created_at) DESC, id DESC',
+        );
+        $rows = $statement !== false ? $statement->fetchAll() : [];
+
+        return \array_map(
+            static fn(array $row): array => [
+                'id' => (string) ($row['id'] ?? ''),
+                'name' => (string) ($row['name'] ?? ''),
+                'path' => (string) ($row['path'] ?? ''),
+                'url' => (string) ($row['url'] ?? ''),
+                'mode' => (string) ($row['mode'] ?? ''),
+                'createdAt' => (string) ($row['created_at'] ?? ''),
+            ],
+            \is_array($rows) ? $rows : [],
+        );
+    }
+
+    /**
+     * @param list<array<string, mixed>> $items
+     */
+    private function persistItems(PDO $database, array $items): void
+    {
+        $items = \array_slice($this->normalizeItems($items), 0, self::MAX_ITEMS);
+
+        $database->beginTransaction();
 
         try {
-            $decoded = \json_decode((string) \file_get_contents($path), true, 512, JSON_THROW_ON_ERROR);
-        } catch (JsonException) {
-            return [];
+            $database->exec('DELETE FROM ' . self::TABLE_NAME);
+
+            $statement = $database->prepare(
+                'INSERT INTO ' . self::TABLE_NAME . ' (id, name, path, url, mode, created_at)
+                 VALUES (:id, :name, :path, :url, :mode, :created_at)',
+            );
+
+            foreach ($items as $item) {
+                $statement->bindValue(':id', (string) ($item['id'] ?? ''));
+                $statement->bindValue(':name', (string) ($item['name'] ?? ''));
+                $statement->bindValue(':path', (string) ($item['path'] ?? ''));
+                $statement->bindValue(':url', (string) ($item['url'] ?? ''));
+                $statement->bindValue(':mode', (string) ($item['mode'] ?? 'video'));
+                $statement->bindValue(':created_at', (string) ($item['createdAt'] ?? ''));
+                $statement->execute();
+            }
+
+            $database->commit();
+        } catch (\Throwable $exception) {
+            if ($database->inTransaction()) {
+                $database->rollBack();
+            }
+
+            throw $exception;
+        }
+    }
+
+    /**
+     * @param list<array<string, mixed>> $items
+     * @return list<array<string, mixed>>
+     */
+    private function normalizeItems(array $items): array
+    {
+        $normalized = [];
+
+        foreach ($items as $item) {
+            $id = \is_string($item['id'] ?? null) ? $item['id'] : '';
+            $path = \is_string($item['path'] ?? null) ? $item['path'] : '';
+            if ($id === '' || $path === '') {
+                continue;
+            }
+
+            $normalized[$id] = [
+                'id' => $id,
+                'name' => \is_string($item['name'] ?? null) && $item['name'] !== '' ? $item['name'] : \basename($path),
+                'path' => $path,
+                'url' => \is_string($item['url'] ?? null) ? $item['url'] : '',
+                'mode' => ($item['mode'] ?? null) === 'audio' ? 'audio' : 'video',
+                'createdAt' => \is_string($item['createdAt'] ?? null) && $item['createdAt'] !== ''
+                    ? $item['createdAt']
+                    : new DateTimeImmutable()->format(DATE_ATOM),
+            ];
         }
 
-        return \is_array($decoded) ? \array_values(\array_filter($decoded, is_array(...))) : [];
+        \usort(
+            $normalized,
+            static fn(array $left, array $right): int => [(string) ($right['createdAt'] ?? ''), (string) ($right['id'] ?? '')] <=> [(string) ($left['createdAt'] ?? ''), (string) ($left['id'] ?? '')],
+        );
+
+        return \array_values($normalized);
     }
 
     /**
@@ -150,31 +295,5 @@ final readonly class NativeHostRecentDownloadsStore
                 return is_string($path) && $path !== '' && \file_exists($path);
             },
         ));
-    }
-
-    private function withExclusiveLock(Closure $callback): void
-    {
-        $lockPath = $this->bootstrap->getNativeHostRecentDownloadsPath() . '.lock';
-        new Filesystem()->mkdir(\dirname($lockPath));
-
-        $handle = \fopen($lockPath, 'c+');
-        if (!\is_resource($handle)) {
-            $callback();
-
-            return;
-        }
-
-        try {
-            if (!\flock($handle, LOCK_EX)) {
-                $callback();
-
-                return;
-            }
-
-            $callback();
-        } finally {
-            \flock($handle, LOCK_UN);
-            \fclose($handle);
-        }
     }
 }
