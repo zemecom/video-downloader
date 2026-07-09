@@ -39,6 +39,19 @@ final class NativeHostRequestTest extends TestCase
         self::assertSame('audio', $request->mode);
     }
 
+    public function testFromPayloadAcceptsVideoFhdModeForStartDownloadAction(): void
+    {
+        $request = NativeHostRequest::fromPayload([
+            'action' => 'start_download',
+            'url' => 'https://example.com/watch?v=42',
+            'mode' => 'video-fhd',
+        ]);
+
+        self::assertInstanceOf(StartDownloadRequest::class, $request);
+        self::assertSame('video-fhd', $request->mode);
+    }
+
+
     public function testFromPayloadAcceptsStatusActionWithJobId(): void
     {
         $request = NativeHostRequest::fromPayload([

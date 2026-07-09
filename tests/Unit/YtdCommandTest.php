@@ -221,7 +221,7 @@ final class YtdCommandTest extends TestCase
         ], $command->getDefinition());
 
         $this->expectException(UserFacingException::class);
-        $this->expectExceptionMessage('`--quality` поддерживает только b/best, m/medium или l/low.');
+        $this->expectExceptionMessage('`--quality` поддерживает только b/best, f/fhd, m/medium или l/low.');
 
         $this->buildRuntimeOptions($command, $input);
     }

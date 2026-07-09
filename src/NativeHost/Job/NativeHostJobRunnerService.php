@@ -63,6 +63,8 @@ final readonly class NativeHostJobRunnerService
 
         if ($mode === 'audio') {
             $command[] = '--audio';
+        } elseif ($mode === 'video-fhd') {
+            $command[] = '--quality=fhd';
         }
 
         $command[] = $url;

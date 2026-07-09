@@ -5,7 +5,11 @@ const {
     totalCount: Array.isArray(items) ? items.length : 0,
     visibleItems: Array.isArray(items) ? items : [],
   }),
-  getRecentDownloadModeLabel = (mode) => (mode === 'audio' ? 'Аудио' : 'Видео'),
+  getRecentDownloadModeLabel = (mode) => {
+    if (mode === 'audio') return 'Аудио';
+    if (mode === 'video-fhd') return 'Видео FHD';
+    return 'Видео BEST';
+  },
   normalizeRecentDownloadsPayload = (payload) =>
     Array.isArray(payload?.items) ? payload.items : [],
 } = recentDownloadsUi;

@@ -309,10 +309,15 @@ final readonly class RuntimeBootstrap
 
     public function sanitizeOutputFilename(string $path): string
     {
-        $separatorOffset = \max(
-            \strrpos($path, '/'),
-            \strrpos($path, '\\'),
-        );
+        $slashPos = \strrpos($path, '/');
+        $backslashPos = \strrpos($path, '\\');
+
+        $separatorOffset = match (true) {
+            $slashPos !== false && $backslashPos !== false => \max($slashPos, $backslashPos),
+            $slashPos !== false => $slashPos,
+            $backslashPos !== false => $backslashPos,
+            default => false,
+        };
 
         $directory = $separatorOffset === false
             ? ''

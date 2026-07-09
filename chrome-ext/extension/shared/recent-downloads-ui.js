@@ -21,19 +21,20 @@ function createRecentDownloadsViewModel(items, options = {}) {
 }
 
 function getRecentDownloadModeLabel(mode) {
-  return mode === 'audio' ? 'Аудио' : 'Видео';
+  if (mode === 'audio') return 'Аудио';
+  if (mode === 'video-fhd') return 'Видео FHD';
+  return 'Видео BEST';
 }
 
 function buildRecentDownloadActions(item) {
   const actions = [];
 
-  if (item?.mode === 'video') {
+  if (item?.mode === 'video' || item?.mode === 'video-fhd') {
     actions.push({ kind: 'play', label: 'Воспроизвести' });
   }
 
   actions.push(
     { kind: 'open', label: 'Открыть' },
-    { kind: 'reveal', label: 'Finder' },
     { kind: 'delete', label: 'Удалить' }
   );
 

@@ -83,4 +83,19 @@ final class FastStreamFormatResolverTest extends TestCase
             ],
         ], false, 'mp4'));
     }
+
+    public function testResolveAllowsUnknownHeight(): void
+    {
+        $resolver = new FastStreamFormatResolver();
+
+        $pair = $resolver->resolve('medium', [
+            'formats' => [
+                ['format_id' => '137', 'ext' => 'mp4', 'vcodec' => 'avc1.640028', 'acodec' => 'none', 'height' => 0, 'tbr' => 4500],
+                ['format_id' => '140', 'ext' => 'm4a', 'vcodec' => 'none', 'acodec' => 'mp4a.40.2', 'abr' => 128],
+            ],
+        ]);
+
+        self::assertNotNull($pair);
+        self::assertSame('137', $pair->video->formatId);
+    }
 }

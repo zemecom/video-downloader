@@ -93,8 +93,9 @@ final readonly class SingleVideoFlowService
     private function qualityPresetLabel(string $qualityPreset): string
     {
         return match ($qualityPreset) {
-            'medium' => 'medium',
-            'low' => 'low',
+            'fhd' => 'FHD (1080p)',
+            'medium' => 'medium (720p)',
+            'low' => 'low (480p)',
             default => 'best',
         };
     }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace YtdPhp\Shared;
 
+use Symfony\Component\Console\Output\ConsoleOutputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
 final class ConsoleLogger
@@ -51,7 +52,10 @@ final class ConsoleLogger
     private function write(string $message, bool $stderr = false): void
     {
         if ($this->output instanceof OutputInterface) {
-            $this->output->writeln($message, $stderr ? OutputInterface::OUTPUT_NORMAL : OutputInterface::OUTPUT_NORMAL);
+            $target = $stderr && $this->output instanceof ConsoleOutputInterface
+                ? $this->output->getErrorOutput()
+                : $this->output;
+            $target->writeln($message);
 
             return;
         }

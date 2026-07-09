@@ -51,7 +51,7 @@ final class YtdCommand extends Command
             ->addOption('manual', 'm', InputOption::VALUE_NONE, 'Ручной режим (выбор формата)')
             ->addOption('audio', 'a', InputOption::VALUE_NONE, 'Скачать только аудио в лучшем формате (opus)')
             ->addOption('fast', null, InputOption::VALUE_NONE, 'Скачать видео и аудио параллельно, затем объединить через ffmpeg')
-            ->addOption('quality', 'Q', InputOption::VALUE_REQUIRED, 'Качество видео: b/best, m/medium, l/low', 'b')
+            ->addOption('quality', 'Q', InputOption::VALUE_REQUIRED, 'Качество видео: b/best, f/fhd, m/medium, l/low', 'b')
             ->addOption('dry-run', null, InputOption::VALUE_NONE, 'Показать, что будет скачано, но не запускать загрузку')
             ->addOption('mp4', null, InputOption::VALUE_NONE, 'Сохранить в формате MP4 (вместо MKV)')
             ->addOption('output-format', null, InputOption::VALUE_REQUIRED, 'Итоговый контейнер: mkv или mp4', $this->bootstrap->getDefaultOutputFormat())
@@ -189,9 +189,10 @@ final class YtdCommand extends Command
 
         return match ($value) {
             'b', 'best' => 'best',
+            'f', 'fhd' => 'fhd',
             'm', 'medium' => 'medium',
             'l', 'low' => 'low',
-            default => throw new UserFacingException('`--quality` поддерживает только b/best, m/medium или l/low.'),
+            default => throw new UserFacingException('`--quality` поддерживает только b/best, f/fhd, m/medium или l/low.'),
         };
     }
 

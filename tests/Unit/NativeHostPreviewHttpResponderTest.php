@@ -30,6 +30,29 @@ final class NativeHostPreviewHttpResponderTest extends TestCase
         }
     }
 
+    public function testRespondUsesCorrectContentTypeForAudio(): void
+    {
+        $root = \sys_get_temp_dir() . '/ytd_native_preview_http_audio_' . \uniqid();
+        \mkdir($root, 0777, true);
+        putenv('YTD_PROJECT_ROOT=' . $root);
+
+        try {
+            $filePath = $root . '/preview-audio.mp3';
+            \file_put_contents($filePath, 'audio-bytes');
+
+            $registry = new NativeHostPreviewRegistryService(new RuntimeBootstrap($root));
+            $preview = $registry->register('job-123', $filePath, 38123);
+            $responder = new NativeHostPreviewHttpResponder($registry);
+
+            $response = $responder->respond('GET', '/preview/job-123?token=' . $preview['token'], []);
+
+            self::assertSame(200, $response['status']);
+            self::assertSame('audio/mpeg', $response['headers']['Content-Type'] ?? null);
+        } finally {
+            putenv('YTD_PROJECT_ROOT');
+        }
+    }
+
     public function testRespondReturnsHeadersOnlyForHeadRequest(): void
     {
         $root = \sys_get_temp_dir() . '/ytd_native_preview_http_head_' . \uniqid();

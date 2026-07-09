@@ -33,6 +33,7 @@ final class FastStreamFormatResolver
     private function qualityPresetMaxHeight(string $qualityPreset): ?int
     {
         return match ($qualityPreset) {
+            'fhd' => 1080,
             'medium' => 720,
             'low' => 480,
             default => null,
@@ -208,7 +209,8 @@ final class FastStreamFormatResolver
 
         $height = $this->normalizeNumber($format['height'] ?? null);
 
-        return $height > 0 && $height <= $maxHeight;
+        // Форматы с неизвестной высотой (0) не отсекаем — пусть yt-dlp решит
+        return $height === 0 || $height <= $maxHeight;
     }
 
     /**

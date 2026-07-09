@@ -390,10 +390,7 @@ final readonly class PlaylistService
             }
         }
 
-        $freeSpace = \disk_free_space($targetDir);
-        if ($freeSpace === false) {
-            $freeSpace = 0;
-        }
+        $freeSpace = $this->getAvailableDiskSpace($targetDir);
 
         return new PlaylistSelectionSummary(
             $playlist,
@@ -448,4 +445,19 @@ final readonly class PlaylistService
         return $this->downloader->formatSize($size);
     }
 
+    private function getAvailableDiskSpace(string $path): int
+    {
+        $current = $path;
+        while (!\is_dir($current)) {
+            $parent = \dirname($current);
+            if ($parent === $current) {
+                break;
+            }
+            $current = $parent;
+        }
+
+        $space = \disk_free_space($current);
+
+        return $space !== false ? (int) $space : 0;
+    }
 }

@@ -1,6 +1,6 @@
 body {
   margin: 0;
-  min-width: 280px;
+  min-width: 360px;
   background: transparent;
   color: var(--ytd-text-primary);
 }
@@ -41,11 +41,12 @@ body {
 
 .actions {
   margin-top: 6px;
-  display: grid;
+  display: flex;
   gap: 4px;
 }
 
 .action {
+  flex: 1;
   border: 1px solid var(--ytd-border-light);
   border-radius: 10px;
   background: linear-gradient(
@@ -54,8 +55,8 @@ body {
     rgba(11, 22, 40, 0.72)
   );
   color: inherit;
-  padding: 8px 10px;
-  text-align: left;
+  padding: 4px 4px;
+  text-align: center;
   cursor: pointer;
   transition:
     transform 160ms ease,
@@ -82,6 +83,15 @@ body {
   display: block;
   font-size: 11px;
   font-weight: 700;
+  line-height: 1.5;
+}
+
+.highlight-best {
+  color: var(--ytd-blue-1);
+}
+
+.highlight-fhd {
+  color: var(--ytd-text-secondary);
 }
 
 .active-download {
@@ -240,6 +250,7 @@ body {
   color: rgba(173, 227, 255, 0.82);
 }
 
+.recent-open-folder,
 .recent-open-all,
 .recent-clear-all {
   border: 1px solid var(--ytd-border-light);
@@ -252,6 +263,7 @@ body {
   cursor: pointer;
 }
 
+.recent-open-folder:hover,
 .recent-open-all:hover,
 .recent-clear-all:hover {
   border-color: var(--ytd-border-strong);
@@ -279,6 +291,7 @@ body {
   font-size: 10px;
   font-weight: 600;
   line-height: 1.4;
+  color: rgb(193 193 193);
   overflow-wrap: anywhere;
   word-break: break-word;
 }

@@ -216,7 +216,7 @@ final readonly class PlaylistItemPreflightService
 
     private function playlistOutputTemplate(string $targetDir): string
     {
-        return $targetDir . '/%(playlist_index)03d - %(title)s [%(id)s].%(ext)s';
+        return $targetDir . '/%(playlist_index)03d - %(title)s [%(resolution)s] [%(id)s].%(ext)s';
     }
 
     /**

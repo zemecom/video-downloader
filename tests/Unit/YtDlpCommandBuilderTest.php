@@ -70,7 +70,7 @@ final class YtDlpCommandBuilderTest extends TestCase
             $command[array_search('-f', $command, true) + 1],
         );
         self::assertStringContainsString(
-            'bestvideo[height<=720]+bestaudio/best[height<=720]/bestvideo+bestaudio/best',
+            'bestvideo[height<=720]+bestaudio/best[height<=720]/bestvideo[height<=720]+bestaudio/best[height<=720]',
             $command[array_search('-f', $command, true) + 1],
         );
     }

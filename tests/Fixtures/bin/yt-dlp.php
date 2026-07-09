@@ -36,11 +36,12 @@ $resolveOutputPath = static function (?string $path) use ($metadata): string {
     $resolved = (string) $path;
 
     return str_replace(
-        ['%(title)s', '%(id)s', '%(ext)s'],
+        ['%(title)s', '%(id)s', '%(ext)s', '%(resolution)s'],
         [
             (string) ($metadata['title'] ?? ''),
             (string) ($metadata['id'] ?? ''),
             (string) ($metadata['ext'] ?? 'mp4'),
+            (string) ($metadata['resolution'] ?? '1080p'),
         ],
         $resolved,
     );

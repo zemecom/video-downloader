@@ -45,7 +45,7 @@ final class DownloaderServiceTest extends TestCase
             $logs = $output->fetch();
 
             self::assertSame('completed', $result->status);
-            self::assertFileExists($downloadDir . '/My_Cool_Video.mkv');
+            self::assertFileExists($downloadDir . '/My_Cool_Video_1080p.mkv');
             self::assertFalse(\file_exists($downloadDir . '/My Cool Video.mkv'));
             self::assertFileExists($root . '/last-info-json.txt');
 
@@ -101,7 +101,7 @@ final class DownloaderServiceTest extends TestCase
 
             $result = $service->downloadVideo('https://example.com/video', 'best', new \YtdPhp\Download\DownloadOptions());
             $logs = $output->fetch();
-            $expectedFile = $downloadDir . '/100_Real_Video_Test.mkv';
+            $expectedFile = $downloadDir . '/100_Real_Video_Test_1080p.mkv';
 
             self::assertSame('completed', $result->status);
             self::assertFileExists($expectedFile);
@@ -134,7 +134,7 @@ final class DownloaderServiceTest extends TestCase
         \file_put_contents($scriptPath, FakeDownloaderBinaries::ytDlp());
         \chmod($scriptPath, 0777);
 
-        $existingFile = $downloadDir . '/My_Cool_Video.mkv';
+        $existingFile = $downloadDir . '/My_Cool_Video_1080p.mkv';
         \file_put_contents($existingFile, 'video-bytes');
 
         $previousPath = \getenv('PATH');
@@ -271,7 +271,7 @@ final class DownloaderServiceTest extends TestCase
             $lastDownloadArgs = \json_decode((string) \file_get_contents($root . '/last-download-args.json'), true);
 
             self::assertSame('completed', $result->status);
-            self::assertFileExists($customDir . '/My_Cool_Video.mkv');
+            self::assertFileExists($customDir . '/My_Cool_Video_1080p.mkv');
             self::assertIsArray($lastDownloadArgs);
             self::assertContains('--newline', $lastDownloadArgs);
             self::assertSame('11', $lastDownloadArgs[array_search('--concurrent-fragments', $lastDownloadArgs, true) + 1]);
@@ -382,8 +382,8 @@ final class DownloaderServiceTest extends TestCase
             $lastDownloadArgs = \json_decode((string) \file_get_contents($root . '/last-download-args-2.json'), true);
 
             self::assertSame('completed', $result->status);
-            self::assertFileExists($downloadDir . '/My_Cool_Video.mkv');
-            self::assertFalse(\file_exists($downloadDir . '/My_Cool_Video.mkv.part'));
+            self::assertFileExists($downloadDir . '/My_Cool_Video_1080p.mkv');
+            self::assertFalse(\file_exists($downloadDir . '/My_Cool_Video_1080p.mkv.part'));
             self::assertSame('2', trim((string) \file_get_contents($root . '/download-attempts.txt')));
             self::assertFileExists($root . '/download-resume-seen.txt');
             self::assertIsArray($lastDownloadArgs);
@@ -446,7 +446,7 @@ final class DownloaderServiceTest extends TestCase
             $ffmpegArgs = \json_decode((string) \file_get_contents($root . '/last-ffmpeg-args.json'), true);
 
             self::assertSame('completed', $result->status);
-            self::assertFileExists($downloadDir . '/My_Cool_Video.mp4');
+            self::assertFileExists($downloadDir . '/My_Cool_Video_1080p.mp4');
             self::assertStringContainsString('⏱️ Время работы:', $logs);
             self::assertIsArray($videoArgs);
             self::assertIsArray($audioArgs);
@@ -466,7 +466,7 @@ final class DownloaderServiceTest extends TestCase
             self::assertNotContains('--extract-audio', $audioArgs);
             self::assertNotContains('--merge-output-format', $videoArgs);
             self::assertContains('-map', $ffmpegArgs);
-            self::assertSame($downloadDir . '/My_Cool_Video.mp4', $ffmpegArgs[array_key_last($ffmpegArgs)]);
+            self::assertSame($downloadDir . '/My_Cool_Video_1080p.mp4', $ffmpegArgs[array_key_last($ffmpegArgs)]);
         } finally {
             if ($previousPath === false) {
                 putenv('PATH');
@@ -513,7 +513,7 @@ final class DownloaderServiceTest extends TestCase
             $logs = $output->fetch();
 
             self::assertSame('completed', $result->status);
-            self::assertFileExists($downloadDir . '/My_Cool_Video.mkv');
+            self::assertFileExists($downloadDir . '/My_Cool_Video_1080p.mkv');
             self::assertSame('2', trim((string) \file_get_contents($root . '/stream-137-attempts.txt')));
             self::assertSame('1', trim((string) \file_get_contents($root . '/stream-140-attempts.txt')));
             self::assertFileExists($root . '/video-resume-seen.txt');
@@ -562,7 +562,7 @@ final class DownloaderServiceTest extends TestCase
             $logs = $output->fetch();
 
             self::assertSame('completed', $result->status);
-            self::assertFileExists($downloadDir . '/My_Cool_Video.mkv');
+            self::assertFileExists($downloadDir . '/My_Cool_Video_1080p.mkv');
             self::assertStringContainsString('Не удалось подобрать отдельные video/audio потоки', $logs);
             self::assertSame(1, \substr_count($logs, '⏱️ Время работы:'));
         } finally {
@@ -609,7 +609,7 @@ final class DownloaderServiceTest extends TestCase
             $result = $service->downloadVideoFast('https://example.com/video', 'best', new \YtdPhp\Download\DownloadOptions());
 
             self::assertSame('failed', $result->status);
-            self::assertFalse(\file_exists($downloadDir . '/My_Cool_Video.mkv'));
+            self::assertFalse(\file_exists($downloadDir . '/My_Cool_Video_1080p.mkv'));
         } finally {
             if ($previousPath === false) {
                 putenv('PATH');

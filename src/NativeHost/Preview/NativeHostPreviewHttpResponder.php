@@ -169,6 +169,12 @@ final readonly class NativeHostPreviewHttpResponder
             'webm' => 'video/webm',
             'mov' => 'video/quicktime',
             'avi' => 'video/x-msvideo',
+            'mp3' => 'audio/mpeg',
+            'm4a' => 'audio/mp4',
+            'opus' => 'audio/opus',
+            'ogg' => 'audio/ogg',
+            'wav' => 'audio/wav',
+            'aac' => 'audio/aac',
             default => 'application/octet-stream',
         };
     }

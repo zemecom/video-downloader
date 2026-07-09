@@ -22,7 +22,7 @@ if (!is_string($jobId) || $jobId === '' || !is_string($url) || $url === '') {
     exit(1);
 }
 
-if (!is_string($mode) || !in_array($mode, ['video', 'audio'], true)) {
+if (!is_string($mode) || !in_array($mode, ['video', 'video-fhd', 'audio'], true)) {
     fwrite(STDERR, "Unsupported --mode for ytd-native-job.\n");
 
     exit(1);

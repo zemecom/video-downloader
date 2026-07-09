@@ -88,7 +88,7 @@ final readonly class DownloaderService
         DownloadOptions $options,
     ): DownloadResult {
         $basePath = $this->bootstrap->getDownloadBasePath($videoUrl, $options->downloadDir);
-        $outputTemplate = $basePath . '/%(title)s.%(ext)s';
+        $outputTemplate = $basePath . '/%(title)s [%(resolution)s].%(ext)s';
 
         $metadataResult = $this->metadataService->fetch(videoUrl: $videoUrl, proxy: $options->proxy, insecure: $options->insecure);
         if ($metadataResult->failure instanceof DownloadResult) {
@@ -184,7 +184,7 @@ final readonly class DownloaderService
         DownloadOptions $options,
     ): DownloadResult {
         $basePath = $this->bootstrap->getDownloadBasePath($videoUrl, $options->downloadDir);
-        $outputTemplate = $basePath . '/%(title)s.%(ext)s';
+        $outputTemplate = $basePath . '/%(title)s [%(resolution)s].%(ext)s';
 
         $metadataResult = $this->metadataService->fetch(videoUrl: $videoUrl, proxy: $options->proxy, insecure: $options->insecure);
         if ($metadataResult->failure instanceof DownloadResult) {

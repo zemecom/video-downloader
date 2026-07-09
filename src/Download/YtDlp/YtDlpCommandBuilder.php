@@ -8,12 +8,16 @@ final class YtDlpCommandBuilder
 {
     private const string BEST_FORMAT = 'bestvideo+bestaudio/best';
 
-    private const string MEDIUM_FORMAT = 'bestvideo[height<=720]+bestaudio/best[height<=720]/bestvideo+bestaudio/best';
-    private const string MEDIUM_NON_AV1_FORMAT = 'bestvideo[vcodec!^=av01][height<=720]+bestaudio/best[vcodec!^=av01][height<=720]/bestvideo[vcodec!^=av01]+bestaudio/best[vcodec!^=av01]/bestvideo[height<=720]+bestaudio/best[height<=720]/bestvideo+bestaudio/best';
-    private const string MEDIUM_BROWSER_MP4_FORMAT = 'bestvideo[ext=mp4][vcodec^=avc1][height<=720]+bestaudio[ext=m4a]/best[ext=mp4][vcodec^=avc1][acodec^=mp4a][height<=720]/bestvideo[ext=mp4][vcodec^=avc1]+bestaudio[ext=m4a]/best[ext=mp4][vcodec^=avc1][acodec^=mp4a]';
-    private const string LOW_FORMAT = 'bestvideo[height<=480]+bestaudio/best[height<=480]/bestvideo+bestaudio/best';
-    private const string LOW_NON_AV1_FORMAT = 'bestvideo[vcodec!^=av01][height<=480]+bestaudio/best[vcodec!^=av01][height<=480]/bestvideo[vcodec!^=av01]+bestaudio/best[vcodec!^=av01]/bestvideo[height<=480]+bestaudio/best[height<=480]/bestvideo+bestaudio/best';
-    private const string LOW_BROWSER_MP4_FORMAT = 'bestvideo[ext=mp4][vcodec^=avc1][height<=480]+bestaudio[ext=m4a]/best[ext=mp4][vcodec^=avc1][acodec^=mp4a][height<=480]/bestvideo[ext=mp4][vcodec^=avc1]+bestaudio[ext=m4a]/best[ext=mp4][vcodec^=avc1][acodec^=mp4a]';
+    private const string FHD_FORMAT = 'bestvideo[height<=1080]+bestaudio/best[height<=1080]/bestvideo[height<=1080]+bestaudio/best[height<=1080]';
+    private const string FHD_NON_AV1_FORMAT = 'bestvideo[vcodec!^=av01][height<=1080]+bestaudio/best[vcodec!^=av01][height<=1080]/bestvideo[height<=1080]+bestaudio/best[height<=1080]';
+    private const string FHD_BROWSER_MP4_FORMAT = 'bestvideo[ext=mp4][vcodec^=avc1][height<=1080]+bestaudio[ext=m4a]/best[ext=mp4][vcodec^=avc1][acodec^=mp4a][height<=1080]/bestvideo[ext=mp4][height<=1080]+bestaudio[ext=m4a]/best[ext=mp4][height<=1080]';
+
+    private const string MEDIUM_FORMAT = 'bestvideo[height<=720]+bestaudio/best[height<=720]/bestvideo[height<=720]+bestaudio/best[height<=720]';
+    private const string MEDIUM_NON_AV1_FORMAT = 'bestvideo[vcodec!^=av01][height<=720]+bestaudio/best[vcodec!^=av01][height<=720]/bestvideo[height<=720]+bestaudio/best[height<=720]';
+    private const string MEDIUM_BROWSER_MP4_FORMAT = 'bestvideo[ext=mp4][vcodec^=avc1][height<=720]+bestaudio[ext=m4a]/best[ext=mp4][vcodec^=avc1][acodec^=mp4a][height<=720]/bestvideo[ext=mp4][height<=720]+bestaudio[ext=m4a]/best[ext=mp4][height<=720]';
+    private const string LOW_FORMAT = 'bestvideo[height<=480]+bestaudio/best[height<=480]/bestvideo[height<=480]+bestaudio/best[height<=480]';
+    private const string LOW_NON_AV1_FORMAT = 'bestvideo[vcodec!^=av01][height<=480]+bestaudio/best[vcodec!^=av01][height<=480]/bestvideo[height<=480]+bestaudio/best[height<=480]';
+    private const string LOW_BROWSER_MP4_FORMAT = 'bestvideo[ext=mp4][vcodec^=avc1][height<=480]+bestaudio[ext=m4a]/best[ext=mp4][vcodec^=avc1][acodec^=mp4a][height<=480]/bestvideo[ext=mp4][height<=480]+bestaudio[ext=m4a]/best[ext=mp4][height<=480]';
 
     /** @var list<string> */
     private array $command = ['yt-dlp'];
@@ -154,6 +158,10 @@ final class YtDlpCommandBuilder
         $command[] = '--concurrent-fragments';
         $command[] = (string) max(1, $concurrentFragments);
 
+        if (is_string($this->url) && $this->url !== '' && !\in_array('--load-info-json', $command, true)) {
+            $command[] = $this->url;
+        }
+
         return $command;
     }
 
@@ -193,6 +201,7 @@ final class YtDlpCommandBuilder
         return match ($formatCode) {
             'bestaudio' => [...$command, '-f', 'bestaudio/best', '--extract-audio', '--audio-format', 'opus'],
             'best' => [...$command, '-f', $this->bestFormatSelector($outputFormat, $allow4k), '--merge-output-format', $outputFormat],
+            'fhd' => [...$command, '-f', $this->fhdFormatSelector($outputFormat), '--merge-output-format', $outputFormat],
             'medium' => [...$command, '-f', $this->mediumFormatSelector($outputFormat), '--merge-output-format', $outputFormat],
             'low' => [...$command, '-f', $this->lowFormatSelector($outputFormat), '--merge-output-format', $outputFormat],
             default => [...$command, '-f', $formatCode, '--merge-output-format', $outputFormat],
@@ -204,6 +213,21 @@ final class YtDlpCommandBuilder
         return self::BEST_FORMAT;
     }
 
+    private function fhdFormatSelector(string $outputFormat): string
+    {
+        if ($outputFormat === 'mp4') {
+            return self::FHD_BROWSER_MP4_FORMAT . '/' . $this->fhdFallbackFormatSelector();
+        }
+
+        return $this->fhdFallbackFormatSelector();
+    }
+
+    private function fhdFallbackFormatSelector(): string
+    {
+        return $this->isYoutubeUrl($this->url)
+            ? self::FHD_NON_AV1_FORMAT
+            : self::FHD_FORMAT;
+    }
 
     private function mediumFormatSelector(string $outputFormat): string
     {
