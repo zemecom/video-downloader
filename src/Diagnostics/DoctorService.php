@@ -59,7 +59,7 @@ final readonly class DoctorService
                 ),
             ]
             : [
-                $this->checkBinary('yt-dlp', 'Установи yt-dlp и убедись, что команда доступна в PATH.'),
+                $this->checkBinary(\getenv('YT_DLP_PATH') ?: 'yt-dlp', 'Установи yt-dlp и убедись, что команда доступна в PATH.'),
                 $this->checkBinary('ffmpeg', 'Установи ffmpeg и убедись, что команда доступна в PATH.'),
             ];
 

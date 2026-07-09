@@ -31,7 +31,8 @@ final readonly class YtDlpClient implements YtDlpGateway
 
     public function checkBinary(): void
     {
-        $process = new Process(['yt-dlp', '--version']);
+        $ytDlp = \getenv('YT_DLP_PATH') ?: 'yt-dlp';
+        $process = new Process([$ytDlp, '--version']);
         $process->setEnv(ProcessEnvironment::build());
         $process->run();
         if ($process->isSuccessful()) {
@@ -100,7 +101,8 @@ final readonly class YtDlpClient implements YtDlpGateway
 
     public function listFormats(string $videoUrl, ?string $proxy = null, bool $insecure = false): bool
     {
-        $command = ['yt-dlp'];
+        $ytDlp = \getenv('YT_DLP_PATH') ?: 'yt-dlp';
+        $command = [$ytDlp];
         if (\is_string($proxy) && $proxy !== '') {
             $command[] = $proxy;
         }

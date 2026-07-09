@@ -20,7 +20,7 @@ final class YtDlpCommandBuilder
     private const string LOW_BROWSER_MP4_FORMAT = 'bestvideo[ext=mp4][vcodec^=avc1][height<=480]+bestaudio[ext=m4a]/best[ext=mp4][vcodec^=avc1][acodec^=mp4a][height<=480]/bestvideo[ext=mp4][height<=480]+bestaudio[ext=m4a]/best[ext=mp4][height<=480]';
 
     /** @var list<string> */
-    private array $command = ['yt-dlp'];
+    private array $command;
 
     /**
      * @param list<string> $baseFlags
@@ -30,6 +30,9 @@ final class YtDlpCommandBuilder
         bool $allowPlaylist = false,
         array $baseFlags = ['--no-warnings', '--ignore-config'],
     ) {
+        $ytDlp = \getenv('YT_DLP_PATH') ?: 'yt-dlp';
+        $this->command = [$ytDlp];
+
         $flags = $baseFlags;
         if (!$allowPlaylist) {
             array_unshift($flags, '--no-playlist');
