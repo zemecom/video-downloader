@@ -25,11 +25,7 @@ final class YtDlpCommandBuilderTest extends TestCase
         $builder = new YtDlpCommandBuilder();
         $command = $builder->buildForDownload('best', '/tmp/video.%(ext)s', 'mp4');
 
-        self::assertStringStartsWith(
-            'bestvideo[ext=mp4][vcodec^=avc1]+bestaudio[ext=m4a]',
-            $command[array_search('-f', $command, true) + 1],
-        );
-        self::assertStringEndsWith('/bestvideo+bestaudio/best', $command[array_search('-f', $command, true) + 1]);
+        self::assertSame('bestvideo+bestaudio/best', $command[array_search('-f', $command, true) + 1]);
         self::assertContains('mp4', $command);
         self::assertNotContains('--newline', $command);
         self::assertContains('--continue', $command);
@@ -55,12 +51,12 @@ final class YtDlpCommandBuilderTest extends TestCase
         self::assertSame('1.75', $command[array_search('--progress-delta', $command, true) + 1]);
     }
 
-    public function testBuildForDownloadUsesNonAv1BestQualityForYoutubeUrls(): void
+    public function testBuildForDownloadUsesBestQualityForYoutubeUrls(): void
     {
         $builder = new YtDlpCommandBuilder('https://www.youtube.com/watch?v=123');
         $command = $builder->buildForDownload('best', '/tmp/video.%(ext)s', 'mkv');
 
-        self::assertSame('bestvideo[vcodec!^=av01]+bestaudio/best[vcodec!^=av01]', $command[array_search('-f', $command, true) + 1]);
+        self::assertSame('bestvideo+bestaudio/best', $command[array_search('-f', $command, true) + 1]);
         self::assertContains('mkv', $command);
     }
 

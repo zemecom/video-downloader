@@ -61,7 +61,9 @@ final readonly class NativeHostJobRunnerService
             $this->bootstrap->getPackageRoot() . '/bin/ytd',
         ];
 
-        $command[] = $mode === 'audio' ? '--audio' : '--mp4';
+        if ($mode === 'audio') {
+            $command[] = '--audio';
+        }
 
         $command[] = $url;
 

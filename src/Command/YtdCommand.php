@@ -61,7 +61,8 @@ final class YtdCommand extends Command
             ->addOption('concurrent-fragments', null, InputOption::VALUE_REQUIRED, 'Сколько фрагментов одного файла качать параллельно через yt-dlp', (string) $this->bootstrap->getConcurrentFragments())
             ->addOption('progress-newline', null, InputOption::VALUE_NEGATABLE, 'Печатать прогресс построчно вместо перерисовки')
             ->addOption('progress-delta', null, InputOption::VALUE_REQUIRED, 'Интервал обновления прогресса yt-dlp в секундах', $this->bootstrap->getProgressDelta())
-            ->addOption('doctor', null, InputOption::VALUE_NONE, 'Проверить окружение и конфиги без скачивания');
+            ->addOption('doctor', null, InputOption::VALUE_NONE, 'Проверить окружение и конфиги без скачивания')
+            ->addOption('4k', '4', InputOption::VALUE_NONE, 'Игнорировать ограничения кодеков и качать в максимальном 4K/8K разрешении');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -131,6 +132,7 @@ final class YtdCommand extends Command
             $route->matchedSection,
             $route->matchedPattern,
             $route->hostname,
+            (bool) $input->getOption('4k'),
         );
     }
 

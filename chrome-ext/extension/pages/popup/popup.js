@@ -64,7 +64,7 @@ port.onMessage.addListener(async (message) => {
 
 buttons.forEach((button) => {
   button.addEventListener('click', () => {
-    void startDownload(button.dataset.mode === 'audio' ? 'audio' : 'video');
+    void startDownload(button.dataset.mode);
   });
 });
 

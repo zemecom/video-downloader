@@ -7,8 +7,7 @@ namespace YtdPhp\Download\YtDlp;
 final class YtDlpCommandBuilder
 {
     private const string BEST_FORMAT = 'bestvideo+bestaudio/best';
-    private const string BEST_NON_AV1_FORMAT = 'bestvideo[vcodec!^=av01]+bestaudio/best[vcodec!^=av01]';
-    private const string BEST_BROWSER_MP4_FORMAT = 'bestvideo[ext=mp4][vcodec^=avc1]+bestaudio[ext=m4a]/best[ext=mp4][vcodec^=avc1][acodec^=mp4a]/best[ext=mp4]';
+
     private const string MEDIUM_FORMAT = 'bestvideo[height<=720]+bestaudio/best[height<=720]/bestvideo+bestaudio/best';
     private const string MEDIUM_NON_AV1_FORMAT = 'bestvideo[vcodec!^=av01][height<=720]+bestaudio/best[vcodec!^=av01][height<=720]/bestvideo[vcodec!^=av01]+bestaudio/best[vcodec!^=av01]/bestvideo[height<=720]+bestaudio/best[height<=720]/bestvideo+bestaudio/best';
     private const string MEDIUM_BROWSER_MP4_FORMAT = 'bestvideo[ext=mp4][vcodec^=avc1][height<=720]+bestaudio[ext=m4a]/best[ext=mp4][vcodec^=avc1][acodec^=mp4a][height<=720]/bestvideo[ext=mp4][vcodec^=avc1]+bestaudio[ext=m4a]/best[ext=mp4][vcodec^=avc1][acodec^=mp4a]';
@@ -137,9 +136,10 @@ final class YtDlpCommandBuilder
         bool $lineBufferedProgress = false,
         int $concurrentFragments = 20,
         string $progressDelta = '0.5',
+        bool $allow4k = false,
     ): array {
         $command = [...$this->command, '-o', $outputTemplate];
-        $command = $this->applyFormatArgs($command, $formatCode, $outputFormat);
+        $command = $this->applyFormatArgs($command, $formatCode, $outputFormat, $allow4k);
         $command[] = '--downloader-args';
         $command[] = 'ffmpeg_i:-http_persistent 0';
         $command[] = '--postprocessor-args';
@@ -188,32 +188,22 @@ final class YtDlpCommandBuilder
      * @param list<string> $command
      * @return list<string>
      */
-    private function applyFormatArgs(array $command, string $formatCode, string $outputFormat): array
+    private function applyFormatArgs(array $command, string $formatCode, string $outputFormat, bool $allow4k): array
     {
         return match ($formatCode) {
             'bestaudio' => [...$command, '-f', 'bestaudio/best', '--extract-audio', '--audio-format', 'opus'],
-            'best' => [...$command, '-f', $this->bestFormatSelector($outputFormat), '--merge-output-format', $outputFormat],
+            'best' => [...$command, '-f', $this->bestFormatSelector($outputFormat, $allow4k), '--merge-output-format', $outputFormat],
             'medium' => [...$command, '-f', $this->mediumFormatSelector($outputFormat), '--merge-output-format', $outputFormat],
             'low' => [...$command, '-f', $this->lowFormatSelector($outputFormat), '--merge-output-format', $outputFormat],
             default => [...$command, '-f', $formatCode, '--merge-output-format', $outputFormat],
         };
     }
 
-    private function bestFormatSelector(string $outputFormat): string
+    private function bestFormatSelector(string $outputFormat, bool $allow4k): string
     {
-        if ($outputFormat === 'mp4') {
-            return self::BEST_BROWSER_MP4_FORMAT . '/' . $this->bestFallbackFormatSelector();
-        }
-
-        return $this->bestFallbackFormatSelector();
+        return self::BEST_FORMAT;
     }
 
-    private function bestFallbackFormatSelector(): string
-    {
-        return $this->isYoutubeUrl($this->url)
-            ? self::BEST_NON_AV1_FORMAT
-            : self::BEST_FORMAT;
-    }
 
     private function mediumFormatSelector(string $outputFormat): string
     {

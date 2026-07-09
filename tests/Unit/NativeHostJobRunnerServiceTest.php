@@ -58,7 +58,6 @@ PHP);
             $argv = \json_decode((string) \file_get_contents($argvPath), true);
 
             self::assertSame(0, $exitCode);
-            self::assertContains('--mp4', $argv);
             self::assertContains('https://example.com/watch?v=42', $argv);
         } finally {
             putenv('YTD_PROJECT_ROOT');

@@ -104,6 +104,7 @@ final readonly class DownloaderService
             metadata: $metadata->payload,
             sourceUrl: $videoUrl,
             outputFormat: $options->outputFormat,
+            allow4k: $options->allow4k,
         );
 
         try {
@@ -133,14 +134,18 @@ final readonly class DownloaderService
             $forceOverwrites = false;
             if (\is_string($expectedFile) && $expectedFile !== '' && \file_exists($expectedFile)) {
                 $this->logger->warning('⚠️ Файл уже существует: ' . $expectedFile);
-                $choice = strtolower(\trim($this->prompter->ask('🔄 Перезаписать? [y/N]: ')));
-                if ($choice !== 'y') {
+                $choice = strtolower(\trim($this->prompter->ask('🔄 Перезаписать? (o - заменить, s - пропустить, r - переименовать) [o/S/r]: ')));
+
+                if ($choice === 'r') {
+                    $expectedFile = $this->generateUniqueFileName($expectedFile);
+                } elseif ($choice === 'o' || $choice === 'y') {
+                    $forceOverwrites = true;
+                } else {
                     $this->outputFormatter->logExistingOutputTarget($expectedFile);
                     $this->logger->info('⏭️ Пропускаю загрузку по выбору пользователя.');
 
                     return new DownloadResult('skipped', 'user_declined_overwrite');
                 }
-                $forceOverwrites = true;
             }
 
             $downloadTarget = $expectedFile ?? $outputTemplate;
@@ -194,8 +199,8 @@ final readonly class DownloaderService
             $pair = $this->fastStreamFormatResolver->resolve(
                 $qualityPreset,
                 $metadata->payload,
-                $this->bootstrap->isYoutubeUrl($videoUrl),
-                $options->outputFormat,
+                $qualityPreset !== 'best' && $options->allow4k === false && $this->bootstrap->isYoutubeUrl($videoUrl),
+                $qualityPreset !== 'best' && $options->allow4k === false && $options->outputFormat === 'mp4' ? 'mp4' : 'mkv',
             );
             if (!$pair instanceof \YtdPhp\Download\Format\FastStreamFormatPair) {
                 $this->logger->warning('⚠️ Не удалось подобрать отдельные video/audio потоки для `--fast`; использую обычную загрузку.');
@@ -212,6 +217,7 @@ final readonly class DownloaderService
                 metadata: $metadata->payload,
                 sourceUrl: $videoUrl,
                 outputFormat: $options->outputFormat,
+                allow4k: $options->allow4k,
             );
             $expectedFile = $this->expectedOutputResolver->resolveFastExpectedFile(
                 formatCode: $resolvedFormatCode,
@@ -242,14 +248,18 @@ final readonly class DownloaderService
             $forceOverwrites = false;
             if (\file_exists($expectedFile)) {
                 $this->logger->warning('⚠️ Файл уже существует: ' . $expectedFile);
-                $choice = strtolower(\trim($this->prompter->ask('🔄 Перезаписать? [y/N]: ')));
-                if ($choice !== 'y') {
+                $choice = strtolower(\trim($this->prompter->ask('🔄 Перезаписать? (o - заменить, s - пропустить, r - переименовать) [o/S/r]: ')));
+
+                if ($choice === 'r') {
+                    $expectedFile = $this->generateUniqueFileName($expectedFile);
+                } elseif ($choice === 'o' || $choice === 'y') {
+                    $forceOverwrites = true;
+                } else {
                     $this->outputFormatter->logExistingOutputTarget($expectedFile);
                     $this->logger->info('⏭️ Пропускаю загрузку по выбору пользователя.');
 
                     return new DownloadResult('skipped', 'user_declined_overwrite');
                 }
-                $forceOverwrites = true;
             }
 
             return $this->fastStreamDownloadService->download(
@@ -317,6 +327,7 @@ final readonly class DownloaderService
             $this->resolveLineBufferedProgress($options->progressNewline),
             $options->concurrentFragments ?? $this->bootstrap->getConcurrentFragments(),
             $this->resolveProgressDelta($options->progressDelta),
+            $options->allow4k,
         );
         if ($options->emitLogs) {
             $this->logger->info('🚀 Начинаю загрузку...');
@@ -334,12 +345,13 @@ final readonly class DownloaderService
         array $metadata,
         ?string $sourceUrl = null,
         string $outputFormat = 'mkv',
+        bool $allow4k = false,
     ): string {
         return $this->automaticFormatResolver->resolve(
             $formatCode,
             $metadata,
-            \is_string($sourceUrl) && $sourceUrl !== '' && $this->bootstrap->isYoutubeUrl($sourceUrl),
-            $outputFormat,
+            $formatCode !== 'best' && $allow4k === false && \is_string($sourceUrl) && $sourceUrl !== '' && $this->bootstrap->isYoutubeUrl($sourceUrl),
+            $formatCode !== 'best' && $allow4k === false && $outputFormat === 'mp4' ? 'mp4' : 'mkv',
         );
     }
 
@@ -363,6 +375,7 @@ final readonly class DownloaderService
             $this->resolveLineBufferedProgress($options->progressNewline),
             $options->concurrentFragments ?? $this->bootstrap->getConcurrentFragments(),
             $this->resolveProgressDelta($options->progressDelta),
+            $options->allow4k,
         ));
     }
 
@@ -397,6 +410,22 @@ final readonly class DownloaderService
     private function resolveLineBufferedProgress(?bool $override): bool
     {
         return $override ?? $this->bootstrap->shouldUseProgressNewline();
+    }
+
+    public function generateUniqueFileName(string $originalPath): string
+    {
+        $info = \pathinfo($originalPath);
+        $dir = $info['dirname'];
+        $filename = $info['filename'];
+        $ext = isset($info['extension']) ? '.' . $info['extension'] : '';
+
+        $counter = 1;
+        do {
+            $newFile = $dir . DIRECTORY_SEPARATOR . $filename . '_' . $counter . $ext;
+            $counter++;
+        } while (\file_exists($newFile));
+
+        return $newFile;
     }
 
     private function resolveProgressDelta(?string $override): string

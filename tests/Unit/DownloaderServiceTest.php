@@ -442,7 +442,7 @@ final class DownloaderServiceTest extends TestCase
             $logs = $output->fetch();
 
             $videoArgs = \json_decode((string) \file_get_contents($root . '/stream-137-args.json'), true);
-            $audioArgs = \json_decode((string) \file_get_contents($root . '/stream-140-args.json'), true);
+            $audioArgs = \json_decode((string) \file_get_contents($root . '/stream-251-args.json'), true);
             $ffmpegArgs = \json_decode((string) \file_get_contents($root . '/last-ffmpeg-args.json'), true);
 
             self::assertSame('completed', $result->status);
@@ -454,7 +454,7 @@ final class DownloaderServiceTest extends TestCase
             self::assertContains('-hide_banner', $ffmpegArgs);
             self::assertSame('error', $ffmpegArgs[array_search('-loglevel', $ffmpegArgs, true) + 1]);
             self::assertSame('137', $videoArgs[array_search('-f', $videoArgs, true) + 1]);
-            self::assertSame('140', $audioArgs[array_search('-f', $audioArgs, true) + 1]);
+            self::assertSame('251', $audioArgs[array_search('-f', $audioArgs, true) + 1]);
             self::assertSame('https://example.com/video', $videoArgs[array_key_last($videoArgs)]);
             self::assertSame('https://example.com/video', $audioArgs[array_key_last($audioArgs)]);
             self::assertContains('--newline', $videoArgs);

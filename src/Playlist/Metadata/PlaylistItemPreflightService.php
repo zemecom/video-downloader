@@ -75,6 +75,7 @@ final readonly class PlaylistItemPreflightService
             $metadata,
             $sourceUrl,
             $options->outputFormat,
+            $options->allow4k,
         );
         $tempJsonPath = $this->writePlaylistItemMetadataJson($metadata);
         if ($tempJsonPath === null) {

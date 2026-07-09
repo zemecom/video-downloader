@@ -280,7 +280,7 @@ final readonly class NativeHostRecentDownloadsStore
                 'name' => \is_string($item['name'] ?? null) && $item['name'] !== '' ? $item['name'] : \basename($path),
                 'path' => $path,
                 'url' => \is_string($item['url'] ?? null) ? $item['url'] : '',
-                'mode' => ($item['mode'] ?? null) === 'audio' ? 'audio' : 'video',
+                'mode' => \in_array($item['mode'] ?? null, ['audio', 'video', 'video-4k'], true) ? $item['mode'] : 'video',
                 'createdAt' => \is_string($item['createdAt'] ?? null) && $item['createdAt'] !== ''
                     ? $item['createdAt']
                     : new DateTimeImmutable()->format(DATE_ATOM),

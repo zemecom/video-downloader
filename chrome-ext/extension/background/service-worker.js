@@ -289,7 +289,8 @@ async function startDownload(message) {
   console.log('[YTD] startDownload called with message:', message);
   const tabId = Number.isInteger(message?.tabId) ? message.tabId : null;
   const url = normalizeText(message?.url);
-  const mode = message?.mode === 'audio' ? 'audio' : 'video';
+  const allowedModes = ['audio', 'video'];
+  const mode = allowedModes.includes(message?.mode) ? message.mode : 'video';
 
   if (!Number.isInteger(tabId) || !isSupportedTabUrl(url)) {
     console.warn('[YTD] startDownload aborted: unsupported page or no tabId');

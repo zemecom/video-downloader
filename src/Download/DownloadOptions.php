@@ -20,6 +20,7 @@ final readonly class DownloadOptions
         public bool $emitElapsedRuntime = true,
         public bool $forceOverwrites = false,
         public bool $emitLogs = true,
+        public bool $allow4k = false,
     ) {}
 
     public static function fromRuntimeOptions(RuntimeOptions $options): self
@@ -33,6 +34,7 @@ final readonly class DownloadOptions
             downloadDir: $options->downloadDir,
             progressNewline: $options->progressNewline,
             progressDelta: $options->progressDelta,
+            allow4k: $options->allow4k,
         );
     }
 
@@ -54,6 +56,7 @@ final readonly class DownloadOptions
             emitElapsedRuntime: $emitElapsedRuntime ?? $this->emitElapsedRuntime,
             forceOverwrites: $forceOverwrites ?? $this->forceOverwrites,
             emitLogs: $emitLogs ?? $this->emitLogs,
+            allow4k: $this->allow4k,
         );
     }
 }

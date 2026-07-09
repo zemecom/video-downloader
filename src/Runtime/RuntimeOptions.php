@@ -26,5 +26,6 @@ final readonly class RuntimeOptions
         public string $matchedSection,
         public ?string $matchedPattern,
         public string $hostname,
+        public bool $allow4k = false,
     ) {}
 }
