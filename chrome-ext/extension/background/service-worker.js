@@ -578,7 +578,7 @@ async function pauseOriginVideo(message) {
       response = await sendTabMessage(originTabId, {
         type: 'ytd-pause-page-video',
       });
-    } catch (_error) {
+    } catch {
       await ensureOverlay(originTabId);
       response = await sendTabMessage(originTabId, {
         type: 'ytd-pause-page-video',
@@ -591,7 +591,7 @@ async function pauseOriginVideo(message) {
         paused: response?.paused === true,
       },
     };
-  } catch (_error) {
+  } catch {
     return {
       ok: true,
       payload: {

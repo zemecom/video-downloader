@@ -99,7 +99,7 @@ async function attemptPlayback(fromUserGesture) {
       statusNode.textContent =
         'Видео запущено без звука. Звук можно включить в плеере.';
     }
-  } catch (_error) {
+  } catch {
     if (!fromUserGesture) {
       try {
         player.muted = true;
@@ -107,7 +107,7 @@ async function attemptPlayback(fromUserGesture) {
         statusNode.textContent =
           'Видео запущено без звука. Звук можно включить в плеере.';
         return;
-      } catch (_mutedError) {
+      } catch {
         player.muted = false;
       }
     }

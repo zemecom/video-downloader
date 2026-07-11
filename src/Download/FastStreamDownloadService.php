@@ -294,7 +294,7 @@ final readonly class FastStreamDownloadService
     private function runFfmpegMerge(string $videoPath, string $audioPath, string $expectedFile, bool $forceOverwrites): Process
     {
         $process = $this->processRunner->createProcess([
-            'ffmpeg',
+            \getenv('FFMPEG_PATH') ?: 'ffmpeg',
             '-hide_banner',
             '-loglevel',
             'error',

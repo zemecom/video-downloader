@@ -35,6 +35,7 @@ function buildRecentDownloadActions(item) {
 
   actions.push(
     { kind: 'open', label: 'Открыть' },
+    { kind: 'reveal', label: 'Показать в папке' },
     { kind: 'delete', label: 'Удалить' }
   );
 
