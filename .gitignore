@@ -16,7 +16,7 @@ node_modules/
 
 # Build
 ytd.phar
-bin/box
+bin/box.phar
 package.xml
 
 # Cache

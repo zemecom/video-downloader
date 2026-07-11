@@ -1,4 +1,4 @@
-.PHONY: help install install-deps alias init doctor doctor-smoke clean-logs test test-integration lint lint-fix check check-entrypoint-local ci-current chrome-ext-paths chrome-ext-install chrome-ext-uninstall proxy-install proxy-uninstall build build-release
+.PHONY: help install install-deps alias init doctor doctor-smoke clean-logs test test-integration lint lint-fix check check-entrypoint-local ci-current chrome-ext-paths chrome-ext-install chrome-ext-uninstall proxy-install proxy-uninstall install-box build build-release
 
 PHP ?= php
 COMPOSER ?= composer
@@ -32,6 +32,7 @@ help:
 	@echo "  make proxy-uninstall - uninstall launchd proxy"
 	@echo ""
 	@echo "Build:"
+	@echo "  make install-box   - download the Box binary for phar compilation"
 	@echo "  make build         - compile the ytd.phar binary"
 	@echo "  make build-release - compile phar and create zip archive for Chrome extension"
 	@echo ""
@@ -129,8 +130,15 @@ lint:
 lint-fix:
 	$(COMPOSER) lint-fix
 
+install-box:
+	@echo "Downloading Box to bin/box.phar..."
+	@mkdir -p bin
+	wget https://github.com/box-project/box/releases/latest/download/box.phar -O bin/box.phar
+	chmod +x bin/box.phar
+	@echo "Box installed successfully."
+
 build:
-	bin/box compile
+	bin/box.phar compile
 
 build-release: build
 	@VERSION=$$(node -p "require('./$(CHROME_EXT_EXTENSION_DIR)/manifest.json').version"); \

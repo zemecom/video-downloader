@@ -21,6 +21,7 @@
 - `make lint` — запускает PHP CS Fixer и PHPStan.
 - `make lint-fix` — автоматически исправляет проблемы со стилем кода (PHP CS Fixer).
 - `make check` — удобный локальный минимум: сначала запускает lint, потом unit-тесты.
+- `make install-box` — скачивает бинарник Box в `bin/box.phar` для сборки phar-архивов.
 - `make build` — собирает готовый исполняемый файл `ytd.phar` с помощью Box.
 
 Можно запускать эти же скрипты напрямую через Composer, если `make` недоступен:

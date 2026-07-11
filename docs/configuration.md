@@ -26,6 +26,7 @@ Runtime-конфигурация хранится в двух файлах:
 - `YTD_PROJECT_ROOT` - явный runtime-root, если нужно переопределить автоматическое определение каталога проекта
 - `YTD_ERROR_LOG_FILE` - кастомный путь для лога ошибок (по умолчанию: `logs/errors.log`)
 - `YTD_NATIVE_HOST_RECENT_DOWNLOADS_DB_FILE` - кастомный путь для `sqlite`-базы загрузок Native Host
+- `YT_DLP_PATH` - путь к кастомному исполняемому файлу `yt-dlp` (по умолчанию системный `yt-dlp`)
 
 ## Правила маршрутизации (`proxy_rules.yaml`)
 
