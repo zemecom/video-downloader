@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "YTD One-Click Downloader",
   "description": "Отправляет URL текущей вкладки в локальный YTD native host.",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "minimum_chrome_version": "120",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAx/mfLKWMJ7RV3lBA7C7dqdxjW5MBH50l7bonP7aD8t0pnYjG/ZnmRC1/xBVBYkPbD4Tid+XFi9LeTE3Y55bXW72y/RMOW0c2V4SApP98UhzAj3PWR2lPEvSZCyYUClnd/d/Rrylxeku+zZxx2J0PpePiW5THY2Ja1J8my4qWcQoQX1EDOkYihFOlElrbjgKwUVKXtbQ1WkWi0iD1XiJrZI3x5my8DP464mRKoanercQzv3wzbm/xDAWdE4T4WMmy6UHh2kkaKVmXcMptfSIKSD6VceRKxs8ZI+OIOQSC8k3U9tTJqWrdDAxcF2DuEBbKSbwUclFTFOBCKkzABPDH9wIDAQAB",
   "permissions": [

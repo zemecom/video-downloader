@@ -1,6 +1,6 @@
 {
   "name": "chrome-ext",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Расширение Chrome с запуском в один клик и native host для локального проекта-загрузчика `YTD` внутри основного репозитория `video-downloader`.",
   "main": "index.js",
   "scripts": {
