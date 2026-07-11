@@ -152,7 +152,7 @@ final readonly class RuntimeBootstrap
 
         return $this->resolveRuntimePath(
             'YTD_NATIVE_HOST_RECENT_DOWNLOADS_DB_FILE',
-            'chrome-ext' . DIRECTORY_SEPARATOR . 'logs' . DIRECTORY_SEPARATOR . 'native-host-recent-downloads.sqlite',
+            'chrome-ext' . DIRECTORY_SEPARATOR . 'data' . DIRECTORY_SEPARATOR . 'native-host-recent-downloads.sqlite',
         );
     }
 
@@ -165,7 +165,7 @@ final readonly class RuntimeBootstrap
 
         return $this->resolveRuntimePath(
             'YTD_NATIVE_HOST_RECENT_DOWNLOADS_LEGACY_FILE',
-            'chrome-ext' . DIRECTORY_SEPARATOR . 'logs' . DIRECTORY_SEPARATOR . 'native-host-recent-downloads.json',
+            'chrome-ext' . DIRECTORY_SEPARATOR . 'data' . DIRECTORY_SEPARATOR . 'native-host-recent-downloads.json',
         );
     }
 

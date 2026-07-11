@@ -3,6 +3,7 @@
 /.php-cs-fixer.cache
 /logs/
 /chrome-ext/logs/
+/chrome-ext/data/
 /.env
 /proxy_rules.yaml
 .DS_Store

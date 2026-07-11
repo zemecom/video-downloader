@@ -177,7 +177,7 @@ final class RuntimeBootstrapTest extends TestCase
 
         try {
             $bootstrap = new RuntimeBootstrap($projectRoot);
-            self::assertStringEndsWith('/chrome-ext/logs/native-host-recent-downloads.sqlite', $bootstrap->getNativeHostRecentDownloadsPath());
+            self::assertStringEndsWith('/chrome-ext/data/native-host-recent-downloads.sqlite', $bootstrap->getNativeHostRecentDownloadsPath());
         } finally {
             putenv('YTD_PROJECT_ROOT');
         }
@@ -191,7 +191,7 @@ final class RuntimeBootstrapTest extends TestCase
 
         try {
             $bootstrap = new RuntimeBootstrap($projectRoot);
-            self::assertStringEndsWith('/chrome-ext/logs/native-host-recent-downloads.json', $bootstrap->getLegacyNativeHostRecentDownloadsPath());
+            self::assertStringEndsWith('/chrome-ext/data/native-host-recent-downloads.json', $bootstrap->getLegacyNativeHostRecentDownloadsPath());
         } finally {
             putenv('YTD_PROJECT_ROOT');
         }

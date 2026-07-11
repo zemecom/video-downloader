@@ -69,6 +69,12 @@ final readonly class NativeHostJobRunnerService
 
         $command[] = $url;
 
+        $jobLogPath = $this->bootstrap->getNativeHostJobsDirectoryPath() . DIRECTORY_SEPARATOR . $jobId . '.log';
+        $logHandle = @\fopen($jobLogPath, 'ab');
+        if (\is_resource($logHandle)) {
+            \fwrite($logHandle, \sprintf("[%s] Starting job %s\nCommand: %s\n\n", $this->now(), $jobId, \implode(' ', $command)));
+        }
+
         $process = \proc_open(
             $command,
             [
@@ -85,7 +91,12 @@ final readonly class NativeHostJobRunnerService
         );
 
         if (!\is_resource($process)) {
-            $this->finalizeFailure($jobId, $state, 'Не удалось запустить ytd CLI.');
+            $msg = 'Не удалось запустить ytd CLI.';
+            if (\is_resource($logHandle)) {
+                \fwrite($logHandle, \sprintf("\n[%s] ERROR: %s\n", $this->now(), $msg));
+                \fclose($logHandle);
+            }
+            $this->finalizeFailure($jobId, $state, $msg);
 
             return 1;
         }
@@ -130,6 +141,10 @@ final readonly class NativeHostJobRunnerService
                         continue;
                     }
 
+                    if (\is_resource($logHandle)) {
+                        \fwrite($logHandle, $chunk);
+                    }
+
                     $buffers[$index] .= $chunk;
                     while (($newlinePosition = strpos($buffers[$index], "\n")) !== false) {
                         $line = substr($buffers[$index], 0, $newlinePosition + 1);
@@ -159,6 +174,9 @@ final readonly class NativeHostJobRunnerService
             if (isset($pipes[$index]) && \is_resource($pipes[$index])) {
                 $rest = \stream_get_contents($pipes[$index]);
                 if (\is_string($rest) && $rest !== '') {
+                    if (\is_resource($logHandle)) {
+                        \fwrite($logHandle, $rest);
+                    }
                     $buffers[$index] .= $rest;
                 }
                 \fclose($pipes[$index]);
@@ -170,6 +188,12 @@ final readonly class NativeHostJobRunnerService
         }
 
         $exitCode = \proc_close($process);
+
+        if (\is_resource($logHandle)) {
+            \fwrite($logHandle, \sprintf("\n[%s] Process exited with code %d\n", $this->now(), $exitCode));
+            \fclose($logHandle);
+        }
+
         $state = $this->store->read($jobId) ?? $state;
 
         $outputPath = $this->outputPath($state);
@@ -225,7 +249,15 @@ final readonly class NativeHostJobRunnerService
         }
 
         $lastOutput = trim($buffers[1] . "\n" . $buffers[2]);
-        $this->finalizeFailure($jobId, $state, $lastOutput !== '' ? $lastOutput : 'Загрузка завершилась с ошибкой.');
+        $errorMessage = $lastOutput !== '' ? $lastOutput : 'Загрузка завершилась с ошибкой.';
+
+        \error_log(
+            \sprintf("[%s] [ERROR] Job %s failed (exit %d). See logs: %s\n", $this->now(), $jobId, $exitCode, $jobLogPath),
+            3,
+            $this->bootstrap->getNativeHostLogPath(),
+        );
+
+        $this->finalizeFailure($jobId, $state, $errorMessage);
 
         return $exitCode > 0 ? $exitCode : 1;
     }
