@@ -106,7 +106,6 @@ chrome-ext-uninstall:
 
 proxy-install:
 	@mkdir -p ~/Library/LaunchAgents
-	@echo '#!/bin/bash\nexec /usr/bin/nc "$$@"' > $(PWD)/bin/ytd-proxy
 	@chmod +x $(PWD)/bin/ytd-proxy
 	@echo '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0">\n<dict>\n    <key>Label</key>\n    <string>com.ytd.localproxy</string>\n    <key>ProgramArguments</key>\n    <array>\n        <string>$(PWD)/bin/ytd-proxy</string>\n        <string>$(PROXY_LAN_IP)</string>\n        <string>$(PROXY_LAN_PORT)</string>\n    </array>\n    <key>Sockets</key>\n    <dict>\n        <key>Listeners</key>\n        <dict>\n            <key>SockNodeName</key>\n            <string>127.0.0.1</string>\n            <key>SockServiceName</key>\n            <string>$(PROXY_LAN_PORT)</string>\n            <key>SockType</key>\n            <string>stream</string>\n            <key>SockFamily</key>\n            <string>IPv4</string>\n        </dict>\n    </dict>\n    <key>inetdCompatibility</key>\n    <dict>\n        <key>Wait</key>\n        <false/>\n    </dict>\n</dict>\n</plist>' > ~/Library/LaunchAgents/com.ytd.localproxy.plist
 	@launchctl unload ~/Library/LaunchAgents/com.ytd.localproxy.plist 2>/dev/null || true
