@@ -18,6 +18,7 @@
   --ytd-border: rgba(146, 214, 255, 0.18);
   --ytd-border-strong: rgba(112, 200, 255, 0.45);
   --ytd-border-light: rgba(125, 220, 255, 0.16);
+  --ytd-border-light-hover: rgba(125, 220, 255, 0.22);
   --ytd-border-faint: rgba(125, 220, 255, 0.12);
 
   /* Text Colors */

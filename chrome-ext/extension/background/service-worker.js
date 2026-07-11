@@ -289,7 +289,8 @@ async function startDownload(message) {
   console.log('[YTD] startDownload called with message:', message);
   const tabId = Number.isInteger(message?.tabId) ? message.tabId : null;
   const url = normalizeText(message?.url);
-  const mode = message?.mode === 'audio' ? 'audio' : 'video';
+  const allowedModes = ['audio', 'video', 'video-fhd'];
+  const mode = allowedModes.includes(message?.mode) ? message.mode : 'video';
 
   if (!Number.isInteger(tabId) || !isSupportedTabUrl(url)) {
     console.warn('[YTD] startDownload aborted: unsupported page or no tabId');
@@ -577,7 +578,7 @@ async function pauseOriginVideo(message) {
       response = await sendTabMessage(originTabId, {
         type: 'ytd-pause-page-video',
       });
-    } catch (_error) {
+    } catch {
       await ensureOverlay(originTabId);
       response = await sendTabMessage(originTabId, {
         type: 'ytd-pause-page-video',
@@ -590,7 +591,7 @@ async function pauseOriginVideo(message) {
         paused: response?.paused === true,
       },
     };
-  } catch (_error) {
+  } catch {
     return {
       ok: true,
       payload: {

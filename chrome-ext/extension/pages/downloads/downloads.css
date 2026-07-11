@@ -148,6 +148,7 @@ body {
 .download-name {
   font-size: 18px;
   font-weight: 700;
+  color: rgb(193 193 193);
 }
 
 .download-path {

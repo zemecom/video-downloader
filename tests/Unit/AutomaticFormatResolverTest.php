@@ -329,4 +329,25 @@ final class AutomaticFormatResolverTest extends TestCase
 
         self::assertSame('301', $resolved);
     }
+
+    public function testResolveAllowsUnknownHeight(): void
+    {
+        $resolver = new AutomaticFormatResolver();
+
+        $resolved = $resolver->resolve('medium', [
+            'formats' => [
+                [
+                    'format_id' => '22',
+                    'protocol' => 'https',
+                    'acodec' => 'mp4a.40.2',
+                    'vcodec' => 'avc1.64001F',
+                    'height' => 0,
+                    'fps' => 30,
+                    'tbr' => 900,
+                ],
+            ],
+        ]);
+
+        self::assertSame('22', $resolved);
+    }
 }

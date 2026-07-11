@@ -41,7 +41,7 @@ final class DownloaderServiceBestFormatTest extends TestCase
             $result = $service->downloadVideo('https://www.xvideos.com/video.oufdtba54ef/example', 'best', new \YtdPhp\Download\DownloadOptions());
 
             self::assertSame('completed', $result->status);
-            self::assertFileExists($downloadDir . '/My_Cool_Video.mkv');
+            self::assertFileExists($downloadDir . '/My_Cool_Video_1080p.mkv');
             self::assertFalse(\file_exists($downloadDir . '/My Cool Video.mkv'));
         } finally {
             if ($previousPath === false) {
@@ -86,7 +86,7 @@ final class DownloaderServiceBestFormatTest extends TestCase
             $result = $service->downloadVideo('https://www.xvideos.com/video.oufdtba54ef/example', 'medium', new \YtdPhp\Download\DownloadOptions());
 
             self::assertSame('completed', $result->status);
-            self::assertFileExists($downloadDir . '/My_Cool_Video.mkv');
+            self::assertFileExists($downloadDir . '/My_Cool_Video_1080p.mkv');
             self::assertFalse(\file_exists($downloadDir . '/My Cool Video.mkv'));
         } finally {
             if ($previousPath === false) {
@@ -146,11 +146,12 @@ final class DownloaderServiceBestFormatTest extends TestCase
             $resolved = (string) $path;
         
             return str_replace(
-                ['%(title)s', '%(id)s', '%(ext)s'],
+                ['%(title)s', '%(id)s', '%(ext)s', '%(resolution)s'],
                 [
                     (string) ($metadata['title'] ?? ''),
                     (string) ($metadata['id'] ?? ''),
                     (string) ($metadata['ext'] ?? 'mp4'),
+                    (string) ($metadata['resolution'] ?? '1080p'),
                 ],
                 $resolved,
             );

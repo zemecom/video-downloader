@@ -51,7 +51,7 @@ final class YtdCommand extends Command
             ->addOption('manual', 'm', InputOption::VALUE_NONE, 'Ручной режим (выбор формата)')
             ->addOption('audio', 'a', InputOption::VALUE_NONE, 'Скачать только аудио в лучшем формате (opus)')
             ->addOption('fast', null, InputOption::VALUE_NONE, 'Скачать видео и аудио параллельно, затем объединить через ffmpeg')
-            ->addOption('quality', 'Q', InputOption::VALUE_REQUIRED, 'Качество видео: b/best, m/medium, l/low', 'b')
+            ->addOption('quality', 'Q', InputOption::VALUE_REQUIRED, 'Качество видео: b/best, f/fhd, m/medium, l/low', 'b')
             ->addOption('dry-run', null, InputOption::VALUE_NONE, 'Показать, что будет скачано, но не запускать загрузку')
             ->addOption('mp4', null, InputOption::VALUE_NONE, 'Сохранить в формате MP4 (вместо MKV)')
             ->addOption('output-format', null, InputOption::VALUE_REQUIRED, 'Итоговый контейнер: mkv или mp4', $this->bootstrap->getDefaultOutputFormat())
@@ -61,7 +61,8 @@ final class YtdCommand extends Command
             ->addOption('concurrent-fragments', null, InputOption::VALUE_REQUIRED, 'Сколько фрагментов одного файла качать параллельно через yt-dlp', (string) $this->bootstrap->getConcurrentFragments())
             ->addOption('progress-newline', null, InputOption::VALUE_NEGATABLE, 'Печатать прогресс построчно вместо перерисовки')
             ->addOption('progress-delta', null, InputOption::VALUE_REQUIRED, 'Интервал обновления прогресса yt-dlp в секундах', $this->bootstrap->getProgressDelta())
-            ->addOption('doctor', null, InputOption::VALUE_NONE, 'Проверить окружение и конфиги без скачивания');
+            ->addOption('doctor', null, InputOption::VALUE_NONE, 'Проверить окружение и конфиги без скачивания')
+            ->addOption('4k', '4', InputOption::VALUE_NONE, 'Игнорировать ограничения кодеков и качать в максимальном 4K/8K разрешении');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -131,6 +132,7 @@ final class YtdCommand extends Command
             $route->matchedSection,
             $route->matchedPattern,
             $route->hostname,
+            (bool) $input->getOption('4k'),
         );
     }
 
@@ -187,9 +189,10 @@ final class YtdCommand extends Command
 
         return match ($value) {
             'b', 'best' => 'best',
+            'f', 'fhd' => 'fhd',
             'm', 'medium' => 'medium',
             'l', 'low' => 'low',
-            default => throw new UserFacingException('`--quality` поддерживает только b/best, m/medium или l/low.'),
+            default => throw new UserFacingException('`--quality` поддерживает только b/best, f/fhd, m/medium или l/low.'),
         };
     }
 

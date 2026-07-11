@@ -59,8 +59,8 @@ final readonly class DoctorService
                 ),
             ]
             : [
-                $this->checkBinary('yt-dlp', 'Установи yt-dlp и убедись, что команда доступна в PATH.'),
-                $this->checkBinary('ffmpeg', 'Установи ffmpeg и убедись, что команда доступна в PATH.'),
+                $this->checkBinary(\getenv('YT_DLP_PATH') ?: 'yt-dlp', 'Установи yt-dlp и убедись, что команда доступна в PATH.'),
+                $this->checkBinary(\getenv('FFMPEG_PATH') ?: 'ffmpeg', 'Установи ffmpeg и убедись, что команда доступна в PATH.', '-version'),
             ];
 
         $results[] = \file_exists($envPath)
@@ -169,9 +169,9 @@ final readonly class DoctorService
         return 0;
     }
 
-    private function checkBinary(string $binary, string $installHint): DoctorResult
+    private function checkBinary(string $binary, string $installHint, string $versionArg = '--version'): DoctorResult
     {
-        $process = new Process([$binary, '--version']);
+        $process = new Process([$binary, $versionArg]);
         $process->setEnv(ProcessEnvironment::build());
         $process->run();
         if ($process->isSuccessful()) {
@@ -180,7 +180,7 @@ final readonly class DoctorService
             return new DoctorResult(
                 self::STATUS_OK,
                 $binary . ' найден',
-                $details !== '' ? $details : 'Команда отвечает на --version.',
+                $details !== '' ? $details : 'Команда отвечает на ' . $versionArg . '.',
             );
         }
 

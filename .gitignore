@@ -3,6 +3,7 @@
 /.php-cs-fixer.cache
 /logs/
 /chrome-ext/logs/
+/chrome-ext/data/
 /.env
 /proxy_rules.yaml
 .DS_Store
@@ -15,8 +16,11 @@ node_modules/
 
 # Build
 ytd.phar
-bin/box
+bin/box.phar
 package.xml
 
 # Cache
 .deptrac.cache
+
+# Release Notes
+release_notes.txt

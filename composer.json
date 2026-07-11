@@ -5,6 +5,7 @@
   "license": "MIT",
   "require": {
     "php": "^8.4",
+    "ext-pdo_sqlite": "*",
     "symfony/console": "^8.0",
     "symfony/dotenv": "^8.0",
     "symfony/filesystem": "^8.0",

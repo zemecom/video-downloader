@@ -25,6 +25,7 @@ final readonly class PlaylistService
 {
     public const string OVERWRITE_SKIP_ALL = 'skip_all';
     public const string OVERWRITE_OVERWRITE_ALL = 'overwrite_all';
+    public const string OVERWRITE_RENAME_ALL = 'rename_all';
     public const string OVERWRITE_CANCEL = 'cancel';
     private PlaylistDownloadQueueRunner $downloadQueueRunner;
     private PlaylistMetadataService $playlistMetadataService;
@@ -216,14 +217,17 @@ final readonly class PlaylistService
         }
 
         $this->logger->warning('⚠️ Уже существуют ' . $existingCount . ' файлов(а) из выбранных.');
-        $this->logger->info('Выбери политику: `skip` / `overwrite` / `cancel`');
+        $this->logger->info('Выбери политику: `skip` / `overwrite` / `rename` / `cancel`');
         while (true) {
-            $choice = \strtolower($this->prompter->ask('Что делать с существующими файлами? [skip/overwrite/cancel]: '));
+            $choice = \strtolower($this->prompter->ask('Что делать с существующими файлами? [skip/overwrite/rename/cancel]: '));
             if (\in_array($choice, ['skip', 'skip_all', 's'], true)) {
                 return self::OVERWRITE_SKIP_ALL;
             }
-            if (\in_array($choice, ['overwrite', 'overwrite_all', 'o'], true)) {
+            if (\in_array($choice, ['overwrite', 'overwrite_all', 'o', 'y'], true)) {
                 return self::OVERWRITE_OVERWRITE_ALL;
+            }
+            if (\in_array($choice, ['rename', 'rename_all', 'r'], true)) {
+                return self::OVERWRITE_RENAME_ALL;
             }
             if (\in_array($choice, ['cancel', 'c'], true)) {
                 return self::OVERWRITE_CANCEL;
@@ -286,6 +290,20 @@ final readonly class PlaylistService
             if ($item->exists && $overwritePolicy === self::OVERWRITE_SKIP_ALL) {
                 $this->logger->info(\sprintf('Пропущено [%d/%d]: %s (уже существует)', $position + 1, \count($summary->selectedItems), $item->playlistItem->title));
                 continue;
+            }
+
+            if ($item->exists && $overwritePolicy === self::OVERWRITE_RENAME_ALL) {
+                $item = new SelectedItemMetadata(
+                    $item->playlistItem,
+                    $item->infoJsonPath,
+                    $this->downloader->generateUniqueFileName($item->expectedPath),
+                    $item->resolvedFormatCode,
+                    false,
+                    $item->filesize,
+                    $item->filesizeApprox,
+                    $item->sizeKnown,
+                    $item->errorMessage,
+                );
             }
 
             $workItems[] = new PlaylistDownloadWorkItem($position + 1, $item);
@@ -372,10 +390,7 @@ final readonly class PlaylistService
             }
         }
 
-        $freeSpace = \disk_free_space($targetDir);
-        if ($freeSpace === false) {
-            $freeSpace = 0;
-        }
+        $freeSpace = $this->getAvailableDiskSpace($targetDir);
 
         return new PlaylistSelectionSummary(
             $playlist,
@@ -430,4 +445,19 @@ final readonly class PlaylistService
         return $this->downloader->formatSize($size);
     }
 
+    private function getAvailableDiskSpace(string $path): int
+    {
+        $current = $path;
+        while (!\is_dir($current)) {
+            $parent = \dirname($current);
+            if ($parent === $current) {
+                break;
+            }
+            $current = $parent;
+        }
+
+        $space = \disk_free_space($current);
+
+        return $space !== false ? (int) $space : 0;
+    }
 }

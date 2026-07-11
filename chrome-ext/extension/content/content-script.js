@@ -23,11 +23,13 @@
       this.cancelButton = shadowRoot.querySelector('.cancel-action');
       this.playButton = shadowRoot.querySelector('.play-action');
       this.openButton = shadowRoot.querySelector('.open-action');
+      this.finderButton = shadowRoot.querySelector('.finder-action');
       this.closeButtons = shadowRoot.querySelectorAll('.close, .close-action');
       this.header = shadowRoot.querySelector('.header');
 
       this.autoHideTimer = null;
       this.jobId = null;
+      this.isUserClosed = false;
       
       this.isDragging = false;
       this.dragOffset = { x: 0, y: 0 };
@@ -55,9 +57,22 @@
         }
       });
 
+      if (this.finderButton) {
+        this.finderButton.addEventListener('click', async () => {
+          const recentId = this.finderButton.dataset.recentDownloadId;
+          if (recentId) {
+            await chrome.runtime.sendMessage({
+              type: 'ytd:reveal-recent-download',
+              entryId: recentId,
+            });
+          }
+        });
+      }
+
       this.closeButtons.forEach((button) => {
         button.addEventListener('click', () => {
           this.stopAutoHide();
+          this.isUserClosed = true;
           this.overlay.hidden = true;
         });
       });
@@ -123,7 +138,14 @@
     }
 
     update(payload) {
-      this.overlay.hidden = false;
+      if (payload.jobId && payload.jobId !== this.jobId) {
+        this.jobId = payload.jobId;
+        this.isUserClosed = false;
+      }
+
+      if (!this.isUserClosed) {
+        this.overlay.hidden = false;
+      }
 
       const status =
         typeof payload?.status === 'string' ? payload.status : 'starting';
@@ -152,10 +174,6 @@
         payload.recentDownloadId !== ''
           ? payload.recentDownloadId
           : null;
-
-      if (payload.jobId) {
-        this.jobId = payload.jobId;
-      }
 
       if (status === 'completed') {
         this.startAutoHide(8000);
@@ -199,8 +217,16 @@
       if (status === 'completed' && recentDownloadId) {
         this.openButton.hidden = false;
         this.openButton.dataset.recentDownloadId = recentDownloadId || '';
+        
+        if (this.finderButton) {
+          this.finderButton.hidden = false;
+          this.finderButton.dataset.recentDownloadId = recentDownloadId || '';
+        }
       } else {
         this.openButton.hidden = true;
+        if (this.finderButton) {
+          this.finderButton.hidden = true;
+        }
       }
 
       if (

@@ -11,9 +11,9 @@ final class ProcessEnvironment
      */
     public static function build(): array
     {
-        return [
+        return \array_merge(\getenv(), [
             'PATH' => self::buildAugmentedPath(),
-        ];
+        ]);
     }
 
     public static function buildAugmentedPath(): string

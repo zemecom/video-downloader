@@ -316,6 +316,7 @@ final class AutomaticFormatResolver
 
         $height = $this->normalizeNumber($format['height'] ?? null);
 
-        return $height > 0 && $height <= $maxHeight;
+        // Форматы с неизвестной высотой (0) не отсекаем — пусть yt-dlp решит
+        return $height === 0 || $height <= $maxHeight;
     }
 }

@@ -40,9 +40,9 @@ make chrome-ext-install CHROME_EXT_ID=YOUR_EXTENSION_ID
 
 ## Хранение списка недавних файлов
 
-- Список `Недавние` хранится на стороне native host в `sqlite`-базе `chrome-ext/logs/native-host-recent-downloads.sqlite`.
+- Список `Недавние` хранится на стороне native host в `sqlite`-базе `chrome-ext/data/native-host-recent-downloads.sqlite`.
 - История больше не обрезается по фиксированному количеству записей: сохраняются все доступные загрузки, пока файлы существуют на диске.
-- Legacy-история для мягкой миграции по умолчанию тоже лежит рядом: `chrome-ext/logs/native-host-recent-downloads.json`.
+- Legacy-история для мягкой миграции по умолчанию тоже лежит рядом: `chrome-ext/data/native-host-recent-downloads.json`.
 - При первом запуске после обновления существующая история из legacy JSON мягко мигрирует в новую `sqlite`-базу.
 - В popup показываются последние 5 элементов, а кнопка `Все загрузки` открывает отдельную страницу со всей историей.
 - Операции `Открыть`, `Finder`, `Удалить` и предпросмотр по-прежнему выполняются через native host как из popup, так и со страницы всех загрузок.

@@ -16,7 +16,11 @@ const {
     visibleItems: Array.isArray(items) ? items : [],
     hasHiddenItems: false,
   }),
-  getRecentDownloadModeLabel = (mode) => (mode === 'audio' ? 'Аудио' : 'Видео'),
+  getRecentDownloadModeLabel = (mode) => {
+    if (mode === 'audio') return 'Аудио';
+    if (mode === 'video-fhd') return 'Видео FHD';
+    return 'Видео BEST';
+  },
   normalizeRecentDownloadsPayload = (payload) =>
     Array.isArray(payload?.items) ? payload.items : [],
 } = recentDownloadsUi;
@@ -25,6 +29,7 @@ const buttons = Array.from(document.querySelectorAll('[data-mode]'));
 const statusNode = document.querySelector('.status');
 const recentListNode = document.querySelector('.recent-list');
 const recentEmptyNode = document.querySelector('.recent-empty');
+const recentOpenFolderButton = document.querySelector('.recent-open-folder');
 const recentOpenAllButton = document.querySelector('.recent-open-all');
 const recentClearAllButton = document.querySelector('.recent-clear-all');
 const activeDownloadNode = document.querySelector('.active-download');
@@ -64,8 +69,12 @@ port.onMessage.addListener(async (message) => {
 
 buttons.forEach((button) => {
   button.addEventListener('click', () => {
-    void startDownload(button.dataset.mode === 'audio' ? 'audio' : 'video');
+    void startDownload(button.dataset.mode);
   });
+});
+
+recentOpenFolderButton?.addEventListener('click', async () => {
+  await chrome.runtime.sendMessage({ type: 'ytd:open-downloads-directory' });
 });
 
 recentOpenAllButton?.addEventListener('click', () => {
@@ -236,6 +245,9 @@ async function handleRecentDownloadAction(actionKind, entryId, title, filePath) 
 }
 
 function toggleRecentOpenAllButton(visible) {
+  if (recentOpenFolderButton) {
+    recentOpenFolderButton.hidden = !visible;
+  }
   if (recentOpenAllButton) {
     recentOpenAllButton.hidden = !visible;
   }

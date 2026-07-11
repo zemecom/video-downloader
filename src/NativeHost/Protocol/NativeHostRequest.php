@@ -17,6 +17,7 @@ abstract readonly class NativeHostRequest
 {
     private const string LEGACY_DOWNLOAD_CURRENT_TAB = 'download_current_tab';
     public const string MODE_VIDEO = 'video';
+    public const string MODE_VIDEO_FHD = 'video-fhd';
     public const string MODE_AUDIO = 'audio';
     public const string START_DOWNLOAD = 'start_download';
     public const string GET_JOB_STATUS = 'get_job_status';
@@ -96,7 +97,7 @@ abstract readonly class NativeHostRequest
             return self::MODE_VIDEO;
         }
 
-        if (!\is_string($mode) || !\in_array($mode, [self::MODE_VIDEO, self::MODE_AUDIO], true)) {
+        if (!\is_string($mode) || !\in_array($mode, [self::MODE_VIDEO, self::MODE_VIDEO_FHD, self::MODE_AUDIO], true)) {
             throw new NativeHostException('invalid_payload', 'Invalid native host payload.');
         }
 
