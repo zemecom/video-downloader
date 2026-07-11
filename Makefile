@@ -1,4 +1,4 @@
-.PHONY: help install install-deps alias init doctor doctor-smoke clean-logs test test-integration lint lint-fix check check-entrypoint-local ci-current chrome-ext-paths chrome-ext-install chrome-ext-uninstall build build-release
+.PHONY: help install install-deps alias init doctor doctor-smoke clean-logs test test-integration lint lint-fix check check-entrypoint-local ci-current chrome-ext-paths chrome-ext-install chrome-ext-uninstall proxy-install proxy-uninstall build build-release
 
 PHP ?= php
 COMPOSER ?= composer
@@ -9,6 +9,9 @@ CHROME_EXT_NATIVE_HOST_DIR ?= $(CHROME_EXT_DIR)/native-host
 CHROME_EXT_INSTALLER ?= $(CHROME_EXT_NATIVE_HOST_DIR)/install-macos.sh
 CHROME_EXT_UNINSTALLER ?= $(CHROME_EXT_NATIVE_HOST_DIR)/uninstall-macos.sh
 CHROME_EXT_ID ?=
+
+PROXY_LAN_IP ?= 192.168.0.11
+PROXY_LAN_PORT ?= 1080
 
 help:
 	@echo "Available targets:"
@@ -25,6 +28,8 @@ help:
 	@echo "  make chrome-ext-paths - print Chrome extension and native host paths"
 	@echo "  make chrome-ext-install - install Chrome native host for the local extension"
 	@echo "  make chrome-ext-uninstall - uninstall Chrome native host manifest"
+	@echo "  make proxy-install - install launchd proxy for macOS Local Network Privacy workaround"
+	@echo "  make proxy-uninstall - uninstall launchd proxy"
 	@echo ""
 	@echo "Build:"
 	@echo "  make build         - compile the ytd.phar binary"
@@ -97,6 +102,20 @@ chrome-ext-uninstall:
 		exit 1; \
 	fi
 	@"$(CHROME_EXT_UNINSTALLER)"
+
+proxy-install:
+	@mkdir -p ~/Library/LaunchAgents
+	@echo '#!/bin/bash\nexec /usr/bin/nc "$$@"' > $(PWD)/bin/ytd-proxy
+	@chmod +x $(PWD)/bin/ytd-proxy
+	@echo '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0">\n<dict>\n    <key>Label</key>\n    <string>com.ytd.localproxy</string>\n    <key>ProgramArguments</key>\n    <array>\n        <string>$(PWD)/bin/ytd-proxy</string>\n        <string>$(PROXY_LAN_IP)</string>\n        <string>$(PROXY_LAN_PORT)</string>\n    </array>\n    <key>Sockets</key>\n    <dict>\n        <key>Listeners</key>\n        <dict>\n            <key>SockNodeName</key>\n            <string>127.0.0.1</string>\n            <key>SockServiceName</key>\n            <string>$(PROXY_LAN_PORT)</string>\n            <key>SockType</key>\n            <string>stream</string>\n            <key>SockFamily</key>\n            <string>IPv4</string>\n        </dict>\n    </dict>\n    <key>inetdCompatibility</key>\n    <dict>\n        <key>Wait</key>\n        <false/>\n    </dict>\n</dict>\n</plist>' > ~/Library/LaunchAgents/com.ytd.localproxy.plist
+	@launchctl unload ~/Library/LaunchAgents/com.ytd.localproxy.plist 2>/dev/null || true
+	@launchctl load ~/Library/LaunchAgents/com.ytd.localproxy.plist
+	@echo "Proxy installed and loaded via launchctl (forwarding 127.0.0.1:$(PROXY_LAN_PORT) -> $(PROXY_LAN_IP):$(PROXY_LAN_PORT))."
+
+proxy-uninstall:
+	@launchctl unload ~/Library/LaunchAgents/com.ytd.localproxy.plist 2>/dev/null || true
+	@rm -f ~/Library/LaunchAgents/com.ytd.localproxy.plist
+	@echo "Proxy uninstalled."
 
 test:
 	$(COMPOSER) test

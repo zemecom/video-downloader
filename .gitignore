@@ -21,3 +21,4 @@ package.xml
 
 # Cache
 .deptrac.cache
+bin/ytd-proxy
