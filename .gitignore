@@ -21,3 +21,6 @@ package.xml
 
 # Cache
 .deptrac.cache
+
+# Release Notes
+release_notes.txt
