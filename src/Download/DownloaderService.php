@@ -88,7 +88,7 @@ final readonly class DownloaderService
         DownloadOptions $options,
     ): DownloadResult {
         $basePath = $this->bootstrap->getDownloadBasePath($videoUrl, $options->downloadDir);
-        $outputTemplate = $basePath . '/%(title)s [%(resolution)s].%(ext)s';
+        $outputTemplate = $this->buildOutputTemplate($basePath, $formatCode);
 
         $metadataResult = $this->metadataService->fetch(videoUrl: $videoUrl, proxy: $options->proxy, insecure: $options->insecure);
         if ($metadataResult->failure instanceof DownloadResult) {
@@ -287,6 +287,13 @@ final readonly class DownloaderService
                 $this->logger->info('⏱️ Время работы: ' . $this->outputFormatter->formatElapsedRuntime(\microtime(true) - $startedAt));
             }
         }
+    }
+
+    private function buildOutputTemplate(string $basePath, string $formatCode): string
+    {
+        $resolutionSuffix = $formatCode === 'bestaudio' ? '' : ' [%(resolution)s]';
+
+        return $basePath . '/%(title)s' . $resolutionSuffix . '.%(ext)s';
     }
 
     public function downloadFromInfoJson(

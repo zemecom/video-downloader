@@ -7,6 +7,8 @@ const STATUS_LABELS = {
   starting: 'Подготовка',
 };
 
+const { getDownloadProgressPresentation } = globalThis.YtdDownloadProgressUi;
+
 const recentDownloadsUi = globalThis.YtdRecentDownloadsUi || {};
 const {
   RECENT_DOWNLOADS_PREVIEW_LIMIT = 5,
@@ -51,9 +53,11 @@ const activeDownloadCloseButton = document.querySelector(
 );
 
 let activeJobId = null;
+let isStartingDownload = false;
 let lastKnownStatus = null;
 
 void loadRecentDownloads();
+void hydrateActiveDownload();
 
 const port = chrome.runtime.connect({ name: 'ytd-popup' });
 port.onMessage.addListener(async (message) => {
@@ -106,6 +110,11 @@ activeDownloadCloseButton?.addEventListener('click', () => {
 });
 
 async function startDownload(mode) {
+  if (isStartingDownload) {
+    return;
+  }
+
+  isStartingDownload = true;
   setBusyState(true);
   setStatus(
     mode === 'audio'
@@ -113,29 +122,48 @@ async function startDownload(mode) {
       : 'Запускаю загрузку видео...'
   );
 
-  const [tab] = await chrome.tabs.query({
-    active: true,
-    currentWindow: true,
-  });
+  try {
+    const [tab] = await chrome.tabs.query({
+      active: true,
+      currentWindow: true,
+    });
 
-  const response = await sendMessage({
-    type: 'ytd:start-download',
-    mode,
-    tabId: tab?.id,
-    url: tab?.url,
-  });
+    const response = await sendMessage({
+      type: 'ytd:start-download',
+      mode,
+      tabId: tab?.id,
+      url: tab?.url,
+    });
 
-  if (response?.ok) {
-    if (response.payload) {
-      renderActiveDownload(response.payload);
+    if (response?.ok) {
+      if (response.payload) {
+        renderActiveDownload(response.payload);
+      }
+
+      return;
     }
 
-    window.close();
+    setBusyState(false);
+    setStatus(response?.errorMessage || 'Не удалось запустить загрузку.');
+  } catch {
+    setBusyState(false);
+    setStatus('Не удалось получить текущую вкладку.');
+  } finally {
+    isStartingDownload = false;
+  }
+}
+
+async function hydrateActiveDownload() {
+  const response = await sendMessage({
+    type: 'ytd:get-active-download',
+  });
+
+  if (isStartingDownload || !response?.ok || !response.payload) {
     return;
   }
 
-  setBusyState(false);
-  setStatus(response?.errorMessage || 'Не удалось запустить загрузку.');
+  renderActiveDownload(response.payload);
+  lastKnownStatus = response.payload.status;
 }
 
 async function loadRecentDownloads() {
@@ -395,6 +423,10 @@ function renderActiveDownload(payload) {
       ? payload.progressPercent
       : null;
   const canCancel = Boolean(payload?.canCancel);
+  const progressPresentation = getDownloadProgressPresentation(
+    status,
+    progressPercent
+  );
 
   activeJobId =
     typeof payload?.jobId === 'string' && payload.jobId !== ''
@@ -413,23 +445,16 @@ function renderActiveDownload(payload) {
       : 'Отменить';
   activeDownloadCancelButton.disabled =
     isTerminalStatus(status) || (!canCancel && status !== 'cancelling');
+  setBusyState(!isTerminalStatus(status));
 
   if (activeDownloadCloseButton) {
     activeDownloadCloseButton.hidden = !isTerminalStatus(status);
   }
 
-  if (
-    progressPercent === null ||
-    status === 'starting' ||
-    status === 'cancelling'
-  ) {
-    activeDownloadFillNode.dataset.indeterminate = 'true';
-    activeDownloadFillNode.style.width = '38%';
-    return;
-  }
-
-  activeDownloadFillNode.dataset.indeterminate = 'false';
-  activeDownloadFillNode.style.width = `${Math.max(0, Math.min(100, progressPercent))}%`;
+  activeDownloadFillNode.dataset.indeterminate = String(
+    progressPresentation.isIndeterminate
+  );
+  activeDownloadFillNode.style.width = `${progressPresentation.widthPercent}%`;
 }
 
 function renderActiveDownloadError(message) {
@@ -441,8 +466,9 @@ function renderActiveDownloadError(message) {
   if (activeDownloadCloseButton) {
     activeDownloadCloseButton.hidden = false;
   }
-  activeDownloadFillNode.dataset.indeterminate = 'true';
-  activeDownloadFillNode.style.width = '38%';
+  activeDownloadFillNode.dataset.indeterminate = 'false';
+  activeDownloadFillNode.style.width = '0%';
+  setBusyState(false);
 }
 
 function hideActiveDownload() {
@@ -454,6 +480,7 @@ function hideActiveDownload() {
   activeDownloadCancelButton.disabled = false;
   activeDownloadFillNode.dataset.indeterminate = 'true';
   activeDownloadFillNode.style.width = '38%';
+  setBusyState(false);
 }
 
 function isTerminalStatus(status) {
