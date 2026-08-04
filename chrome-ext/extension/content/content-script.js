@@ -12,6 +12,7 @@
     completed: 'Готово',
     failed: 'Ошибка',
     cancelled: 'Отменено',
+    skipped: 'Пропущено',
     cancelling: 'Останавливаю',
     starting: 'Подготовка',
   };
@@ -182,6 +183,8 @@
         this.startAutoHide(8000);
       } else if (status === 'cancelled') {
         this.startAutoHide(1000);
+      } else if (status === 'skipped') {
+        this.startAutoHide(3000);
       } else {
         this.stopAutoHide();
       }
@@ -250,7 +253,10 @@
 
     isTerminalStatus(status) {
       return (
-        status === 'completed' || status === 'failed' || status === 'cancelled'
+        status === 'completed' ||
+        status === 'failed' ||
+        status === 'cancelled' ||
+        status === 'skipped'
       );
     }
 

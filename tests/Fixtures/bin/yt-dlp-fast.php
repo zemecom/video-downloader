@@ -20,6 +20,19 @@ $metadata = [
     ],
 ];
 
+if (getenv('YTD_TEST_FAST_4K') === '1') {
+    $metadata['resolution'] = '2160p';
+    array_unshift($metadata['formats'], [
+        'format_id' => '401',
+        'ext' => 'mp4',
+        'vcodec' => 'avc1.640033',
+        'acodec' => 'none',
+        'height' => 2160,
+        'fps' => 30,
+        'tbr' => 12000,
+    ]);
+}
+
 foreach ($args as $index => $arg) {
     if ($arg === '--load-info-json' && isset($args[$index + 1]) && is_file($args[$index + 1])) {
         file_put_contents($root . '/last-info-json.txt', $args[$index + 1]);
@@ -41,8 +54,17 @@ foreach ($args as $index => $arg) {
     }
 }
 
-$resolveOutputPath = static function (?string $path) use ($metadata): string {
+$resolveOutputPath = static function (?string $path) use ($metadata, $formatId): string {
     $resolved = (string) $path;
+    $resolution = (string) ($metadata['resolution'] ?? '1080p');
+    if (is_string($formatId)) {
+        foreach ([1080, 720, 480] as $height) {
+            if (str_contains($formatId, 'height<=' . $height)) {
+                $resolution = $height . 'p';
+                break;
+            }
+        }
+    }
 
     return str_replace(
         ['%(title)s', '%(id)s', '%(ext)s', '%(resolution)s'],
@@ -50,7 +72,7 @@ $resolveOutputPath = static function (?string $path) use ($metadata): string {
             (string) ($metadata['title'] ?? ''),
             (string) ($metadata['id'] ?? ''),
             (string) ($metadata['ext'] ?? 'mp4'),
-            (string) ($metadata['resolution'] ?? '1080p'),
+            $resolution,
         ],
         $resolved,
     );

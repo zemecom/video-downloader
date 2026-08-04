@@ -1,5 +1,5 @@
 (function registerYtdDownloadProgressUi() {
-  const TERMINAL_STATUSES = new Set(['completed', 'failed', 'cancelled']);
+  const TERMINAL_STATUSES = new Set(['completed', 'failed', 'cancelled', 'skipped']);
 
   function getDownloadProgressPresentation(status, progressPercent) {
     if (TERMINAL_STATUSES.has(status)) {

@@ -118,14 +118,19 @@ final class YtDlpCommandBuilder
     /**
      * @return list<string>
      */
-    public function buildForFilename(?string $outputPath = null): array
-    {
+    public function buildForFilename(
+        ?string $outputPath = null,
+        string $formatCode = 'best',
+        string $outputFormat = 'mkv',
+        bool $allow4k = false,
+    ): array {
         $command = $this->command;
         array_splice($command, 1, 0, ['--get-filename']);
         if (is_string($outputPath) && $outputPath !== '') {
             $command[] = '-o';
             $command[] = $outputPath;
         }
+        $command = $this->applyFormatArgs($command, $formatCode, $outputFormat, $allow4k);
         if (is_string($this->url) && $this->url !== '') {
             $command[] = $this->url;
         }

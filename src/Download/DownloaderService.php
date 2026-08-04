@@ -114,6 +114,7 @@ final readonly class DownloaderService
                 outputTemplate: $outputTemplate,
                 options: $options,
                 infoJsonPath: $metadata->infoJsonPath,
+                sourceUrl: $videoUrl,
             );
 
             if ($options->dryRun) {
@@ -226,6 +227,7 @@ final readonly class DownloaderService
                 infoJsonPath: $metadata->infoJsonPath,
                 metadata: $metadata->payload,
                 basePath: $basePath,
+                sourceUrl: $videoUrl,
             );
 
             if ($options->dryRun) {
@@ -310,6 +312,7 @@ final readonly class DownloaderService
             $options,
             $infoJsonPath,
             false,
+            $sourceUrl,
         );
 
         if (\is_string($expectedFile) && $expectedFile !== '' && \file_exists($expectedFile) && !$options->forceOverwrites) {

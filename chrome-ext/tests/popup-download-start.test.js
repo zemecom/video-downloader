@@ -114,6 +114,9 @@ function createPopupSandbox() {
   return {
     actionButton,
     activeDownload: elements.get('.active-download'),
+    activeDownloadCancel: elements.get('.active-download-cancel'),
+    activeDownloadFill: elements.get('.active-download-fill'),
+    activeDownloadPhase: elements.get('.active-download-phase'),
     getWindowCloseCalls: () => windowCloseCalls,
     context,
   };
@@ -127,4 +130,26 @@ test('popup remains open and displays the started download', async () => {
   assert.equal(popup.getWindowCloseCalls(), 0);
   assert.equal(popup.activeDownload.hidden, false);
   assert.equal(popup.actionButton.disabled, true);
+});
+
+test('popup renders skipped download as a terminal status', () => {
+  const popup = createPopupSandbox();
+
+  vm.runInContext(
+    `renderActiveDownload({
+      jobId: 'job-skipped',
+      status: 'skipped',
+      progressPercent: null,
+      progressText: 'Загрузка пропущена: файл уже существует.',
+      canCancel: false,
+    })`,
+    popup.context
+  );
+
+  assert.equal(popup.activeDownload.hidden, false);
+  assert.equal(popup.activeDownloadPhase.textContent, 'Пропущено');
+  assert.equal(popup.activeDownloadFill.dataset.indeterminate, 'false');
+  assert.equal(popup.activeDownloadFill.style.width, '0%');
+  assert.equal(popup.activeDownloadCancel.disabled, true);
+  assert.equal(popup.actionButton.disabled, false);
 });

@@ -32,6 +32,16 @@ test('cancelled download does not keep an indeterminate progress animation', () 
   );
 });
 
+test('skipped download does not keep an indeterminate progress animation', () => {
+  assert.deepEqual(
+    toPlainValue(getDownloadProgressPresentation('skipped', null)),
+    {
+      isIndeterminate: false,
+      widthPercent: 0,
+    }
+  );
+});
+
 test('completed download uses a filled static progress bar', () => {
   assert.deepEqual(
     toPlainValue(getDownloadProgressPresentation('completed', null)),

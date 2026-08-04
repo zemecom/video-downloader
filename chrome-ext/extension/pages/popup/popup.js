@@ -3,6 +3,7 @@ const STATUS_LABELS = {
   completed: 'Готово',
   failed: 'Ошибка',
   cancelled: 'Отменено',
+  skipped: 'Пропущено',
   cancelling: 'Останавливаю',
   starting: 'Подготовка',
 };
@@ -485,7 +486,10 @@ function hideActiveDownload() {
 
 function isTerminalStatus(status) {
   return (
-    status === 'completed' || status === 'failed' || status === 'cancelled'
+    status === 'completed' ||
+    status === 'failed' ||
+    status === 'cancelled' ||
+    status === 'skipped'
   );
 }
 
