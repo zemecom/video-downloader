@@ -854,7 +854,10 @@ function sendTabMessage(tabId, payload) {
 
 function isTerminalStatus(status) {
   return (
-    status === 'completed' || status === 'failed' || status === 'cancelled'
+    status === 'completed' ||
+    status === 'failed' ||
+    status === 'cancelled' ||
+    status === 'skipped'
   );
 }
 

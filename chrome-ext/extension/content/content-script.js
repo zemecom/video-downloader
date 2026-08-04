@@ -1,14 +1,18 @@
 (async function bootstrapYtdOverlay() {
-  if (globalThis.__YTD_OVERLAY_BOOTSTRAPPED__) {
+  if (
+    globalThis.__YTD_OVERLAY_BOOTSTRAPPED__ ||
+    globalThis.__YTD_OVERLAY_BOOTSTRAPPING__
+  ) {
     return;
   }
-  globalThis.__YTD_OVERLAY_BOOTSTRAPPED__ = true;
+  globalThis.__YTD_OVERLAY_BOOTSTRAPPING__ = true;
 
   const STATUS_LABELS = {
     downloading: 'Идёт загрузка',
     completed: 'Готово',
     failed: 'Ошибка',
     cancelled: 'Отменено',
+    skipped: 'Пропущено',
     cancelling: 'Останавливаю',
     starting: 'Подготовка',
   };
@@ -179,6 +183,8 @@
         this.startAutoHide(8000);
       } else if (status === 'cancelled') {
         this.startAutoHide(1000);
+      } else if (status === 'skipped') {
+        this.startAutoHide(3000);
       } else {
         this.stopAutoHide();
       }
@@ -229,7 +235,10 @@
         }
       }
 
-      if (
+      if (this.isTerminalStatus(status)) {
+        this.fillNode.dataset.indeterminate = 'false';
+        this.fillNode.style.width = status === 'completed' ? '100%' : '0%';
+      } else if (
         progressPercent === null ||
         status === 'starting' ||
         status === 'cancelling'
@@ -244,7 +253,10 @@
 
     isTerminalStatus(status) {
       return (
-        status === 'completed' || status === 'failed' || status === 'cancelled'
+        status === 'completed' ||
+        status === 'failed' ||
+        status === 'cancelled' ||
+        status === 'skipped'
       );
     }
 
@@ -260,6 +272,16 @@
       if (this.autoHideTimer !== null) {
         clearTimeout(this.autoHideTimer);
         this.autoHideTimer = null;
+      }
+    }
+
+    async restoreActiveDownload() {
+      const response = await this.sendRuntimeMessage({
+        type: 'ytd:get-active-download',
+      });
+
+      if (response?.ok && response.payload) {
+        this.update(response.payload);
       }
     }
 
@@ -303,24 +325,30 @@
   document.documentElement.appendChild(host);
 
   try {
-    const response = await new Promise((resolve) => {
+    const { response, errorMessage } = await new Promise((resolve) => {
       chrome.runtime.sendMessage(
         { type: 'ytd:get-overlay-resources' },
-        resolve
+        (nextResponse) => {
+          resolve({
+            response: nextResponse,
+            errorMessage: chrome.runtime.lastError?.message || null,
+          });
+        }
       );
     });
 
-    if (chrome.runtime.lastError || !response?.html) {
-      console.error(
-        'YTD Overlay failed to load resources:',
-        chrome.runtime.lastError
-      );
+    if (errorMessage || !response?.html) {
+      console.error('YTD Overlay failed to load resources:', errorMessage);
+      host.remove();
+      delete globalThis.__YTD_OVERLAY_BOOTSTRAPPING__;
       return;
     }
 
     shadowRoot.innerHTML = `<style>\n${response.css}\n</style>\n${response.html}`;
   } catch (error) {
     console.error('YTD Overlay failed to load resources:', error);
+    host.remove();
+    delete globalThis.__YTD_OVERLAY_BOOTSTRAPPING__;
     return;
   }
 
@@ -332,6 +360,9 @@
       overlay.update(message);
     }
   });
+  globalThis.__YTD_OVERLAY_BOOTSTRAPPED__ = true;
+  delete globalThis.__YTD_OVERLAY_BOOTSTRAPPING__;
+  void overlay.restoreActiveDownload();
 
   // Also support the previous direct message events if any
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {

@@ -16,6 +16,14 @@ final class NativeHostProgressParserService
             return null;
         }
 
+        if (\str_contains($normalized, 'Пропускаю загрузку по выбору пользователя.')) {
+            return [
+                'status' => 'skipped',
+                'progressPercent' => null,
+                'progressText' => 'Загрузка пропущена: файл уже существует.',
+            ];
+        }
+
         if (\preg_match('/\[\w+\]\s+(\d+(?:\.\d+)?)%/', $normalized, $matches) === 1) {
             return [
                 'status' => 'downloading',

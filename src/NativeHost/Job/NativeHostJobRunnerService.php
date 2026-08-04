@@ -200,6 +200,17 @@ final readonly class NativeHostJobRunnerService
         $hasOutputFile = $this->hasOutputFile($state);
         $cancelRequested = $this->store->cancelRequested($jobId) || ($state['status'] ?? null) === 'cancelling';
 
+        if (($state['status'] ?? null) === 'skipped') {
+            $state['progressPercent'] = null;
+            $state['progressText'] = 'Загрузка пропущена: файл уже существует.';
+            $state['canCancel'] = false;
+            $state['updatedAt'] = $this->now();
+            $this->store->write($jobId, $state);
+            $this->store->clearCancelRequest($jobId);
+
+            return 0;
+        }
+
         if ($exitCode === 0 && ($hasOutputFile || !$cancelRequested)) {
             if (\is_string($outputPath) && $outputPath !== '' && \file_exists($outputPath)) {
                 $entry = $this->recentDownloads->append(
@@ -338,11 +349,11 @@ final readonly class NativeHostJobRunnerService
             $state['outputPath'] = $parsed['outputPath'];
         }
 
-        if (!$this->isCancelling($jobId, $state)) {
+        if (!$this->isCancelling($jobId, $state) && !$this->isTerminalStatus($state['status'] ?? null)) {
             $state['status'] = $parsed['status'];
             $state['progressPercent'] = $parsed['progressPercent'];
             $state['progressText'] = $parsed['progressText'];
-            $state['canCancel'] = !\in_array($state['status'], ['completed', 'failed', 'cancelled'], true);
+            $state['canCancel'] = !$this->isTerminalStatus($state['status']);
         }
 
         $state['updatedAt'] = $this->now();
@@ -360,6 +371,11 @@ final readonly class NativeHostJobRunnerService
             return true;
         }
         return ($state['status'] ?? null) === 'cancelling';
+    }
+
+    private function isTerminalStatus(mixed $status): bool
+    {
+        return \in_array($status, ['completed', 'failed', 'cancelled', 'skipped'], true);
     }
 
     /**

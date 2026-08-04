@@ -60,6 +60,20 @@ final class YtDlpCommandBuilderTest extends TestCase
         self::assertContains('mkv', $command);
     }
 
+    public function testBuildForFilenameUsesTheSameFhdSelectorAndMergeFormatAsDownload(): void
+    {
+        $builder = new YtDlpCommandBuilder('https://www.youtube.com/watch?v=123');
+        $filenameCommand = $builder->buildForFilename('/tmp/video.%(ext)s', 'fhd', 'mp4');
+        $downloadCommand = $builder->buildForDownload('fhd', '/tmp/video.%(ext)s', 'mp4');
+
+        self::assertContains('--get-filename', $filenameCommand);
+        self::assertSame(
+            $downloadCommand[array_search('-f', $downloadCommand, true) + 1],
+            $filenameCommand[array_search('-f', $filenameCommand, true) + 1],
+        );
+        self::assertSame('mp4', $filenameCommand[array_search('--merge-output-format', $filenameCommand, true) + 1]);
+    }
+
     public function testBuildForDownloadUsesMediumQualityPreset(): void
     {
         $builder = new YtDlpCommandBuilder();

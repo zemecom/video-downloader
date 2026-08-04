@@ -11,7 +11,7 @@ final class AutomaticFormatResolver
      */
     public function resolve(string $formatCode, array $metadata, bool $preferNonAv1 = false, string $outputFormat = 'mkv'): string
     {
-        if ($formatCode === 'bestaudio') {
+        if (in_array($formatCode, ['best', 'bestaudio'], true)) {
             return $formatCode;
         }
 
@@ -39,30 +39,7 @@ final class AutomaticFormatResolver
             return $fallbackFormatId ?? $formatCode;
         }
 
-        if ($formatCode !== 'best' || !$this->shouldPreferRecommendedDownload($metadata)) {
-            return $formatCode;
-        }
-
-        $requestedDownloads = $metadata['requested_downloads'] ?? null;
-        $recommendedFormatId = $this->resolvePreferredRequestedDownloadFormatId(
-            $requestedDownloads,
-            $metadata['formats'] ?? null,
-            $preferNonAv1,
-            null,
-            $requireBrowserSafeMp4,
-        );
-        if ($recommendedFormatId !== null) {
-            return $recommendedFormatId;
-        }
-
-        $fallbackFormatId = $this->resolveBestMuxedFormatId(
-            $metadata['formats'] ?? null,
-            $preferNonAv1,
-            null,
-            $requireBrowserSafeMp4,
-        );
-
-        return $fallbackFormatId ?? $formatCode;
+        return $formatCode;
     }
 
     private function qualityPresetMaxHeight(string $formatCode): ?int
@@ -72,24 +49,6 @@ final class AutomaticFormatResolver
             'low' => 480,
             default => null,
         };
-    }
-
-    /**
-     * @param array<mixed> $metadata
-     */
-    private function shouldPreferRecommendedDownload(array $metadata): bool
-    {
-        if (($metadata['is_live'] ?? false) === true) {
-            return true;
-        }
-
-        if (($metadata['was_live'] ?? false) === true) {
-            return true;
-        }
-
-        $liveStatus = $metadata['live_status'] ?? null;
-
-        return in_array($liveStatus, ['is_live', 'post_live', 'was_live'], true);
     }
 
     private function resolveBestMuxedFormatId(

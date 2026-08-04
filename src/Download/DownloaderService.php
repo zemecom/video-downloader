@@ -88,7 +88,7 @@ final readonly class DownloaderService
         DownloadOptions $options,
     ): DownloadResult {
         $basePath = $this->bootstrap->getDownloadBasePath($videoUrl, $options->downloadDir);
-        $outputTemplate = $basePath . '/%(title)s [%(resolution)s].%(ext)s';
+        $outputTemplate = $this->buildOutputTemplate($basePath, $formatCode);
 
         $metadataResult = $this->metadataService->fetch(videoUrl: $videoUrl, proxy: $options->proxy, insecure: $options->insecure);
         if ($metadataResult->failure instanceof DownloadResult) {
@@ -114,6 +114,7 @@ final readonly class DownloaderService
                 outputTemplate: $outputTemplate,
                 options: $options,
                 infoJsonPath: $metadata->infoJsonPath,
+                sourceUrl: $videoUrl,
             );
 
             if ($options->dryRun) {
@@ -226,6 +227,7 @@ final readonly class DownloaderService
                 infoJsonPath: $metadata->infoJsonPath,
                 metadata: $metadata->payload,
                 basePath: $basePath,
+                sourceUrl: $videoUrl,
             );
 
             if ($options->dryRun) {
@@ -289,6 +291,13 @@ final readonly class DownloaderService
         }
     }
 
+    private function buildOutputTemplate(string $basePath, string $formatCode): string
+    {
+        $resolutionSuffix = $formatCode === 'bestaudio' ? '' : ' [%(resolution)s]';
+
+        return $basePath . '/%(title)s' . $resolutionSuffix . '.%(ext)s';
+    }
+
     public function downloadFromInfoJson(
         string $infoJsonPath,
         string $outputTemplate,
@@ -303,6 +312,7 @@ final readonly class DownloaderService
             $options,
             $infoJsonPath,
             false,
+            $sourceUrl,
         );
 
         if (\is_string($expectedFile) && $expectedFile !== '' && \file_exists($expectedFile) && !$options->forceOverwrites) {
