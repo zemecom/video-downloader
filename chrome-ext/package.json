@@ -13,7 +13,7 @@
   "type": "commonjs",
   "devDependencies": {
     "eslint": "^10.6.0",
-    "globals": "^17.7.0",
+    "globals": "^17.9.0",
     "prettier": "^3.9.4"
   }
 }
