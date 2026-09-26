@@ -342,7 +342,7 @@ final readonly class DownloaderService
         if ($options->emitLogs) {
             $this->logger->info('🚀 Начинаю загрузку...');
         }
-        $process = $this->processRunner->runWithRetries($command, $options->emitLogs);
+        $process = $this->processRunner->runWithRetries($command, $options->emitLogs, $sourceUrl);
 
         return $this->finalizeProcessResult($process, $expectedFile, $options->emitLogs);
     }

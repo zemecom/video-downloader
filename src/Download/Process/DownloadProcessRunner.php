@@ -35,14 +35,20 @@ final readonly class DownloadProcessRunner
     /**
      * @param list<string> $command
      */
-    public function runWithRetries(array $command, bool $emitLogs): Process
+    public function runWithRetries(array $command, bool $emitLogs, ?string $sourceUrl = null): Process
     {
         $process = null;
+        $currentCommand = $command;
 
         for ($attempt = 1; $attempt <= self::DOWNLOAD_MAX_ATTEMPTS; ++$attempt) {
+            if ($attempt > 1) {
+                $currentCommand = $this->prepareRetryCommand($command, $sourceUrl);
+                $this->sleepBeforeRetry();
+            }
+
             $process = $emitLogs
-                ? $this->runLiveDownloadWithProgress($command)
-                : $this->ytDlpClient->runCaptured($command);
+                ? $this->runLiveDownloadWithProgress($currentCommand)
+                : $this->ytDlpClient->runCaptured($currentCommand);
 
             if (!$this->shouldRetryDownloadProcess($process, $attempt)) {
                 break;
@@ -50,7 +56,7 @@ final readonly class DownloadProcessRunner
 
             if ($emitLogs) {
                 $this->logger->warning(\sprintf(
-                    '🔁 HTTP 403 во время загрузки; повторяю попытку %d/%d с докачкой.',
+                    '🔁 HTTP 403 во время загрузки; повторяю попытку %d/%d с докачкой (со свежими ссылками).',
                     $attempt + 1,
                     self::DOWNLOAD_MAX_ATTEMPTS,
                 ));
@@ -58,6 +64,46 @@ final readonly class DownloadProcessRunner
         }
 
         return $process;
+    }
+
+    /**
+     * @param list<string> $command
+     * @return list<string>
+     */
+    public function prepareRetryCommand(array $command, ?string $sourceUrl = null): array
+    {
+        $newCommand = [];
+        $skipNext = false;
+        foreach ($command as $arg) {
+            if ($skipNext) {
+                $skipNext = false;
+                continue;
+            }
+            if ($arg === '--load-info-json') {
+                $skipNext = true;
+                continue;
+            }
+            $newCommand[] = $arg;
+        }
+
+        if (!\in_array('--no-cache-dir', $newCommand, true)) {
+            $newCommand[] = '--no-cache-dir';
+        }
+
+        if (\is_string($sourceUrl) && $sourceUrl !== '' && !\in_array($sourceUrl, $newCommand, true)) {
+            $newCommand[] = $sourceUrl;
+        }
+
+        return $newCommand;
+    }
+
+    private function sleepBeforeRetry(): void
+    {
+        if (\getenv('APP_ENV') === 'test' || \getenv('YTD_TEST_NO_SLEEP') === '1') {
+            return;
+        }
+
+        \sleep(1);
     }
 
     public function isRetryableHttp403Failure(Process $process): bool

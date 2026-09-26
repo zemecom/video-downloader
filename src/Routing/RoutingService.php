@@ -228,7 +228,7 @@ final readonly class RoutingService
     {
         $value = getenv($name);
         if (!\is_string($value) || $value === '') {
-            throw new RoutingConfigException(sprintf('Маршрут требует %s, но он не задан.', $name));
+            throw new RoutingConfigException(sprintf('Маршрут требует %s, но он не задан в .env. Заполни переменную или направь домен в direct в proxy_rules.yaml.', $name));
         }
 
         return $value;

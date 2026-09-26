@@ -27,21 +27,35 @@ $handler = new NativeHostHandlerService($manager, $logger);
 
 try {
     $payload = $protocol->readFromStream(STDIN);
-    $logger->append('[DEBUG] Received action: ' . ($payload['action'] ?? 'UNKNOWN') . ' | payload keys: ' . implode(',', array_keys($payload)));
+    $action = (string) ($payload['action'] ?? 'UNKNOWN');
+    $isHighFrequencyAction = in_array($action, ['get_job_status', 'list_recent_downloads'], true);
+    $debugMode = getenv('YTD_DEBUG') === '1';
+
+    if (!$isHighFrequencyAction || $debugMode) {
+        $logger->append('[DEBUG] Received action: ' . $action . ' | payload keys: ' . implode(',', array_keys($payload)));
+    }
+
     $response = $handler->handle($payload);
-    $logger->append('[DEBUG] Response ok=' . ($response->toPayload()['ok'] ? 'true' : 'false') . ' | code=' . ($response->toPayload()['code'] ?? 'N/A'));
+
+    if (!$isHighFrequencyAction || $debugMode || !($response->toPayload()['ok'] ?? true)) {
+        $logger->append('[DEBUG] Response ok=' . ($response->toPayload()['ok'] ? 'true' : 'false') . ' | code=' . ($response->toPayload()['code'] ?? 'N/A'));
+    }
 } catch (NativeHostException $exception) {
-    $logger->append('[DEBUG] NativeHostException: ' . $exception->getMessage());
+    $logger->append('[ERROR] NativeHostException: ' . $exception->getMessage());
     $response = NativeHostResponse::error($exception->getResponseCode(), $exception->getMessage());
 } catch (Throwable $exception) {
-    $logger->append('[DEBUG] Throwable: ' . $exception->getMessage() . ' in ' . $exception->getFile() . ':' . $exception->getLine());
+    $logger->append('[ERROR] Throwable: ' . $exception->getMessage() . ' in ' . $exception->getFile() . ':' . $exception->getLine());
     $logger->appendException($exception);
     $response = NativeHostResponse::error('unexpected_error', 'Unexpected native host error.');
 }
 
 $encoded = $response->toPayload();
-$logger->append('[DEBUG] Writing response, payload size: ' . strlen(json_encode($encoded)) . ' bytes');
+if (!$isHighFrequencyAction || $debugMode) {
+    $logger->append('[DEBUG] Writing response, payload size: ' . strlen(json_encode($encoded)) . ' bytes');
+}
 $protocol->writeToStream(STDOUT, $encoded);
 
-$logger->append('[DEBUG] Done. Exiting.');
+if (!$isHighFrequencyAction || $debugMode) {
+    $logger->append('[DEBUG] Done. Exiting.');
+}
 exit(0);

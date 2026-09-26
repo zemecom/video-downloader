@@ -159,4 +159,18 @@ final class YtDlpCommandBuilderTest extends TestCase
         self::assertSame('https://www.youtube.com/watch?v=123', $command[array_key_last($command)]);
         self::assertNotContains('--load-info-json', $command);
     }
+
+    public function testConstructorAppliesConfiguredSocketTimeout(): void
+    {
+        putenv('YTD_SOCKET_TIMEOUT=45');
+        try {
+            $builder = new YtDlpCommandBuilder();
+            $command = $builder->buildForDownload('best', '/tmp/out.%(ext)s');
+
+            self::assertContains('--socket-timeout', $command);
+            self::assertSame('45', $command[array_search('--socket-timeout', $command, true) + 1]);
+        } finally {
+            putenv('YTD_SOCKET_TIMEOUT');
+        }
+    }
 }

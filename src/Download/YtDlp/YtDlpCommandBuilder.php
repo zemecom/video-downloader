@@ -33,6 +33,11 @@ final class YtDlpCommandBuilder
         $ytDlp = \getenv('YT_DLP_PATH') ?: 'yt-dlp';
         $this->command = [$ytDlp];
 
+        $socketTimeout = \trim((string) (\getenv('YTD_SOCKET_TIMEOUT') ?: '30'));
+        if ($socketTimeout !== '' && \ctype_digit($socketTimeout) && !\in_array('--socket-timeout', $baseFlags, true)) {
+            $baseFlags = [...$baseFlags, '--socket-timeout', $socketTimeout];
+        }
+
         $flags = $baseFlags;
         if (!$allowPlaylist) {
             array_unshift($flags, '--no-playlist');
