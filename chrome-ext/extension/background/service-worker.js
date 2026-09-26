@@ -102,13 +102,14 @@ class DownloadManager {
 
   startPolling(jobId) {
     console.log('[YTD] startPolling for job:', jobId);
-    this.activeJobId = jobId;
     this.stopPolling();
+    this.activeJobId = jobId;
     const generation = ++this.pollGeneration;
     this.schedulePoll(generation);
   }
 
   stopPolling() {
+    this.activeJobId = null;
     this.pollGeneration += 1;
     if (this.pollTimer !== null) {
       clearTimeout(this.pollTimer);

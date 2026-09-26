@@ -226,6 +226,27 @@ ENV,
         }
     }
 
+    public function testInitializeEnvironmentAppliesConfiguredTimezone(): void
+    {
+        $projectRoot = \sys_get_temp_dir() . '/ytd_php_timezone_' . \uniqid();
+        \mkdir($projectRoot, 0777, true);
+        \file_put_contents($projectRoot . '/.env', "YTD_TIMEZONE=Europe/Moscow\n");
+        $previousTimezone = \date_default_timezone_get();
+
+        \putenv('YTD_PROJECT_ROOT=' . $projectRoot);
+        \putenv('YTD_TIMEZONE');
+
+        try {
+            (new RuntimeBootstrap($projectRoot))->initializeEnvironment();
+
+            self::assertSame('Europe/Moscow', \date_default_timezone_get());
+        } finally {
+            \date_default_timezone_set($previousTimezone);
+            \putenv('YTD_PROJECT_ROOT');
+            \putenv('YTD_TIMEZONE');
+        }
+    }
+
     public function testIsYoutubeUrlMatchesYoutubeHostsOnly(): void
     {
         $bootstrap = new RuntimeBootstrap('/tmp/project');

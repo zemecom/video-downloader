@@ -211,7 +211,7 @@
         this.cancelButton.hidden = false;
       }
 
-      if (status === 'completed' && previewReady) {
+      if ((status === 'completed' || status === 'skipped') && previewReady) {
         this.playButton.hidden = false;
         this.playButton.dataset.previewUrl = nextPreviewUrl || '';
         this.playButton.dataset.recentDownloadId = recentDownloadId || '';
@@ -220,7 +220,7 @@
         this.playButton.hidden = true;
       }
 
-      if (status === 'completed' && recentDownloadId) {
+      if ((status === 'completed' || status === 'skipped') && recentDownloadId) {
         this.openButton.hidden = false;
         this.openButton.dataset.recentDownloadId = recentDownloadId || '';
         

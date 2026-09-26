@@ -141,7 +141,7 @@ PHP);
         }
     }
 
-    public function testRunMarksExistingFileSkipWithoutAddingItAsNewRecentDownload(): void
+    public function testRunMarksExistingFileSkipAndAddsItToRecentDownloads(): void
     {
         $root = \sys_get_temp_dir() . '/ytd_native_runner_skip_' . \uniqid();
         \mkdir($root . '/bin', 0777, true);
@@ -178,8 +178,12 @@ PHP);
             self::assertSame('skipped', $state['status'] ?? null);
             self::assertSame('Загрузка пропущена: файл уже существует.', $state['progressText'] ?? null);
             self::assertFalse($state['canCancel'] ?? true);
-            self::assertArrayNotHasKey('recentDownloadId', $state);
-            self::assertCount(0, $recentDownloads->list());
+            self::assertIsString($state['recentDownloadId'] ?? null);
+            self::assertCount(1, $recentDownloads->list());
+            self::assertSame(
+                \realpath($existingPath),
+                \realpath((string) ($recentDownloads->list()[0]['path'] ?? '')),
+            );
         } finally {
             putenv('YTD_PROJECT_ROOT');
         }

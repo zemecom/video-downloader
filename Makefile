@@ -1,4 +1,4 @@
-.PHONY: help install install-deps alias init doctor doctor-smoke clean-logs test test-integration lint lint-fix check check-entrypoint-local ci-current chrome-ext-paths chrome-ext-install chrome-ext-uninstall proxy-install proxy-uninstall install-box build build-release
+.PHONY: help install install-deps update-ytdlp alias init doctor doctor-smoke clean-logs test test-integration lint lint-fix check check-entrypoint-local ci-current chrome-ext-paths chrome-ext-install chrome-ext-uninstall proxy-install proxy-uninstall install-box build build-release
 
 PHP ?= php
 COMPOSER ?= composer
@@ -19,6 +19,7 @@ help:
 	@echo "Install:"
 	@echo "  make install       - add $(PHP_ALIAS_NAME) alias to ~/.zshrc"
 	@echo "  make install-deps  - install Composer dependencies"
+	@echo "  make update-ytdlp  - update yt-dlp binary (venv, Homebrew)"
 	@echo ""
 	@echo "Project commands:"
 	@echo "  make init          - create runtime config files from templates"
@@ -49,6 +50,19 @@ install: alias
 
 install-deps:
 	$(COMPOSER) install
+
+update-ytdlp:
+	@echo "Updating yt-dlp..."
+	@if [ -x "$$HOME/.local/share/ytd-video-downloader/venv/bin/pip" ]; then \
+		echo "Updating yt-dlp in venv (~/.local/share/ytd-video-downloader/venv)..."; \
+		"$$HOME/.local/share/ytd-video-downloader/venv/bin/pip" install -U --pre "yt-dlp[default]"; \
+	fi
+	@if command -v brew >/dev/null 2>&1 && brew list yt-dlp >/dev/null 2>&1; then \
+		echo "Updating yt-dlp via Homebrew..."; \
+		brew upgrade yt-dlp 2>/dev/null || echo "yt-dlp in Homebrew is already up-to-date."; \
+	fi
+	@echo "Current yt-dlp version:"
+	@$$(which yt-dlp 2>/dev/null || echo yt-dlp) --version
 
 alias:
 	@echo "Configuring alias in ~/.zshrc..."

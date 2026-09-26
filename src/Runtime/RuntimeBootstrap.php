@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace YtdPhp\Runtime;
 
+use DateTimeZone;
 use Normalizer;
 use Symfony\Component\Dotenv\Dotenv;
 use Symfony\Component\Dotenv\Exception\FormatException;
@@ -88,6 +89,7 @@ final readonly class RuntimeBootstrap
     public function initializeEnvironment(): void
     {
         $this->loadEnvFile('.env');
+        $this->configureTimezone();
     }
 
     public function loadEnvFile(string $filename): void
@@ -539,5 +541,15 @@ final readonly class RuntimeBootstrap
         \putenv($key . '=' . $value);
         $_ENV[$key] = $value;
         $_SERVER[$key] = $value;
+    }
+
+    private function configureTimezone(): void
+    {
+        $timezone = \trim((string) (\getenv('YTD_TIMEZONE') ?: ''));
+        if ($timezone === '' || !\in_array($timezone, DateTimeZone::listIdentifiers(), true)) {
+            return;
+        }
+
+        \date_default_timezone_set($timezone);
     }
 }

@@ -51,13 +51,19 @@ make init
 make install
 ```
 
+Для быстрого обновления бинарника `yt-dlp` (в виртуальном окружении и Homebrew):
+
+```bash
+make update-ytdlp
+```
+
 > 📖 **Подробнее:** Альтернативные способы установки (вручную или сборка PHAR-архива) описаны в [Инструкции по установке](docs/installation.md).
 
 ## Быстрый старт
 
 После установки сделай следующее:
 
-1. Заполни `.env` (особенно `PROXY_LOCAL`, `DOWNLOAD_DIR_YOUTUBE`) и при необходимости поправь `proxy_rules.yaml`.
+1. Заполни `.env` (особенно `PROXY_LOCAL`, `DOWNLOAD_DIR_YOUTUBE`, `YTD_TIMEZONE`) и при необходимости поправь `proxy_rules.yaml`. По умолчанию время в логах native host настроено на `Europe/Moscow`.
 1. Проверь окружение:
 
    ```bash

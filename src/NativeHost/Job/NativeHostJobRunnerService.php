@@ -201,6 +201,7 @@ final readonly class NativeHostJobRunnerService
         $cancelRequested = $this->store->cancelRequested($jobId) || ($state['status'] ?? null) === 'cancelling';
 
         if (($state['status'] ?? null) === 'skipped') {
+            $state = $this->attachOutputFile($jobId, $state, $outputPath);
             $state['progressPercent'] = null;
             $state['progressText'] = 'Загрузка пропущена: файл уже существует.';
             $state['canCancel'] = false;
@@ -212,31 +213,7 @@ final readonly class NativeHostJobRunnerService
         }
 
         if ($exitCode === 0 && ($hasOutputFile || !$cancelRequested)) {
-            if (\is_string($outputPath) && $outputPath !== '' && \file_exists($outputPath)) {
-                $entry = $this->recentDownloads->append(
-                    $outputPath,
-                    (string) ($state['url'] ?? ''),
-                    (string) ($state['mode'] ?? 'video'),
-                );
-                $state['recentDownloadId'] = $entry['id'] ?? null;
-
-                if (($state['mode'] ?? 'video') === 'video') {
-                    try {
-                        $port = $this->previewServerCoordinator->ensureRunning();
-                        $preview = $this->previewRegistry->register($jobId, $outputPath, $port);
-                        $state['previewReady'] = $preview['previewReady'] ?? false;
-                        $state['previewUrl'] = $preview['previewUrl'] ?? null;
-                    } catch (\Throwable $e) {
-                        \error_log(
-                            \sprintf("[%s] [ERROR] Failed to register preview for job %s: %s\n%s\n", \date('Y-m-d H:i:s'), $jobId, $e->getMessage(), $e->getTraceAsString()),
-                            3,
-                            $this->bootstrap->getNativeHostLogPath(),
-                        );
-                        $state['previewReady'] = false;
-                        unset($state['previewUrl']);
-                    }
-                }
-            }
+            $state = $this->attachOutputFile($jobId, $state, $outputPath);
             $state['status'] = 'completed';
             $state['progressPercent'] = 100.0;
             $state['progressText'] = 'Загрузка завершена.';
@@ -284,6 +261,47 @@ final readonly class NativeHostJobRunnerService
         $state['updatedAt'] = $this->now();
         $this->store->write($jobId, $state);
         $this->store->clearCancelRequest($jobId);
+    }
+
+    /**
+     * Связывает обнаруженный файл с задачей, в том числе если загрузка была пропущена из-за уже существующего файла.
+     *
+     * @param array<string, mixed> $state
+     * @return array<string, mixed>
+     */
+    private function attachOutputFile(string $jobId, array $state, ?string $outputPath): array
+    {
+        if (!\is_string($outputPath) || $outputPath === '' || !\file_exists($outputPath)) {
+            return $state;
+        }
+
+        $entry = $this->recentDownloads->append(
+            $outputPath,
+            (string) ($state['url'] ?? ''),
+            (string) ($state['mode'] ?? 'video'),
+        );
+        $state['recentDownloadId'] = $entry['id'] ?? null;
+
+        if (($state['mode'] ?? 'video') !== 'video') {
+            return $state;
+        }
+
+        try {
+            $port = $this->previewServerCoordinator->ensureRunning();
+            $preview = $this->previewRegistry->register($jobId, $outputPath, $port);
+            $state['previewReady'] = $preview['previewReady'] ?? false;
+            $state['previewUrl'] = $preview['previewUrl'] ?? null;
+        } catch (\Throwable $e) {
+            \error_log(
+                \sprintf("[%s] [ERROR] Failed to register preview for job %s: %s\n%s\n", \date('Y-m-d H:i:s'), $jobId, $e->getMessage(), $e->getTraceAsString()),
+                3,
+                $this->bootstrap->getNativeHostLogPath(),
+            );
+            $state['previewReady'] = false;
+            unset($state['previewUrl']);
+        }
+
+        return $state;
     }
 
     /**
