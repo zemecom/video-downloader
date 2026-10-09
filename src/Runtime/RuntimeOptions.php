@@ -27,5 +27,6 @@ final readonly class RuntimeOptions
         public ?string $matchedPattern,
         public string $hostname,
         public bool $allow4k = false,
+        public ?string $cookiesFromBrowser = null,
     ) {}
 }

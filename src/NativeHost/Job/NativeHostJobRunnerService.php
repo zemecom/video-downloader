@@ -236,8 +236,8 @@ final readonly class NativeHostJobRunnerService
             return 0;
         }
 
-        $lastOutput = trim($buffers[1] . "\n" . $buffers[2]);
-        $errorMessage = $lastOutput !== '' ? $lastOutput : 'Загрузка завершилась с ошибкой.';
+        $errorDetails = $this->extractErrorDetails($jobLogPath, $buffers);
+        $errorMessage = $errorDetails !== '' ? $errorDetails : 'Загрузка завершилась с ошибкой.';
 
         \error_log(
             \sprintf("[%s] [ERROR] Job %s failed (exit %d). See logs: %s\n", $this->now(), $jobId, $exitCode, $jobLogPath),
@@ -245,7 +245,7 @@ final readonly class NativeHostJobRunnerService
             $this->bootstrap->getNativeHostLogPath(),
         );
 
-        $this->finalizeFailure($jobId, $state, $errorMessage);
+        $this->finalizeFailure($jobId, $state, $errorMessage, $errorDetails);
 
         return $exitCode > 0 ? $exitCode : 1;
     }
@@ -253,14 +253,66 @@ final readonly class NativeHostJobRunnerService
     /**
      * @param array<string, mixed> $state
      */
-    private function finalizeFailure(string $jobId, array $state, string $message): void
+    private function finalizeFailure(string $jobId, array $state, string $message, ?string $errorDetails = null): void
     {
         $state['status'] = 'failed';
         $state['progressText'] = $message;
+        $state['errorDetails'] = ($errorDetails !== null && $errorDetails !== '') ? $errorDetails : $message;
         $state['canCancel'] = false;
         $state['updatedAt'] = $this->now();
         $this->store->write($jobId, $state);
         $this->store->clearCancelRequest($jobId);
+    }
+
+    /**
+     * @param array<int, string> $buffers
+     */
+    private function extractErrorDetails(string $jobLogPath, array $buffers): string
+    {
+        $lines = [];
+        if (\file_exists($jobLogPath)) {
+            $content = (string) \file_get_contents($jobLogPath);
+            $lines = \array_values(\array_filter(\array_map('trim', \explode("\n", $content))));
+        }
+
+        if ($lines === []) {
+            $fallback = \trim($buffers[1] . "\n" . $buffers[2]);
+            if ($fallback !== '') {
+                $lines = \array_values(\array_filter(\array_map('trim', \explode("\n", $fallback))));
+            }
+        }
+
+        if ($lines === []) {
+            return '';
+        }
+
+        $meaningfulLines = [];
+        foreach ($lines as $line) {
+            $clean = \trim((string) \preg_replace('/\e\[[\d;]*[A-Za-z]/', '', $line));
+            if ($clean === '') {
+                continue;
+            }
+            if (\preg_match('/^\[\d{4}-\d{2}-\d{2}[^\]]+\]\s+(?:Starting job|Process exited)/', $clean)) {
+                continue;
+            }
+            if (\str_starts_with($clean, 'Command:')) {
+                continue;
+            }
+            $meaningfulLines[] = $clean;
+        }
+
+        $explicitErrors = [];
+        foreach ($meaningfulLines as $line) {
+            if (\str_contains($line, 'ERROR:') || \str_contains($line, '❌') || \str_contains($line, 'Exception') || \str_contains($line, 'Error:')) {
+                $explicitErrors[] = $line;
+            }
+        }
+
+        if ($explicitErrors !== []) {
+            return \implode("\n", \array_slice($explicitErrors, -8));
+        }
+
+        return \implode("\n", \array_slice($meaningfulLines, -5));
     }
 
     /**

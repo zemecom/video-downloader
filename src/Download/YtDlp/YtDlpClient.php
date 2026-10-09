@@ -109,6 +109,14 @@ final readonly class YtDlpClient implements YtDlpGateway
         if ($insecure) {
             $command[] = '--no-check-certificate';
         }
+        $cookies = \getenv('YTD_COOKIES_FROM_BROWSER');
+        if (\is_string($cookies)) {
+            $trimmed = \trim($cookies);
+            if ($trimmed !== '' && \strtolower($trimmed) !== 'none') {
+                $command[] = '--cookies-from-browser';
+                $command[] = $trimmed;
+            }
+        }
         $command[] = '--list-formats';
         $command[] = $videoUrl;
 

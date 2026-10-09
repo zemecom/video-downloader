@@ -28,6 +28,7 @@ Runtime-конфигурация хранится в двух файлах:
 - `YTD_PROJECT_ROOT` - явный runtime-root, если нужно переопределить автоматическое определение каталога проекта
 - `YTD_ERROR_LOG_FILE` - кастомный путь для лога ошибок (по умолчанию: `logs/errors.log`)
 - `YTD_NATIVE_HOST_RECENT_DOWNLOADS_DB_FILE` - кастомный путь для `sqlite`-базы загрузок Native Host
+- `YTD_COOKIES_FROM_BROWSER` - профиль или браузер для передачи cookies в `yt-dlp` (например, `chrome:Profile 12`, `chrome`, `firefox`). Позволяет обходить блокировки botguard / Sign in to confirm you're not a bot
 - `YT_DLP_PATH` - путь к кастомному исполняемому файлу `yt-dlp` (по умолчанию системный `yt-dlp`)
 - `FFMPEG_PATH` - путь к кастомному исполняемому файлу `ffmpeg` (по умолчанию системный `ffmpeg`)
 

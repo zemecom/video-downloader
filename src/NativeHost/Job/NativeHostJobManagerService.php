@@ -336,6 +336,7 @@ final readonly class NativeHostJobManagerService
             'previewUrl' => $state['previewUrl'] ?? null,
             'recentDownloadId' => $state['recentDownloadId'] ?? null,
             'outputPath' => $state['outputPath'] ?? null,
+            'errorDetails' => $state['errorDetails'] ?? null,
         ];
     }
 

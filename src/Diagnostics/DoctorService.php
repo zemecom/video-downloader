@@ -102,6 +102,21 @@ final readonly class DoctorService
                     );
                 }
             }
+
+            $cookiesFromBrowser = $envValues['YTD_COOKIES_FROM_BROWSER'] ?? \getenv('YTD_COOKIES_FROM_BROWSER');
+            if (\is_string($cookiesFromBrowser) && \trim($cookiesFromBrowser) !== '') {
+                $results[] = new DoctorResult(
+                    self::STATUS_OK,
+                    'Cookies из браузера настроены',
+                    'Используется: ' . \trim($cookiesFromBrowser),
+                );
+            } else {
+                $results[] = new DoctorResult(
+                    self::STATUS_WARN,
+                    'Cookies из браузера не настроены (YTD_COOKIES_FROM_BROWSER пуст)',
+                    'YouTube может требовать подтверждение входа (Sign in to confirm you’re not a bot). Укажи, например, "chrome:Profile 12".',
+                );
+            }
         }
 
         try {

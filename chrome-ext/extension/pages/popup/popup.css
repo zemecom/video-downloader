@@ -358,3 +358,126 @@ body {
     transform: translateX(255%);
   }
 }
+
+.active-download-error-btn {
+  margin-top: 6px;
+  width: 100%;
+  border: 1px solid rgba(255, 120, 120, 0.35);
+  border-radius: 6px;
+  background: var(--ytd-danger-bg);
+  color: var(--ytd-danger-text);
+  padding: 4px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  transition: background 150ms ease, border-color 150ms ease;
+}
+
+.active-download-error-btn:hover {
+  background: var(--ytd-danger-bg-hover);
+  border-color: rgba(255, 160, 160, 0.6);
+}
+
+.active-download-error-btn[hidden] {
+  display: none;
+}
+
+.error-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 12, 22, 0.88);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px;
+  z-index: 100;
+}
+
+.error-modal[hidden] {
+  display: none;
+}
+
+.error-modal-dialog {
+  width: 100%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  background: #0d1b2a;
+  border: 1px solid rgba(255, 120, 120, 0.4);
+  border-radius: 10px;
+  padding: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+}
+
+.error-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.error-modal-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #fca5a5;
+}
+
+.error-modal-close {
+  background: transparent;
+  border: none;
+  color: var(--ytd-text-secondary);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.error-modal-close:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.error-modal-text {
+  margin: 0;
+  max-height: 200px;
+  overflow-y: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 9.5px;
+  line-height: 1.35;
+  color: #fecaca;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 8px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  user-select: text;
+}
+
+.error-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+  gap: 6px;
+}
+
+.error-modal-copy {
+  border: 1px solid var(--ytd-border-light);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+
+.error-modal-copy:hover {
+  background: rgba(255, 255, 255, 0.16);
+}

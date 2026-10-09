@@ -173,4 +173,37 @@ final class YtDlpCommandBuilderTest extends TestCase
             putenv('YTD_SOCKET_TIMEOUT');
         }
     }
+
+    public function testCookiesFromBrowserCanBeConfiguredViaEnv(): void
+    {
+        putenv('YTD_COOKIES_FROM_BROWSER=chrome:Profile 12');
+        try {
+            $builder = new YtDlpCommandBuilder('https://youtube.com/watch?v=123');
+            $command = $builder->buildForMetadata();
+
+            self::assertContains('--cookies-from-browser', $command);
+            self::assertSame('chrome:Profile 12', $command[array_search('--cookies-from-browser', $command, true) + 1]);
+        } finally {
+            putenv('YTD_COOKIES_FROM_BROWSER');
+        }
+    }
+
+    public function testSetCookiesFromBrowserOverridesOrRemovesFlag(): void
+    {
+        $builder = new YtDlpCommandBuilder('https://youtube.com/watch?v=123');
+        $builder->setCookiesFromBrowser('firefox');
+        $command = $builder->buildForMetadata();
+
+        self::assertContains('--cookies-from-browser', $command);
+        self::assertSame('firefox', $command[array_search('--cookies-from-browser', $command, true) + 1]);
+
+        $builder->setCookiesFromBrowser('none');
+        $commandWithout = $builder->buildForMetadata();
+        self::assertNotContains('--cookies-from-browser', $commandWithout);
+
+        $builder->setCookiesFromBrowser('chrome:Profile 12');
+        $builder->setCookiesFromBrowser(null);
+        $commandNull = $builder->buildForMetadata();
+        self::assertNotContains('--cookies-from-browser', $commandNull);
+    }
 }

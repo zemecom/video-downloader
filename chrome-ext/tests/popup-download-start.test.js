@@ -21,9 +21,20 @@ class FakeElement {
     this.hidden = false;
     this.style = {};
     this.textContent = '';
+    this.listeners = new Map();
   }
 
-  addEventListener() {}
+  addEventListener(event, listener) {
+    if (!this.listeners.has(event)) {
+      this.listeners.set(event, []);
+    }
+    this.listeners.get(event).push(listener);
+  }
+
+  click() {
+    const handlers = this.listeners.get('click') || [];
+    handlers.forEach((fn) => fn({ target: this }));
+  }
 
   appendChild() {}
 }
@@ -44,12 +55,19 @@ function createPopupSandbox() {
     '.active-download-percent',
     '.active-download-cancel',
     '.active-download-close',
+    '.active-download-error-btn',
+    '.error-modal',
+    '.error-modal-text',
+    '.error-modal-copy',
+    '.error-modal-close',
   ];
   selectors.forEach((selector) => {
     elements.set(selector, new FakeElement());
   });
   elements.get('.active-download').hidden = true;
   elements.get('.active-download-close').hidden = true;
+  elements.get('.active-download-error-btn').hidden = true;
+  elements.get('.error-modal').hidden = true;
 
   const actionButton = new FakeElement();
   actionButton.dataset.mode = 'video';
@@ -117,6 +135,9 @@ function createPopupSandbox() {
     activeDownloadCancel: elements.get('.active-download-cancel'),
     activeDownloadFill: elements.get('.active-download-fill'),
     activeDownloadPhase: elements.get('.active-download-phase'),
+    activeDownloadErrorBtn: elements.get('.active-download-error-btn'),
+    errorModal: elements.get('.error-modal'),
+    errorModalText: elements.get('.error-modal-text'),
     getWindowCloseCalls: () => windowCloseCalls,
     context,
   };
@@ -153,3 +174,33 @@ test('popup renders skipped download as a terminal status', () => {
   assert.equal(popup.activeDownloadCancel.disabled, true);
   assert.equal(popup.actionButton.disabled, false);
 });
+
+test('popup renders failed download and opens error details modal', () => {
+  const popup = createPopupSandbox();
+
+  vm.runInContext(
+    `renderActiveDownload({
+      jobId: 'job-failed',
+      status: 'failed',
+      progressPercent: null,
+      progressText: 'Загрузка завершилась с ошибкой.',
+      errorDetails: 'ERROR: [youtube] Sign in to confirm you are not a bot',
+      canCancel: false,
+    })`,
+    popup.context
+  );
+
+  assert.equal(popup.activeDownload.hidden, false);
+  assert.equal(popup.activeDownloadPhase.textContent, 'Ошибка');
+  assert.equal(popup.activeDownloadErrorBtn.hidden, false);
+  assert.equal(popup.errorModal.hidden, true);
+
+  // Клик по кнопке "Посмотреть ошибку" открывает модалку с текстом
+  popup.activeDownloadErrorBtn.click();
+  assert.equal(popup.errorModal.hidden, false);
+  assert.equal(
+    popup.errorModalText.textContent,
+    'ERROR: [youtube] Sign in to confirm you are not a bot'
+  );
+});
+

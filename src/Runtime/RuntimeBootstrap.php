@@ -258,6 +258,18 @@ final readonly class RuntimeBootstrap
         return !in_array($normalized, ['', '0', 'false', 'no'], true);
     }
 
+    public function getCookiesFromBrowser(): ?string
+    {
+        $value = \getenv('YTD_COOKIES_FROM_BROWSER');
+        if (!\is_string($value)) {
+            return null;
+        }
+
+        $trimmed = \trim($value);
+
+        return $trimmed !== '' ? $trimmed : null;
+    }
+
     public function isYoutubeUrl(string $videoUrl): bool
     {
         $hostname = \strtolower((string) (parse_url($videoUrl, PHP_URL_HOST) ?? ''));

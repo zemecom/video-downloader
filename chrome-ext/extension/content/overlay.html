@@ -12,6 +12,13 @@
     <span class="percent">--</span>
   </div>
   <div class="actions">
+    <button
+      class="button button-danger error-action"
+      type="button"
+      hidden
+    >
+      Посмотреть ошибку
+    </button>
     <button class="button button-secondary close-action" type="button">
       Скрыть
     </button>
@@ -39,5 +46,15 @@
     >
       Открыть
     </button>
+  </div>
+  <div class="error-panel" hidden>
+    <div class="error-panel-header">
+      <span class="error-panel-title">Детали ошибки</span>
+      <button class="error-panel-close" type="button" aria-label="Закрыть">✕</button>
+    </div>
+    <pre class="error-panel-text"></pre>
+    <div class="error-panel-footer">
+      <button class="button button-secondary error-panel-copy" type="button">Скопировать</button>
+    </div>
   </div>
 </section>

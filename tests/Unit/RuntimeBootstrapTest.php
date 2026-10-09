@@ -299,4 +299,22 @@ ENV,
         );
         self::assertSame('playlist', $bootstrap->sanitizePathComponent(' :?* '));
     }
+
+    public function testGetCookiesFromBrowserReadsEnvAndTrims(): void
+    {
+        $bootstrap = new RuntimeBootstrap('/tmp/project');
+        putenv('YTD_COOKIES_FROM_BROWSER=  chrome:Profile 12  ');
+        try {
+            self::assertSame('chrome:Profile 12', $bootstrap->getCookiesFromBrowser());
+        } finally {
+            putenv('YTD_COOKIES_FROM_BROWSER');
+        }
+
+        putenv('YTD_COOKIES_FROM_BROWSER=   ');
+        try {
+            self::assertNull($bootstrap->getCookiesFromBrowser());
+        } finally {
+            putenv('YTD_COOKIES_FROM_BROWSER');
+        }
+    }
 }

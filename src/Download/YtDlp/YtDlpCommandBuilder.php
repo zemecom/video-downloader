@@ -43,6 +43,39 @@ final class YtDlpCommandBuilder
             array_unshift($flags, '--no-playlist');
         }
         $this->command = [...$this->command, ...$flags];
+
+        $defaultCookies = \trim((string) (\getenv('YTD_COOKIES_FROM_BROWSER') ?: ''));
+        if ($defaultCookies !== '' && !\in_array('--cookies-from-browser', $baseFlags, true)) {
+            $this->setCookiesFromBrowser($defaultCookies);
+        }
+    }
+
+    public function setCookiesFromBrowser(?string $cookiesFromBrowser): self
+    {
+        $filtered = [];
+        $skipNext = false;
+        foreach ($this->command as $arg) {
+            if ($skipNext) {
+                $skipNext = false;
+                continue;
+            }
+            if ($arg === '--cookies-from-browser') {
+                $skipNext = true;
+                continue;
+            }
+            $filtered[] = $arg;
+        }
+        $this->command = $filtered;
+
+        if (is_string($cookiesFromBrowser)) {
+            $trimmed = \trim($cookiesFromBrowser);
+            if ($trimmed !== '' && \strtolower($trimmed) !== 'none') {
+                $this->command[] = '--cookies-from-browser';
+                $this->command[] = $trimmed;
+            }
+        }
+
+        return $this;
     }
 
     public function setProxy(?string $proxy): self

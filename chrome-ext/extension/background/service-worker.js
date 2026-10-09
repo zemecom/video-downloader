@@ -159,6 +159,8 @@ class DownloadManager {
           progressPercent: null,
           progressText:
             'Связь с загрузкой потеряна (возможно файл был удалён).',
+          errorDetails:
+            'Связь с загрузкой потеряна (возможно файл был удалён).',
           canCancel: false,
         };
         this.broadcast(terminalPayload);
@@ -343,6 +345,7 @@ async function startDownload(message) {
       status: 'failed',
       progressPercent: null,
       progressText: messageText,
+      errorDetails: response.payload?.errorDetails || response.errorMessage || messageText,
       canCancel: false,
     };
     await rememberActiveDownload(errorPayload);
@@ -454,6 +457,17 @@ async function previewRecentDownload(message) {
     };
   }
 
+  let startTime = Number.isFinite(message?.startTime) && message.startTime > 0
+    ? message.startTime
+    : null;
+
+  if (startTime === null && Number.isInteger(originTabId)) {
+    const queriedTime = await queryTabVideoTime(originTabId);
+    if (queriedTime > 0) {
+      startTime = queriedTime;
+    }
+  }
+
   const response = await callNativeHost({
     action: 'preview_recent_download',
     entryId,
@@ -481,6 +495,7 @@ async function previewRecentDownload(message) {
       normalizeText(response.payload?.filePath) ||
       normalizeText(message?.filePath),
     originTabId,
+    startTime,
   });
 }
 
@@ -495,6 +510,17 @@ async function openPreviewPage(message, sender = null) {
     normalizeText(message?.filePath) ||
     (await findRecentDownloadPath(recentDownloadId));
   const originTabId = resolveYoutubeOriginTabId(message, sender);
+  let startTime = Number.isFinite(message?.startTime) && message.startTime > 0
+    ? message.startTime
+    : null;
+
+  if (startTime === null && Number.isInteger(originTabId)) {
+    const queriedTime = await queryTabVideoTime(originTabId);
+    if (queriedTime > 0) {
+      startTime = queriedTime;
+    }
+  }
+
   if (previewUrl === '') {
     return {
       ok: false,
@@ -510,6 +536,7 @@ async function openPreviewPage(message, sender = null) {
       recentDownloadId,
       filePath,
       originTabId,
+      startTime: startTime || 0,
       createdAt: Date.now(),
     },
   });
@@ -602,6 +629,82 @@ async function pauseOriginVideo(message) {
   }
 }
 
+async function queryTabVideoTime(tabId) {
+  if (!Number.isInteger(tabId)) {
+    return 0;
+  }
+
+  if (chrome.scripting?.executeScript) {
+    try {
+      const results = await chrome.scripting.executeScript({
+        target: { tabId },
+        func: () => {
+          const ytVideo = document.querySelector('video.html5-main-video');
+          if (ytVideo && Number.isFinite(ytVideo.currentTime) && ytVideo.currentTime > 0) {
+            return ytVideo.currentTime;
+          }
+
+          const videos = Array.from(document.querySelectorAll('video'));
+          const playing = videos.find((v) => !v.paused && Number.isFinite(v.currentTime) && v.currentTime > 0);
+          if (playing) {
+            return playing.currentTime;
+          }
+
+          const withTime = videos.find((v) => Number.isFinite(v.currentTime) && v.currentTime > 0);
+          if (withTime) {
+            return withTime.currentTime;
+          }
+
+          try {
+            const params = new URLSearchParams(window.location.search);
+            const raw = params.get('t') || params.get('start');
+            if (raw) {
+              const matchH = raw.match(/(\d+)h/);
+              const matchM = raw.match(/(\d+)m/);
+              const matchS = raw.match(/(\d+)s/);
+              if (matchH || matchM || matchS) {
+                let sec = 0;
+                if (matchH) sec += parseInt(matchH[1], 10) * 3600;
+                if (matchM) sec += parseInt(matchM[1], 10) * 60;
+                if (matchS) sec += parseInt(matchS[1], 10);
+                if (sec > 0) return sec;
+              }
+              const parsed = parseFloat(raw);
+              if (Number.isFinite(parsed) && parsed > 0) {
+                return parsed;
+              }
+            }
+          } catch {
+            // ignore
+          }
+
+          return 0;
+        },
+      });
+
+      const scriptTime = results?.[0]?.result;
+      if (Number.isFinite(scriptTime) && scriptTime > 0) {
+        return scriptTime;
+      }
+    } catch {
+      // Игнорируем ошибки executeScript
+    }
+  }
+
+  try {
+    const timeResponse = await sendTabMessage(tabId, {
+      type: 'ytd-get-page-video-time',
+    });
+    if (Number.isFinite(timeResponse?.currentTime) && timeResponse.currentTime > 0) {
+      return timeResponse.currentTime;
+    }
+  } catch {
+    // ignore
+  }
+
+  return 0;
+}
+
 function resolveYoutubeOriginTabId(message, sender = null) {
   if (Number.isInteger(message?.originTabId)) {
     return message.originTabId;
@@ -619,7 +722,15 @@ function resolveYoutubeOriginTabId(message, sender = null) {
         ? sender.tab.url
         : '';
 
-  return Number.isInteger(tabId) && isYoutubeUrl(url) ? tabId : null;
+  if (!Number.isInteger(tabId)) {
+    return null;
+  }
+
+  if (url === '' || isYoutubeUrl(url)) {
+    return tabId;
+  }
+
+  return null;
 }
 
 function normalizeText(value) {

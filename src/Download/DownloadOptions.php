@@ -21,6 +21,7 @@ final readonly class DownloadOptions
         public bool $forceOverwrites = false,
         public bool $emitLogs = true,
         public bool $allow4k = false,
+        public ?string $cookiesFromBrowser = null,
     ) {}
 
     public static function fromRuntimeOptions(RuntimeOptions $options): self
@@ -35,6 +36,7 @@ final readonly class DownloadOptions
             progressNewline: $options->progressNewline,
             progressDelta: $options->progressDelta,
             allow4k: $options->allow4k,
+            cookiesFromBrowser: $options->cookiesFromBrowser,
         );
     }
 
@@ -43,6 +45,7 @@ final readonly class DownloadOptions
         ?bool $forceOverwrites = null,
         ?bool $emitLogs = null,
         ?bool $emitElapsedRuntime = null,
+        ?string $cookiesFromBrowser = null,
     ): self {
         return new self(
             proxy: $this->proxy,
@@ -57,6 +60,7 @@ final readonly class DownloadOptions
             forceOverwrites: $forceOverwrites ?? $this->forceOverwrites,
             emitLogs: $emitLogs ?? $this->emitLogs,
             allow4k: $this->allow4k,
+            cookiesFromBrowser: $cookiesFromBrowser ?? $this->cookiesFromBrowser,
         );
     }
 }

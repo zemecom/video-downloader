@@ -90,7 +90,12 @@ final readonly class DownloaderService
         $basePath = $this->bootstrap->getDownloadBasePath($videoUrl, $options->downloadDir);
         $outputTemplate = $this->buildOutputTemplate($basePath, $formatCode);
 
-        $metadataResult = $this->metadataService->fetch(videoUrl: $videoUrl, proxy: $options->proxy, insecure: $options->insecure);
+        $metadataResult = $this->metadataService->fetch(
+            videoUrl: $videoUrl,
+            proxy: $options->proxy,
+            insecure: $options->insecure,
+            cookiesFromBrowser: $options->cookiesFromBrowser,
+        );
         if ($metadataResult->failure instanceof DownloadResult) {
             return $metadataResult->failure;
         }
@@ -326,6 +331,9 @@ final readonly class DownloaderService
 
         $builder = new YtDlpCommandBuilder($sourceUrl);
         $builder->setProxy($options->proxy)->setInsecure($options->insecure)->loadInfoJson($infoJsonPath);
+        if ($options->cookiesFromBrowser !== null) {
+            $builder->setCookiesFromBrowser($options->cookiesFromBrowser);
+        }
         if ($options->forceOverwrites) {
             $builder->addArg('--force-overwrites');
         }
@@ -374,6 +382,9 @@ final readonly class DownloaderService
     ): Process {
         $builder = new YtDlpCommandBuilder($sourceUrl);
         $builder->setProxy($options->proxy)->setInsecure($options->insecure)->loadInfoJson($infoJsonPath);
+        if ($options->cookiesFromBrowser !== null) {
+            $builder->setCookiesFromBrowser($options->cookiesFromBrowser);
+        }
         if ($options->forceOverwrites) {
             $builder->addArg('--force-overwrites');
         }

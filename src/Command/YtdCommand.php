@@ -62,7 +62,9 @@ final class YtdCommand extends Command
             ->addOption('progress-newline', null, InputOption::VALUE_NEGATABLE, 'Печатать прогресс построчно вместо перерисовки')
             ->addOption('progress-delta', null, InputOption::VALUE_REQUIRED, 'Интервал обновления прогресса yt-dlp в секундах', $this->bootstrap->getProgressDelta())
             ->addOption('doctor', null, InputOption::VALUE_NONE, 'Проверить окружение и конфиги без скачивания')
-            ->addOption('4k', '4', InputOption::VALUE_NONE, 'Игнорировать ограничения кодеков и качать в максимальном 4K/8K разрешении');
+            ->addOption('4k', '4', InputOption::VALUE_NONE, 'Игнорировать ограничения кодеков и качать в максимальном 4K/8K разрешении')
+            ->addOption('cookies-from-browser', null, InputOption::VALUE_REQUIRED, 'Браузер для извлечения cookies (например, chrome, "chrome:Profile 12", firefox)', $this->bootstrap->getCookiesFromBrowser())
+            ->addOption('no-cookies', null, InputOption::VALUE_NONE, 'Не использовать cookies браузера');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -112,6 +114,11 @@ final class YtdCommand extends Command
         $fastMode = (bool) $input->getOption('fast');
         $this->validateFastMode($fastMode, $manualMode, $audioOnly);
 
+        $noCookies = (bool) $input->getOption('no-cookies');
+        $cookiesFromBrowser = $noCookies
+            ? null
+            : $this->optionalString($input->getOption('cookies-from-browser'));
+
         return new RuntimeOptions(
             $proxyUrl,
             $currentProxy,
@@ -133,6 +140,7 @@ final class YtdCommand extends Command
             $route->matchedPattern,
             $route->hostname,
             (bool) $input->getOption('4k'),
+            $cookiesFromBrowser,
         );
     }
 
@@ -217,6 +225,10 @@ final class YtdCommand extends Command
 
         if ($options->insecure) {
             $this->logger->warning('⚠️ SSL проверка отключена');
+        }
+
+        if ($options->cookiesFromBrowser !== null) {
+            $this->logger->info('🍪 Использую cookies браузера: ' . $options->cookiesFromBrowser);
         }
     }
 
