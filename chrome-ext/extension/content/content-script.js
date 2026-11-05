@@ -1,17 +1,76 @@
 (async function bootstrapYtdOverlay() {
-  if (globalThis.__YTD_OVERLAY_BOOTSTRAPPED__) {
+  if (
+    globalThis.__YTD_OVERLAY_BOOTSTRAPPED__ ||
+    globalThis.__YTD_OVERLAY_BOOTSTRAPPING__
+  ) {
     return;
   }
-  globalThis.__YTD_OVERLAY_BOOTSTRAPPED__ = true;
+  globalThis.__YTD_OVERLAY_BOOTSTRAPPING__ = true;
 
   const STATUS_LABELS = {
     downloading: 'Идёт загрузка',
     completed: 'Готово',
     failed: 'Ошибка',
     cancelled: 'Отменено',
+    skipped: 'Пропущено',
     cancelling: 'Останавливаю',
     starting: 'Подготовка',
   };
+
+  function getPageVideoCurrentTime() {
+    const ytVideo = document.querySelector('video.html5-main-video');
+    if (ytVideo && Number.isFinite(ytVideo.currentTime) && ytVideo.currentTime > 0) {
+      return ytVideo.currentTime;
+    }
+
+    const ytPlayer = document.getElementById('movie_player');
+    if (ytPlayer && typeof ytPlayer.getCurrentTime === 'function') {
+      try {
+        const ytTime = Number(ytPlayer.getCurrentTime());
+        if (Number.isFinite(ytTime) && ytTime > 0) {
+          return ytTime;
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    const videos = Array.from(document.querySelectorAll('video'));
+    const playingVideo = videos.find((v) => !v.paused && Number.isFinite(v.currentTime) && v.currentTime > 0);
+    if (playingVideo) {
+      return playingVideo.currentTime;
+    }
+
+    const activeVideo = videos.find((v) => Number.isFinite(v.currentTime) && v.currentTime > 0);
+    if (activeVideo) {
+      return activeVideo.currentTime;
+    }
+
+    try {
+      const params = new URLSearchParams(globalThis.location.search);
+      const raw = params.get('t') || params.get('start');
+      if (raw) {
+        const matchH = raw.match(/(\d+)h/);
+        const matchM = raw.match(/(\d+)m/);
+        const matchS = raw.match(/(\d+)s/);
+        if (matchH || matchM || matchS) {
+          let sec = 0;
+          if (matchH) sec += parseInt(matchH[1], 10) * 3600;
+          if (matchM) sec += parseInt(matchM[1], 10) * 60;
+          if (matchS) sec += parseInt(matchS[1], 10);
+          if (sec > 0) return sec;
+        }
+        const parsed = parseFloat(raw);
+        if (Number.isFinite(parsed) && parsed > 0) {
+          return parsed;
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    return 0;
+  }
 
   class DownloadOverlay {
     constructor(shadowRoot) {
@@ -25,11 +84,17 @@
       this.openButton = shadowRoot.querySelector('.open-action');
       this.finderButton = shadowRoot.querySelector('.finder-action');
       this.closeButtons = shadowRoot.querySelectorAll('.close, .close-action');
+      this.errorButton = shadowRoot.querySelector('.error-action');
+      this.errorPanel = shadowRoot.querySelector('.error-panel');
+      this.errorPanelText = shadowRoot.querySelector('.error-panel-text');
+      this.errorPanelClose = shadowRoot.querySelector('.error-panel-close');
+      this.errorPanelCopy = shadowRoot.querySelector('.error-panel-copy');
       this.header = shadowRoot.querySelector('.header');
 
       this.autoHideTimer = null;
       this.jobId = null;
       this.isUserClosed = false;
+      this.currentErrorDetails = '';
       
       this.isDragging = false;
       this.dragOffset = { x: 0, y: 0 };
@@ -43,7 +108,7 @@
         const recentId = this.playButton.dataset.recentDownloadId;
         const filePath = this.playButton.dataset.filePath;
         if (url) {
-          this.requestPreviewPage(url, recentId, filePath);
+          this.requestPreviewPage(url, recentId, filePath, getPageVideoCurrentTime());
         }
       });
 
@@ -74,7 +139,40 @@
           this.stopAutoHide();
           this.isUserClosed = true;
           this.overlay.hidden = true;
+          if (this.errorPanel) {
+            this.errorPanel.hidden = true;
+          }
         });
+      });
+
+      this.errorButton?.addEventListener('click', () => {
+        if (!this.currentErrorDetails) return;
+        if (this.errorPanelText) {
+          this.errorPanelText.textContent = this.currentErrorDetails;
+        }
+        if (this.errorPanel) {
+          this.errorPanel.hidden = false;
+        }
+      });
+
+      this.errorPanelClose?.addEventListener('click', () => {
+        if (this.errorPanel) {
+          this.errorPanel.hidden = true;
+        }
+      });
+
+      this.errorPanelCopy?.addEventListener('click', async () => {
+        if (!this.currentErrorDetails) return;
+        try {
+          await navigator.clipboard.writeText(this.currentErrorDetails);
+          const orig = this.errorPanelCopy.textContent;
+          this.errorPanelCopy.textContent = 'Скопировано!';
+          setTimeout(() => {
+            this.errorPanelCopy.textContent = orig;
+          }, 1500);
+        } catch {
+          // ignore
+        }
       });
 
       this.cancelButton.addEventListener('click', async () => {
@@ -179,6 +277,8 @@
         this.startAutoHide(8000);
       } else if (status === 'cancelled') {
         this.startAutoHide(1000);
+      } else if (status === 'skipped') {
+        this.startAutoHide(3000);
       } else {
         this.stopAutoHide();
       }
@@ -205,7 +305,7 @@
         this.cancelButton.hidden = false;
       }
 
-      if (status === 'completed' && previewReady) {
+      if ((status === 'completed' || status === 'skipped') && previewReady) {
         this.playButton.hidden = false;
         this.playButton.dataset.previewUrl = nextPreviewUrl || '';
         this.playButton.dataset.recentDownloadId = recentDownloadId || '';
@@ -214,7 +314,7 @@
         this.playButton.hidden = true;
       }
 
-      if (status === 'completed' && recentDownloadId) {
+      if ((status === 'completed' || status === 'skipped') && recentDownloadId) {
         this.openButton.hidden = false;
         this.openButton.dataset.recentDownloadId = recentDownloadId || '';
         
@@ -229,7 +329,30 @@
         }
       }
 
-      if (
+      const errorDetails =
+        typeof payload?.errorDetails === 'string' && payload.errorDetails !== ''
+          ? payload.errorDetails
+          : (status === 'failed' ? progressText : '');
+
+      if (status === 'failed' && errorDetails) {
+        this.currentErrorDetails = errorDetails;
+        if (this.errorButton) {
+          this.errorButton.hidden = false;
+        }
+      } else {
+        this.currentErrorDetails = '';
+        if (this.errorButton) {
+          this.errorButton.hidden = true;
+        }
+        if (this.errorPanel) {
+          this.errorPanel.hidden = true;
+        }
+      }
+
+      if (this.isTerminalStatus(status)) {
+        this.fillNode.dataset.indeterminate = 'false';
+        this.fillNode.style.width = status === 'completed' ? '100%' : '0%';
+      } else if (
         progressPercent === null ||
         status === 'starting' ||
         status === 'cancelling'
@@ -244,7 +367,10 @@
 
     isTerminalStatus(status) {
       return (
-        status === 'completed' || status === 'failed' || status === 'cancelled'
+        status === 'completed' ||
+        status === 'failed' ||
+        status === 'cancelled' ||
+        status === 'skipped'
       );
     }
 
@@ -263,10 +389,21 @@
       }
     }
 
+    async restoreActiveDownload() {
+      const response = await this.sendRuntimeMessage({
+        type: 'ytd:get-active-download',
+      });
+
+      if (response?.ok && response.payload) {
+        this.update(response.payload);
+      }
+    }
+
     async requestPreviewPage(
       nextPreviewUrl,
       nextRecentDownloadId,
-      nextFilePath = ''
+      nextFilePath = '',
+      startTime = getPageVideoCurrentTime()
     ) {
       this.stopAutoHide();
       this.overlay.hidden = true;
@@ -276,6 +413,7 @@
         recentDownloadId: nextRecentDownloadId,
         filePath: nextFilePath,
         url: globalThis.location.href,
+        startTime,
       });
     }
 
@@ -303,24 +441,30 @@
   document.documentElement.appendChild(host);
 
   try {
-    const response = await new Promise((resolve) => {
+    const { response, errorMessage } = await new Promise((resolve) => {
       chrome.runtime.sendMessage(
         { type: 'ytd:get-overlay-resources' },
-        resolve
+        (nextResponse) => {
+          resolve({
+            response: nextResponse,
+            errorMessage: chrome.runtime.lastError?.message || null,
+          });
+        }
       );
     });
 
-    if (chrome.runtime.lastError || !response?.html) {
-      console.error(
-        'YTD Overlay failed to load resources:',
-        chrome.runtime.lastError
-      );
+    if (errorMessage || !response?.html) {
+      console.error('YTD Overlay failed to load resources:', errorMessage);
+      host.remove();
+      delete globalThis.__YTD_OVERLAY_BOOTSTRAPPING__;
       return;
     }
 
     shadowRoot.innerHTML = `<style>\n${response.css}\n</style>\n${response.html}`;
   } catch (error) {
     console.error('YTD Overlay failed to load resources:', error);
+    host.remove();
+    delete globalThis.__YTD_OVERLAY_BOOTSTRAPPING__;
     return;
   }
 
@@ -332,9 +476,17 @@
       overlay.update(message);
     }
   });
+  globalThis.__YTD_OVERLAY_BOOTSTRAPPED__ = true;
+  delete globalThis.__YTD_OVERLAY_BOOTSTRAPPING__;
+  void overlay.restoreActiveDownload();
 
   // Also support the previous direct message events if any
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    if (message?.type === 'ytd-get-page-video-time') {
+      sendResponse({ currentTime: getPageVideoCurrentTime() });
+      return;
+    }
+
     if (message?.type === 'ytd-pause-page-video') {
       let paused = false;
       document.querySelectorAll('video').forEach((video) => {

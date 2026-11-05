@@ -73,14 +73,50 @@ async function initPreview() {
   originTabId = Number.isInteger(payload.originTabId)
     ? payload.originTabId
     : null;
+  const startTime = Number.isFinite(payload.startTime) && payload.startTime > 0
+    ? payload.startTime
+    : 0;
+
   renderFilePath(resolveFilePath(payload));
   void hydrateFilePath();
   openButton.disabled = recentDownloadId === '';
   revealButton.disabled = recentDownloadId === '';
 
-  player.src = previewUrl;
-  player.load();
-  await attemptPlayback(false);
+  player.src =
+    startTime > 0 ? `${previewUrl}#t=${startTime}` : previewUrl;
+
+  if (startTime > 0) {
+    let applied = false;
+    const applyStartTime = () => {
+      if (applied) {
+        return;
+      }
+      try {
+        if (!Number.isFinite(player.duration) || player.duration <= 0 || startTime < player.duration) {
+          player.currentTime = startTime;
+          applied = true;
+        }
+      } catch {
+        // ignore
+      }
+    };
+
+    player.addEventListener('loadedmetadata', applyStartTime, { once: true });
+    player.addEventListener('canplay', applyStartTime, { once: true });
+
+    const waitForMetadata = new Promise((resolve) => {
+      player.addEventListener('loadedmetadata', () => resolve(), { once: true });
+      setTimeout(resolve, 600);
+    });
+
+    player.load();
+    await waitForMetadata;
+    applyStartTime();
+    await attemptPlayback(false);
+  } else {
+    player.load();
+    await attemptPlayback(false);
+  }
 }
 
 async function attemptPlayback(fromUserGesture) {

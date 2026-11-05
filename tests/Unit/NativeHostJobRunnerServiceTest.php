@@ -141,6 +141,54 @@ PHP);
         }
     }
 
+    public function testRunMarksExistingFileSkipAndAddsItToRecentDownloads(): void
+    {
+        $root = \sys_get_temp_dir() . '/ytd_native_runner_skip_' . \uniqid();
+        \mkdir($root . '/bin', 0777, true);
+        \mkdir($root . '/downloads', 0777, true);
+        putenv('YTD_PROJECT_ROOT=' . $root);
+
+        try {
+            $existingPath = $root . '/downloads/existing.mp4';
+            \file_put_contents($existingPath, 'old');
+            \file_put_contents($root . '/bin/ytd', <<<'PHP'
+#!/usr/bin/env php
+<?php
+$path = __DIR__ . '/../downloads/existing.mp4';
+fwrite(STDOUT, "📄 Файл: {$path} (3B)\n");
+fwrite(STDOUT, "⏭️ Пропускаю загрузку по выбору пользователя.\n");
+fwrite(STDOUT, "⏱️ Время работы: 0.01с\n");
+PHP);
+            \chmod($root . '/bin/ytd', 0777);
+
+            $bootstrap = new RuntimeBootstrap($root);
+            $store = new NativeHostJobStateStore($bootstrap);
+            $recentDownloads = new NativeHostRecentDownloadsStore($bootstrap);
+            $runner = new NativeHostJobRunnerService(
+                $bootstrap,
+                $store,
+                new NativeHostProgressParserService(),
+                $recentDownloads,
+            );
+
+            $exitCode = $runner->run('job-skip', 'https://example.com/watch?v=skip', 'video-fhd');
+            $state = $store->read('job-skip');
+
+            self::assertSame(0, $exitCode);
+            self::assertSame('skipped', $state['status'] ?? null);
+            self::assertSame('Загрузка пропущена: файл уже существует.', $state['progressText'] ?? null);
+            self::assertFalse($state['canCancel'] ?? true);
+            self::assertIsString($state['recentDownloadId'] ?? null);
+            self::assertCount(1, $recentDownloads->list());
+            self::assertSame(
+                \realpath($existingPath),
+                \realpath((string) ($recentDownloads->list()[0]['path'] ?? '')),
+            );
+        } finally {
+            putenv('YTD_PROJECT_ROOT');
+        }
+    }
+
     public function testRunStopsDownloadProcessWhenCancellationIsRequestedBeforeOutputIsReady(): void
     {
         $root = \sys_get_temp_dir() . '/ytd_native_runner_cancel_' . \uniqid();

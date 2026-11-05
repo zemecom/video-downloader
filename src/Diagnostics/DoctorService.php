@@ -78,6 +78,11 @@ final readonly class DoctorService
                     'PROXY_LOCAL выглядит как значение из шаблона',
                     'Если локальный прокси у тебя другой, замени значение в .env.',
                 );
+            } elseif (($envValues['PROXY_LOCAL'] ?? '') !== '' && !$this->shouldSkipNetworkChecks()) {
+                $proxyCheck = $this->checkProxyConnection($envValues['PROXY_LOCAL'], 'PROXY_LOCAL');
+                if ($proxyCheck !== null) {
+                    $results[] = $proxyCheck;
+                }
             }
 
             if (($envValues['PROXY_REMOTE'] ?? '') === self::EXAMPLE_PROXY_REMOTE) {
@@ -96,6 +101,31 @@ final readonly class DoctorService
                         'Это не мешает запуску, но для ручных integration-тестов лучше указать реальные ссылки.',
                     );
                 }
+            }
+
+            $cookiesFileRaw = $envValues['YTD_COOKIES_FILE'] ?? \getenv('YTD_COOKIES_FILE');
+            $cookiesFilePath = \is_string($cookiesFileRaw) && \trim($cookiesFileRaw) !== ''
+                ? $this->bootstrap->resolveCookiesFilePath($cookiesFileRaw)
+                : null;
+            $cookiesFromBrowser = $envValues['YTD_COOKIES_FROM_BROWSER'] ?? \getenv('YTD_COOKIES_FROM_BROWSER');
+            if ($cookiesFilePath !== null) {
+                $results[] = new DoctorResult(
+                    self::STATUS_OK,
+                    'Cookies-файл найден',
+                    'Используется: ' . $cookiesFilePath,
+                );
+            } elseif (\is_string($cookiesFromBrowser) && \trim($cookiesFromBrowser) !== '') {
+                $results[] = new DoctorResult(
+                    self::STATUS_OK,
+                    'Cookies из браузера настроены',
+                    'Используется: ' . \trim($cookiesFromBrowser),
+                );
+            } else {
+                $results[] = new DoctorResult(
+                    self::STATUS_WARN,
+                    'Cookies из браузера не настроены (YTD_COOKIES_FROM_BROWSER пуст)',
+                    'YouTube может требовать подтверждение входа (Sign in to confirm you’re not a bot). Укажи YTD_COOKIES_FILE (make sync-cookies) или YTD_COOKIES_FROM_BROWSER.',
+                );
             }
         }
 
@@ -201,5 +231,47 @@ final readonly class DoctorService
         $value = getenv(self::SKIP_BINARY_CHECKS_ENV);
 
         return \is_string($value) && $value === '1';
+    }
+
+    private function shouldSkipNetworkChecks(): bool
+    {
+        $value = getenv('YTD_DOCTOR_SKIP_NETWORK_CHECKS');
+        if (\is_string($value) && $value === '1') {
+            return true;
+        }
+
+        return $this->shouldSkipBinaryChecks();
+    }
+
+    private function checkProxyConnection(string $proxyUrl, string $envName): ?DoctorResult
+    {
+        $parts = \parse_url($proxyUrl);
+        $host = $parts['host'] ?? null;
+        $port = $parts['port'] ?? null;
+
+        if (!\is_string($host) || $host === '' || !\is_int($port)) {
+            return null;
+        }
+
+        if (!\in_array($host, ['127.0.0.1', 'localhost', '::1'], true)) {
+            return null;
+        }
+
+        $connection = @\fsockopen($host, $port, $errno, $errstr, 0.5);
+        if (\is_resource($connection)) {
+            \fclose($connection);
+
+            return new DoctorResult(
+                self::STATUS_OK,
+                \sprintf('%s доступен (%s:%d)', $envName, $host, $port),
+                'Прокси-сервер отвечает на подключения.',
+            );
+        }
+
+        return new DoctorResult(
+            self::STATUS_WARN,
+            \sprintf('%s сервер недоступен (%s:%d)', $envName, $host, $port),
+            \sprintf('Не удалось подключиться к %s:%d. Убедись, что локальный прокси запущен.', $host, $port),
+        );
     }
 }

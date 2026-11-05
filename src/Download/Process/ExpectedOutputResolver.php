@@ -21,15 +21,17 @@ final readonly class ExpectedOutputResolver
         DownloadOptions $options,
         string $infoJsonPath,
         bool $sanitize = true,
+        ?string $sourceUrl = null,
     ): ?string {
         $expectedFile = $this->ytDlpClient->getExpectedFilename(
-            videoUrl: null,
+            videoUrl: $sourceUrl,
             formatCode: $formatCode,
             outputPath: $outputTemplate,
             proxy: $options->proxy,
             insecure: $options->insecure,
             infoJsonPath: $infoJsonPath,
             outputFormat: $options->outputFormat,
+            allow4k: $options->allow4k,
         );
 
         if ($sanitize && \is_string($expectedFile) && $expectedFile !== '') {
@@ -49,12 +51,14 @@ final readonly class ExpectedOutputResolver
         string $infoJsonPath,
         array $metadata,
         string $basePath,
+        ?string $sourceUrl = null,
     ): string {
         $expectedFile = $this->resolveFromInfoJson(
             formatCode: $formatCode,
             outputTemplate: $outputTemplate,
             options: $options,
             infoJsonPath: $infoJsonPath,
+            sourceUrl: $sourceUrl,
         ) ?? $this->buildFallbackExpectedOutputPath($metadata, $basePath, $options->outputFormat);
 
         return $this->replaceOutputExtension($this->bootstrap->sanitizeOutputFilename($expectedFile), $options->outputFormat);

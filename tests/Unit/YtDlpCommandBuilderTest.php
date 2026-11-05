@@ -60,6 +60,20 @@ final class YtDlpCommandBuilderTest extends TestCase
         self::assertContains('mkv', $command);
     }
 
+    public function testBuildForFilenameUsesTheSameFhdSelectorAndMergeFormatAsDownload(): void
+    {
+        $builder = new YtDlpCommandBuilder('https://www.youtube.com/watch?v=123');
+        $filenameCommand = $builder->buildForFilename('/tmp/video.%(ext)s', 'fhd', 'mp4');
+        $downloadCommand = $builder->buildForDownload('fhd', '/tmp/video.%(ext)s', 'mp4');
+
+        self::assertContains('--get-filename', $filenameCommand);
+        self::assertSame(
+            $downloadCommand[array_search('-f', $downloadCommand, true) + 1],
+            $filenameCommand[array_search('-f', $filenameCommand, true) + 1],
+        );
+        self::assertSame('mp4', $filenameCommand[array_search('--merge-output-format', $filenameCommand, true) + 1]);
+    }
+
     public function testBuildForDownloadUsesMediumQualityPreset(): void
     {
         $builder = new YtDlpCommandBuilder();
@@ -144,5 +158,149 @@ final class YtDlpCommandBuilderTest extends TestCase
 
         self::assertSame('https://www.youtube.com/watch?v=123', $command[array_key_last($command)]);
         self::assertNotContains('--load-info-json', $command);
+    }
+
+    public function testConstructorAppliesConfiguredSocketTimeout(): void
+    {
+        putenv('YTD_SOCKET_TIMEOUT=45');
+        try {
+            $builder = new YtDlpCommandBuilder();
+            $command = $builder->buildForDownload('best', '/tmp/out.%(ext)s');
+
+            self::assertContains('--socket-timeout', $command);
+            self::assertSame('45', $command[array_search('--socket-timeout', $command, true) + 1]);
+        } finally {
+            putenv('YTD_SOCKET_TIMEOUT');
+        }
+    }
+
+    public function testCookiesFromBrowserCanBeConfiguredViaEnv(): void
+    {
+        putenv('YTD_COOKIES_FILE=none');
+        putenv('YTD_COOKIES_FROM_BROWSER=chrome:Profile 12');
+        try {
+            $builder = new YtDlpCommandBuilder('https://youtube.com/watch?v=123');
+            $command = $builder->buildForMetadata();
+
+            self::assertContains('--cookies-from-browser', $command);
+            self::assertSame('chrome:Profile 12', $command[array_search('--cookies-from-browser', $command, true) + 1]);
+        } finally {
+            putenv('YTD_COOKIES_FILE');
+            putenv('YTD_COOKIES_FROM_BROWSER');
+        }
+    }
+
+    public function testSetCookiesFromBrowserOverridesOrRemovesFlag(): void
+    {
+        $builder = new YtDlpCommandBuilder('https://youtube.com/watch?v=123');
+        $builder->setCookiesFromBrowser('firefox');
+        $command = $builder->buildForMetadata();
+
+        self::assertContains('--cookies-from-browser', $command);
+        self::assertSame('firefox', $command[array_search('--cookies-from-browser', $command, true) + 1]);
+
+        $builder->setCookiesFromBrowser('none');
+        $commandWithout = $builder->buildForMetadata();
+        self::assertNotContains('--cookies-from-browser', $commandWithout);
+
+        $builder->setCookiesFromBrowser('chrome:Profile 12');
+        $builder->setCookiesFromBrowser(null);
+        $commandNull = $builder->buildForMetadata();
+        self::assertNotContains('--cookies-from-browser', $commandNull);
+    }
+
+    public function testCookiesFileTakesPrecedenceOverCookiesFromBrowser(): void
+    {
+        $tempCookiesFile = sys_get_temp_dir() . '/ytd_test_cookies_' . uniqid() . '.txt';
+        file_put_contents($tempCookiesFile, "# Netscape HTTP Cookie File\n");
+        putenv('YTD_COOKIES_FILE=' . $tempCookiesFile);
+        putenv('YTD_COOKIES_FROM_BROWSER=chrome:Profile 12');
+
+        try {
+            $builder = new YtDlpCommandBuilder('https://youtube.com/watch?v=123');
+            $command = $builder->buildForMetadata();
+
+            self::assertContains('--cookies', $command);
+            self::assertSame($tempCookiesFile, $command[array_search('--cookies', $command, true) + 1]);
+            self::assertNotContains('--cookies-from-browser', $command);
+
+            $builder->setCookiesFromBrowser('firefox');
+            $browserCommand = $builder->buildForMetadata();
+            self::assertContains('--cookies-from-browser', $browserCommand);
+            self::assertNotContains('--cookies', $browserCommand);
+
+            $builder->setCookiesFile($tempCookiesFile);
+            $fileCommand = $builder->buildForMetadata();
+            self::assertContains('--cookies', $fileCommand);
+            self::assertNotContains('--cookies-from-browser', $fileCommand);
+        } finally {
+            putenv('YTD_COOKIES_FILE');
+            putenv('YTD_COOKIES_FROM_BROWSER');
+            @unlink($tempCookiesFile);
+        }
+    }
+
+    public function testBuildForDownloadUsesLanguageAwareBestFormat(): void
+    {
+        $builder = new YtDlpCommandBuilder(audioLanguage: 'ru');
+        $command = $builder->buildForDownload('best', '/tmp/video.%(ext)s', 'mkv');
+
+        self::assertSame(
+            'bestvideo+bestaudio[language^=ru]/bestvideo+bestaudio/best',
+            $command[array_search('-f', $command, true) + 1],
+        );
+    }
+
+    public function testBuildForDownloadUsesLanguageAwareFhdMp4Format(): void
+    {
+        $builder = new YtDlpCommandBuilder('https://www.youtube.com/watch?v=123', audioLanguage: 'ru');
+        $command = $builder->buildForDownload('fhd', '/tmp/video.%(ext)s', 'mp4');
+
+        $format = $command[array_search('-f', $command, true) + 1];
+        self::assertStringContainsString('bestaudio[language^=ru][ext=m4a]', $format);
+        self::assertStringContainsString('bestaudio[ext=m4a]', $format);
+    }
+
+    public function testBuildForDownloadAudioOnlyUsesLanguageAwareSelector(): void
+    {
+        $builder = new YtDlpCommandBuilder(audioLanguage: 'ru');
+        $command = $builder->buildForDownload('bestaudio', '/tmp/audio.%(ext)s', 'opus');
+
+        self::assertSame(
+            'bestaudio[language^=ru]/bestaudio/best',
+            $command[array_search('-f', $command, true) + 1],
+        );
+    }
+
+    public function testSetAudioLanguageOverridesConfiguredLanguage(): void
+    {
+        $builder = new YtDlpCommandBuilder(audioLanguage: 'ru');
+        $builder->setAudioLanguage('none');
+        $command = $builder->buildForDownload('best', '/tmp/video.%(ext)s', 'mkv');
+
+        self::assertSame('bestvideo+bestaudio/best', $command[array_search('-f', $command, true) + 1]);
+    }
+
+    public function testBuildForDownloadIncludesPlayerClientForYoutubeUrls(): void
+    {
+        $youtubeBuilder = new YtDlpCommandBuilder('https://www.youtube.com/watch?v=123');
+        $command = $youtubeBuilder->buildForDownload('best', '/tmp/video.%(ext)s', 'mp4');
+
+        self::assertContains('--extractor-args', $command);
+        self::assertContains('youtube:player_client=tv_samsung,visionos', $command);
+
+        $rawCommand = $youtubeBuilder->buildForRawStreamDownload('137', '/tmp/raw.mp4');
+        self::assertContains('--extractor-args', $rawCommand);
+        self::assertContains('youtube:player_client=tv_samsung,visionos', $rawCommand);
+
+        $metadataCommand = $youtubeBuilder->buildForMetadata();
+        self::assertContains('--extractor-args', $metadataCommand);
+        self::assertContains('youtube:player_client=tv_samsung,visionos', $metadataCommand);
+
+        $otherBuilder = new YtDlpCommandBuilder('https://vimeo.com/123456');
+        $otherCommand = $otherBuilder->buildForDownload('best', '/tmp/video.%(ext)s', 'mp4');
+        self::assertNotContains('--extractor-args', $otherCommand);
+        $otherMetadataCommand = $otherBuilder->buildForMetadata();
+        self::assertNotContains('--extractor-args', $otherMetadataCommand);
     }
 }

@@ -37,6 +37,7 @@ interface YtDlpGateway
         bool $insecure = false,
         ?string $infoJsonPath = null,
         string $outputFormat = 'mkv',
+        bool $allow4k = false,
     ): ?string;
 
     public function getProcessErrorDetail(Process|ProcessFailedException $processOrException, string $fallback = 'command_failed'): string;

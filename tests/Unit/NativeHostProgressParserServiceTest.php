@@ -50,4 +50,15 @@ final class NativeHostProgressParserServiceTest extends TestCase
         self::assertSame('starting', $parsed['status']);
         self::assertSame('/tmp/My Video.mkv', $parsed['outputPath']);
     }
+
+    public function testParseSkippedDownloadKeepsTerminalSkippedState(): void
+    {
+        $parser = new NativeHostProgressParserService();
+
+        $parsed = $parser->parse("⏭️ Пропускаю загрузку по выбору пользователя.\n");
+
+        self::assertSame('skipped', $parsed['status']);
+        self::assertNull($parsed['progressPercent']);
+        self::assertSame('Загрузка пропущена: файл уже существует.', $parsed['progressText']);
+    }
 }

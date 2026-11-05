@@ -48,7 +48,7 @@ final readonly class DownloaderService
         $this->temporaryStorage = $temporaryStorage ?? new DownloadTemporaryStorage();
         $this->outputFormatter = $outputFormatter ?? new DownloadOutputFormatter($this->logger);
         $this->artifactCleaner = $artifactCleaner ?? new DownloadArtifactCleaner();
-        $this->processRunner = $processRunner ?? new DownloadProcessRunner($this->ytDlpClient, $this->logger);
+        $this->processRunner = $processRunner ?? new DownloadProcessRunner($this->ytDlpClient, $this->logger, $this->artifactCleaner);
         $this->metadataService = $metadataService ?? new DownloadMetadataService($this->ytDlpClient, $this->logger, $this->temporaryStorage);
         $this->expectedOutputResolver = $expectedOutputResolver ?? new ExpectedOutputResolver($this->ytDlpClient, $this->bootstrap);
         $this->fastStreamDownloadService = $fastStreamDownloadService ?? new FastStreamDownloadService(
@@ -88,9 +88,15 @@ final readonly class DownloaderService
         DownloadOptions $options,
     ): DownloadResult {
         $basePath = $this->bootstrap->getDownloadBasePath($videoUrl, $options->downloadDir);
-        $outputTemplate = $basePath . '/%(title)s [%(resolution)s].%(ext)s';
+        $outputTemplate = $this->buildOutputTemplate($basePath, $formatCode);
 
-        $metadataResult = $this->metadataService->fetch(videoUrl: $videoUrl, proxy: $options->proxy, insecure: $options->insecure);
+        $metadataResult = $this->metadataService->fetch(
+            videoUrl: $videoUrl,
+            proxy: $options->proxy,
+            insecure: $options->insecure,
+            cookiesFromBrowser: $options->cookiesFromBrowser,
+            cookiesFile: $options->cookiesFile,
+        );
         if ($metadataResult->failure instanceof DownloadResult) {
             return $metadataResult->failure;
         }
@@ -114,6 +120,7 @@ final readonly class DownloaderService
                 outputTemplate: $outputTemplate,
                 options: $options,
                 infoJsonPath: $metadata->infoJsonPath,
+                sourceUrl: $videoUrl,
             );
 
             if ($options->dryRun) {
@@ -186,7 +193,13 @@ final readonly class DownloaderService
         $basePath = $this->bootstrap->getDownloadBasePath($videoUrl, $options->downloadDir);
         $outputTemplate = $basePath . '/%(title)s [%(resolution)s].%(ext)s';
 
-        $metadataResult = $this->metadataService->fetch(videoUrl: $videoUrl, proxy: $options->proxy, insecure: $options->insecure);
+        $metadataResult = $this->metadataService->fetch(
+            videoUrl: $videoUrl,
+            proxy: $options->proxy,
+            insecure: $options->insecure,
+            cookiesFromBrowser: $options->cookiesFromBrowser,
+            cookiesFile: $options->cookiesFile,
+        );
         if ($metadataResult->failure instanceof DownloadResult) {
             return $metadataResult->failure;
         }
@@ -201,6 +214,7 @@ final readonly class DownloaderService
                 $metadata->payload,
                 $qualityPreset !== 'best' && $options->allow4k === false && $this->bootstrap->isYoutubeUrl($videoUrl),
                 $qualityPreset !== 'best' && $options->allow4k === false && $options->outputFormat === 'mp4' ? 'mp4' : 'mkv',
+                $options->audioLanguage,
             );
             if (!$pair instanceof \YtdPhp\Download\Format\FastStreamFormatPair) {
                 $this->logger->warning('⚠️ Не удалось подобрать отдельные video/audio потоки для `--fast`; использую обычную загрузку.');
@@ -226,6 +240,7 @@ final readonly class DownloaderService
                 infoJsonPath: $metadata->infoJsonPath,
                 metadata: $metadata->payload,
                 basePath: $basePath,
+                sourceUrl: $videoUrl,
             );
 
             if ($options->dryRun) {
@@ -289,6 +304,13 @@ final readonly class DownloaderService
         }
     }
 
+    private function buildOutputTemplate(string $basePath, string $formatCode): string
+    {
+        $resolutionSuffix = $formatCode === 'bestaudio' ? '' : ' [%(resolution)s]';
+
+        return $basePath . '/%(title)s' . $resolutionSuffix . '.%(ext)s';
+    }
+
     public function downloadFromInfoJson(
         string $infoJsonPath,
         string $outputTemplate,
@@ -303,6 +325,7 @@ final readonly class DownloaderService
             $options,
             $infoJsonPath,
             false,
+            $sourceUrl,
         );
 
         if (\is_string($expectedFile) && $expectedFile !== '' && \file_exists($expectedFile) && !$options->forceOverwrites) {
@@ -316,8 +339,16 @@ final readonly class DownloaderService
 
         $builder = new YtDlpCommandBuilder($sourceUrl);
         $builder->setProxy($options->proxy)->setInsecure($options->insecure)->loadInfoJson($infoJsonPath);
+        if ($options->cookiesFile !== null) {
+            $builder->setCookiesFile($options->cookiesFile);
+        } elseif ($options->cookiesFromBrowser !== null) {
+            $builder->setCookiesFromBrowser($options->cookiesFromBrowser);
+        }
         if ($options->forceOverwrites) {
             $builder->addArg('--force-overwrites');
+        }
+        if ($options->audioLanguage !== null) {
+            $builder->setAudioLanguage($options->audioLanguage);
         }
 
         $command = $builder->buildForDownload(
@@ -332,7 +363,7 @@ final readonly class DownloaderService
         if ($options->emitLogs) {
             $this->logger->info('🚀 Начинаю загрузку...');
         }
-        $process = $this->processRunner->runWithRetries($command, $options->emitLogs);
+        $process = $this->processRunner->runWithRetries($command, $options->emitLogs, $sourceUrl, $expectedFile);
 
         return $this->finalizeProcessResult($process, $expectedFile, $options->emitLogs);
     }
@@ -364,8 +395,16 @@ final readonly class DownloaderService
     ): Process {
         $builder = new YtDlpCommandBuilder($sourceUrl);
         $builder->setProxy($options->proxy)->setInsecure($options->insecure)->loadInfoJson($infoJsonPath);
+        if ($options->cookiesFile !== null) {
+            $builder->setCookiesFile($options->cookiesFile);
+        } elseif ($options->cookiesFromBrowser !== null) {
+            $builder->setCookiesFromBrowser($options->cookiesFromBrowser);
+        }
         if ($options->forceOverwrites) {
             $builder->addArg('--force-overwrites');
+        }
+        if ($options->audioLanguage !== null) {
+            $builder->setAudioLanguage($options->audioLanguage);
         }
 
         return $this->processRunner->createProcess($builder->buildForDownload(
@@ -382,10 +421,21 @@ final readonly class DownloaderService
     public function finalizeProcessResult(Process $process, ?string $expectedFile, bool $emitLogs): DownloadResult
     {
         if ($process->isSuccessful()) {
-            if (\is_string($expectedFile) && $expectedFile !== '' && \file_exists($expectedFile) && $emitLogs) {
-                $size = \filesize($expectedFile);
-                $this->outputFormatter->logOutputPath($expectedFile, $size !== false ? $size : null);
-                $this->outputFormatter->logOutputDirectory($expectedFile);
+            $resolvedFile = $expectedFile;
+            if (\is_string($expectedFile) && $expectedFile !== '' && !\file_exists($expectedFile)) {
+                $baseWithoutExt = \dirname($expectedFile) . DIRECTORY_SEPARATOR . \pathinfo($expectedFile, PATHINFO_FILENAME);
+                foreach (['mkv', 'mp4', 'webm'] as $ext) {
+                    $candidate = $baseWithoutExt . '.' . $ext;
+                    if (\file_exists($candidate)) {
+                        $resolvedFile = $candidate;
+                        break;
+                    }
+                }
+            }
+            if (\is_string($resolvedFile) && $resolvedFile !== '' && \file_exists($resolvedFile) && $emitLogs) {
+                $size = \filesize($resolvedFile);
+                $this->outputFormatter->logOutputPath($resolvedFile, $size !== false ? $size : null);
+                $this->outputFormatter->logOutputDirectory($resolvedFile);
             }
             if ($emitLogs) {
                 $this->logger->info('🎉 Ура! Загрузка завершена!');

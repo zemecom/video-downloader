@@ -68,6 +68,56 @@ final class DownloaderServiceTest extends TestCase
         }
     }
 
+    public function testDownloadAudioOmitsVideoResolutionFromOutputFilename(): void
+    {
+        $root = \sys_get_temp_dir() . '/ytd_php_downloader_audio_' . uniqid();
+        $binDir = $root . '/bin';
+        $downloadDir = $root . '/downloads';
+        \mkdir($binDir, 0777, true);
+        \mkdir($downloadDir, 0777, true);
+
+        $scriptPath = $binDir . '/yt-dlp';
+        \file_put_contents($scriptPath, FakeDownloaderBinaries::ytDlp());
+        \chmod($scriptPath, 0777);
+
+        $previousPath = \getenv('PATH');
+        $previousDownloadDir = \getenv('DOWNLOAD_DIR_GENERAL');
+
+        putenv('PATH=' . $binDir . PATH_SEPARATOR . ($previousPath !== false ? $previousPath : ''));
+        putenv('DOWNLOAD_DIR_GENERAL=' . $downloadDir);
+
+        try {
+            $bootstrap = new RuntimeBootstrap(\getcwd() ?: null);
+            $output = new BufferedOutput();
+            $logger = new ConsoleLogger($output);
+            $prompter = new InputPrompter();
+            $client = new YtDlpClient($logger);
+            $service = new DownloaderService($client, $bootstrap, $logger, $prompter);
+
+            $result = $service->downloadVideo('https://example.com/video', 'bestaudio', new \YtdPhp\Download\DownloadOptions());
+            $downloadArgs = \json_decode((string) \file_get_contents($root . '/last-download-args.json'), true);
+
+            self::assertSame('completed', $result->status);
+            self::assertFileExists($downloadDir . '/My_Cool_Video.opus');
+            self::assertFileDoesNotExist($downloadDir . '/My_Cool_Video_1080p.opus');
+            self::assertIsArray($downloadArgs);
+            self::assertSame('bestaudio/best', $downloadArgs[array_search('-f', $downloadArgs, true) + 1]);
+            self::assertContains('--extract-audio', $downloadArgs);
+        } finally {
+            if ($previousPath === false) {
+                putenv('PATH');
+            } else {
+                putenv('PATH=' . $previousPath);
+            }
+
+            if ($previousDownloadDir === false) {
+                putenv('DOWNLOAD_DIR_GENERAL');
+            } else {
+                putenv('DOWNLOAD_DIR_GENERAL=' . $previousDownloadDir);
+            }
+        }
+    }
+
     public function testDownloadVideoUsesTerminalLinkSafeOutputFilename(): void
     {
         $root = \sys_get_temp_dir() . '/ytd_php_downloader_link_safe_' . uniqid();
@@ -351,7 +401,7 @@ final class DownloaderServiceTest extends TestCase
         }
     }
 
-    public function testDownloadVideoRetriesHttp403WithResume(): void
+    public function testDownloadVideoRetriesHttp403WithFallback(): void
     {
         $root = \sys_get_temp_dir() . '/ytd_php_downloader_retry_' . uniqid();
         $binDir = $root . '/bin';
@@ -385,10 +435,10 @@ final class DownloaderServiceTest extends TestCase
             self::assertFileExists($downloadDir . '/My_Cool_Video_1080p.mkv');
             self::assertFalse(\file_exists($downloadDir . '/My_Cool_Video_1080p.mkv.part'));
             self::assertSame('2', trim((string) \file_get_contents($root . '/download-attempts.txt')));
-            self::assertFileExists($root . '/download-resume-seen.txt');
             self::assertIsArray($lastDownloadArgs);
             self::assertContains('--continue', $lastDownloadArgs);
-            self::assertStringContainsString('повторяю попытку 2/3 с докачкой', $logs);
+            self::assertContains('vcodec:vp9,res,fps', $lastDownloadArgs);
+            self::assertStringContainsString('повторяю попытку в кодеке VP9', $logs);
         } finally {
             if ($previousPath === false) {
                 putenv('PATH');
@@ -478,6 +528,73 @@ final class DownloaderServiceTest extends TestCase
                 putenv('DOWNLOAD_DIR_GENERAL');
             } else {
                 putenv('DOWNLOAD_DIR_GENERAL=' . $previousDownloadDir);
+            }
+        }
+    }
+
+    public function testDownloadVideoFhdAfterFastDownloadUsesDifferentSelectedOutputPath(): void
+    {
+        $root = \sys_get_temp_dir() . '/ytd_php_downloader_fast_then_fhd_' . uniqid();
+        $binDir = $root . '/bin';
+        $downloadDir = $root . '/downloads';
+        \mkdir($binDir, 0777, true);
+        \mkdir($downloadDir, 0777, true);
+
+        \file_put_contents($binDir . '/yt-dlp', FakeDownloaderBinaries::fastYtDlp());
+        \chmod($binDir . '/yt-dlp', 0777);
+        \file_put_contents($binDir . '/ffmpeg', FakeDownloaderBinaries::ffmpeg());
+        \chmod($binDir . '/ffmpeg', 0777);
+
+        $previousPath = \getenv('PATH');
+        $previousDownloadDir = \getenv('DOWNLOAD_DIR_GENERAL');
+        $previousFast4k = \getenv('YTD_TEST_FAST_4K');
+
+        putenv('PATH=' . $binDir . PATH_SEPARATOR . ($previousPath !== false ? $previousPath : ''));
+        putenv('DOWNLOAD_DIR_GENERAL=' . $downloadDir);
+        putenv('YTD_TEST_FAST_4K=1');
+
+        try {
+            $bootstrap = new RuntimeBootstrap(\getcwd() ?: null);
+            $logger = new ConsoleLogger(new BufferedOutput());
+            $client = new YtDlpClient($logger);
+            $service = new DownloaderService($client, $bootstrap, $logger, new InputPrompter());
+            $options = new \YtdPhp\Download\DownloadOptions(
+                outputFormat: 'mp4',
+                downloadDir: $downloadDir,
+            );
+
+            $fastResult = $service->downloadVideoFast(
+                'https://www.youtube.com/watch?v=quality-switch',
+                'best',
+                $options,
+            );
+            $fhdResult = $service->downloadVideo(
+                'https://www.youtube.com/watch?v=quality-switch',
+                'fhd',
+                $options,
+            );
+
+            self::assertSame('completed', $fastResult->status);
+            self::assertSame('completed', $fhdResult->status);
+            self::assertFileExists($downloadDir . '/My_Cool_Video_2160p.mp4');
+            self::assertFileExists($downloadDir . '/My_Cool_Video_1080p.mp4');
+        } finally {
+            if ($previousPath === false) {
+                putenv('PATH');
+            } else {
+                putenv('PATH=' . $previousPath);
+            }
+
+            if ($previousDownloadDir === false) {
+                putenv('DOWNLOAD_DIR_GENERAL');
+            } else {
+                putenv('DOWNLOAD_DIR_GENERAL=' . $previousDownloadDir);
+            }
+
+            if ($previousFast4k === false) {
+                putenv('YTD_TEST_FAST_4K');
+            } else {
+                putenv('YTD_TEST_FAST_4K=' . $previousFast4k);
             }
         }
     }

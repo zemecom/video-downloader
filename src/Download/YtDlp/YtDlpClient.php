@@ -109,6 +109,20 @@ final readonly class YtDlpClient implements YtDlpGateway
         if ($insecure) {
             $command[] = '--no-check-certificate';
         }
+        $cookiesFile = YtDlpCommandBuilder::resolveConfiguredCookiesFile();
+        if ($cookiesFile !== null) {
+            $command[] = '--cookies';
+            $command[] = $cookiesFile;
+        } else {
+            $cookies = \getenv('YTD_COOKIES_FROM_BROWSER');
+            if (\is_string($cookies)) {
+                $trimmed = \trim($cookies);
+                if ($trimmed !== '' && \strtolower($trimmed) !== 'none') {
+                    $command[] = '--cookies-from-browser';
+                    $command[] = $trimmed;
+                }
+            }
+        }
         $command[] = '--list-formats';
         $command[] = $videoUrl;
 
@@ -134,6 +148,7 @@ final readonly class YtDlpClient implements YtDlpGateway
         bool $insecure = false,
         ?string $infoJsonPath = null,
         string $outputFormat = 'mkv',
+        bool $allow4k = false,
     ): ?string {
         $builder = new YtDlpCommandBuilder($videoUrl);
         if ($infoJsonPath === null) {
@@ -141,7 +156,7 @@ final readonly class YtDlpClient implements YtDlpGateway
         }
 
         $builder->setInsecure($insecure)->loadInfoJson($infoJsonPath);
-        $command = $builder->buildForFilename($outputPath);
+        $command = $builder->buildForFilename($outputPath, $formatCode, $outputFormat, $allow4k);
         if ($infoJsonPath !== null && $videoUrl !== null) {
             $command = \array_values(\array_filter($command, static fn(string $value): bool => $value !== $videoUrl));
         }

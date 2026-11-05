@@ -9,7 +9,7 @@ use YtdPhp\Download\Format\AutomaticFormatResolver;
 
 final class AutomaticFormatResolverTest extends TestCase
 {
-    public function testResolveUsesRequestedDownloadFormatForLiveStreams(): void
+    public function testResolveKeepsBestForLiveStreams(): void
     {
         $resolver = new AutomaticFormatResolver();
 
@@ -21,7 +21,7 @@ final class AutomaticFormatResolverTest extends TestCase
             ],
         ]);
 
-        self::assertSame('301', $resolved);
+        self::assertSame('best', $resolved);
     }
 
     public function testResolveUsesBestCappedMuxedFormatForMediumPreset(): void
@@ -126,7 +126,7 @@ final class AutomaticFormatResolverTest extends TestCase
         self::assertSame('22', $resolved);
     }
 
-    public function testResolveRejectsVp9OpusRequestedDownloadForMp4Output(): void
+    public function testResolveKeepsBestForMp4Output(): void
     {
         $resolver = new AutomaticFormatResolver();
 
@@ -160,10 +160,10 @@ final class AutomaticFormatResolverTest extends TestCase
             ],
         ], false, 'mp4');
 
-        self::assertSame('22', $resolved);
+        self::assertSame('best', $resolved);
     }
 
-    public function testResolveUsesRequestedDownloadFormatForPostLiveStreams(): void
+    public function testResolveKeepsBestForPostLiveStreams(): void
     {
         $resolver = new AutomaticFormatResolver();
 
@@ -175,7 +175,7 @@ final class AutomaticFormatResolverTest extends TestCase
             ],
         ]);
 
-        self::assertSame('301', $resolved);
+        self::assertSame('best', $resolved);
     }
 
     public function testResolveKeepsExplicitFormatChoice(): void
@@ -209,7 +209,7 @@ final class AutomaticFormatResolverTest extends TestCase
         self::assertSame('best', $resolved);
     }
 
-    public function testResolveFallsBackToBestMuxedHlsFormatForWasLiveVideos(): void
+    public function testResolveKeepsBestForWasLiveVideosWithMuxedFallback(): void
     {
         $resolver = new AutomaticFormatResolver();
 
@@ -258,10 +258,10 @@ final class AutomaticFormatResolverTest extends TestCase
             ],
         ]);
 
-        self::assertSame('301', $resolved);
+        self::assertSame('best', $resolved);
     }
 
-    public function testResolveRejectsAv1RequestedDownloadAndFallsBackToNonAv1MuxedFormat(): void
+    public function testResolveKeepsBestWhenLiveMetadataRecommendsAv1(): void
     {
         $resolver = new AutomaticFormatResolver();
 
@@ -293,10 +293,10 @@ final class AutomaticFormatResolverTest extends TestCase
             ],
         ], true);
 
-        self::assertSame('301', $resolved);
+        self::assertSame('best', $resolved);
     }
 
-    public function testResolveSkipsAv1FormatsWhenPickingFallbackMuxedFormat(): void
+    public function testResolveKeepsBestForWasLiveVideosWithAv1Formats(): void
     {
         $resolver = new AutomaticFormatResolver();
 
@@ -327,7 +327,7 @@ final class AutomaticFormatResolverTest extends TestCase
             ],
         ], true);
 
-        self::assertSame('301', $resolved);
+        self::assertSame('best', $resolved);
     }
 
     public function testResolveAllowsUnknownHeight(): void

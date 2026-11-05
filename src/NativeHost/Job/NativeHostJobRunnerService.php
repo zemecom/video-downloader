@@ -200,32 +200,20 @@ final readonly class NativeHostJobRunnerService
         $hasOutputFile = $this->hasOutputFile($state);
         $cancelRequested = $this->store->cancelRequested($jobId) || ($state['status'] ?? null) === 'cancelling';
 
-        if ($exitCode === 0 && ($hasOutputFile || !$cancelRequested)) {
-            if (\is_string($outputPath) && $outputPath !== '' && \file_exists($outputPath)) {
-                $entry = $this->recentDownloads->append(
-                    $outputPath,
-                    (string) ($state['url'] ?? ''),
-                    (string) ($state['mode'] ?? 'video'),
-                );
-                $state['recentDownloadId'] = $entry['id'] ?? null;
+        if (($state['status'] ?? null) === 'skipped') {
+            $state = $this->attachOutputFile($jobId, $state, $outputPath);
+            $state['progressPercent'] = null;
+            $state['progressText'] = 'Загрузка пропущена: файл уже существует.';
+            $state['canCancel'] = false;
+            $state['updatedAt'] = $this->now();
+            $this->store->write($jobId, $state);
+            $this->store->clearCancelRequest($jobId);
 
-                if (($state['mode'] ?? 'video') === 'video') {
-                    try {
-                        $port = $this->previewServerCoordinator->ensureRunning();
-                        $preview = $this->previewRegistry->register($jobId, $outputPath, $port);
-                        $state['previewReady'] = $preview['previewReady'] ?? false;
-                        $state['previewUrl'] = $preview['previewUrl'] ?? null;
-                    } catch (\Throwable $e) {
-                        \error_log(
-                            \sprintf("[%s] [ERROR] Failed to register preview for job %s: %s\n%s\n", \date('Y-m-d H:i:s'), $jobId, $e->getMessage(), $e->getTraceAsString()),
-                            3,
-                            $this->bootstrap->getNativeHostLogPath(),
-                        );
-                        $state['previewReady'] = false;
-                        unset($state['previewUrl']);
-                    }
-                }
-            }
+            return 0;
+        }
+
+        if ($exitCode === 0 && ($hasOutputFile || !$cancelRequested)) {
+            $state = $this->attachOutputFile($jobId, $state, $outputPath);
             $state['status'] = 'completed';
             $state['progressPercent'] = 100.0;
             $state['progressText'] = 'Загрузка завершена.';
@@ -248,8 +236,8 @@ final readonly class NativeHostJobRunnerService
             return 0;
         }
 
-        $lastOutput = trim($buffers[1] . "\n" . $buffers[2]);
-        $errorMessage = $lastOutput !== '' ? $lastOutput : 'Загрузка завершилась с ошибкой.';
+        $errorDetails = $this->extractErrorDetails($jobLogPath, $buffers);
+        $errorMessage = $this->extractShortErrorMessage($errorDetails);
 
         \error_log(
             \sprintf("[%s] [ERROR] Job %s failed (exit %d). See logs: %s\n", $this->now(), $jobId, $exitCode, $jobLogPath),
@@ -257,7 +245,7 @@ final readonly class NativeHostJobRunnerService
             $this->bootstrap->getNativeHostLogPath(),
         );
 
-        $this->finalizeFailure($jobId, $state, $errorMessage);
+        $this->finalizeFailure($jobId, $state, $errorMessage, $errorDetails !== '' ? $errorDetails : $errorMessage);
 
         return $exitCode > 0 ? $exitCode : 1;
     }
@@ -265,14 +253,123 @@ final readonly class NativeHostJobRunnerService
     /**
      * @param array<string, mixed> $state
      */
-    private function finalizeFailure(string $jobId, array $state, string $message): void
+    private function finalizeFailure(string $jobId, array $state, string $message, ?string $errorDetails = null): void
     {
         $state['status'] = 'failed';
         $state['progressText'] = $message;
+        $state['errorDetails'] = ($errorDetails !== null && $errorDetails !== '') ? $errorDetails : $message;
         $state['canCancel'] = false;
         $state['updatedAt'] = $this->now();
         $this->store->write($jobId, $state);
         $this->store->clearCancelRequest($jobId);
+    }
+
+    private function extractShortErrorMessage(string $errorDetails): string
+    {
+        if ($errorDetails === '') {
+            return 'Загрузка завершилась с ошибкой.';
+        }
+
+        $lines = \array_values(\array_filter(\array_map('trim', \explode("\n", $errorDetails))));
+        foreach ($lines as $line) {
+            if ($line === '--- Лог выполнения ---') {
+                break;
+            }
+            if (\str_contains($line, 'ERROR:') || \str_contains($line, '❌') || \str_contains($line, 'Exception') || \str_contains($line, 'Error:')) {
+                return $line;
+            }
+        }
+
+        return $lines[0] ?? 'Загрузка завершилась с ошибкой.';
+    }
+
+    /**
+     * @param array<int, string> $buffers
+     */
+    private function extractErrorDetails(string $jobLogPath, array $buffers): string
+    {
+        $lines = [];
+        if (\file_exists($jobLogPath)) {
+            $content = (string) \file_get_contents($jobLogPath);
+            $lines = \array_values(\array_filter(\array_map('trim', \explode("\n", $content))));
+        }
+
+        if ($lines === []) {
+            $fallback = \trim($buffers[1] . "\n" . $buffers[2]);
+            if ($fallback !== '') {
+                $lines = \array_values(\array_filter(\array_map('trim', \explode("\n", $fallback))));
+            }
+        }
+
+        if ($lines === []) {
+            return '';
+        }
+
+        $allLogLines = [];
+        $explicitErrors = [];
+        foreach ($lines as $line) {
+            $clean = \trim((string) \preg_replace('/\e\[[\d;]*[A-Za-z]/', '', $line));
+            if ($clean === '') {
+                continue;
+            }
+            if (\str_starts_with($clean, '[download]') && \str_contains($clean, '%')) {
+                continue;
+            }
+            $allLogLines[] = $clean;
+            if (\str_contains($line, 'ERROR:') || \str_contains($line, '❌') || \str_contains($line, 'Exception') || \str_contains($line, 'Error:')) {
+                $explicitErrors[] = $clean;
+            }
+        }
+
+        $logTail = \implode("\n", \array_slice($allLogLines, -30));
+        if ($explicitErrors !== []) {
+            $errorBlock = \implode("\n", \array_slice(\array_values(\array_unique($explicitErrors)), -8));
+
+            return $errorBlock . "\n\n--- Лог выполнения ---\n" . $logTail;
+        }
+
+        return $logTail;
+    }
+
+    /**
+     * Связывает обнаруженный файл с задачей, в том числе если загрузка была пропущена из-за уже существующего файла.
+     *
+     * @param array<string, mixed> $state
+     * @return array<string, mixed>
+     */
+    private function attachOutputFile(string $jobId, array $state, ?string $outputPath): array
+    {
+        if (!\is_string($outputPath) || $outputPath === '' || !\file_exists($outputPath)) {
+            return $state;
+        }
+
+        $entry = $this->recentDownloads->append(
+            $outputPath,
+            (string) ($state['url'] ?? ''),
+            (string) ($state['mode'] ?? 'video'),
+        );
+        $state['recentDownloadId'] = $entry['id'] ?? null;
+
+        if (($state['mode'] ?? 'video') !== 'video') {
+            return $state;
+        }
+
+        try {
+            $port = $this->previewServerCoordinator->ensureRunning();
+            $preview = $this->previewRegistry->register($jobId, $outputPath, $port);
+            $state['previewReady'] = $preview['previewReady'] ?? false;
+            $state['previewUrl'] = $preview['previewUrl'] ?? null;
+        } catch (\Throwable $e) {
+            \error_log(
+                \sprintf("[%s] [ERROR] Failed to register preview for job %s: %s\n%s\n", \date('Y-m-d H:i:s'), $jobId, $e->getMessage(), $e->getTraceAsString()),
+                3,
+                $this->bootstrap->getNativeHostLogPath(),
+            );
+            $state['previewReady'] = false;
+            unset($state['previewUrl']);
+        }
+
+        return $state;
     }
 
     /**
@@ -338,11 +435,11 @@ final readonly class NativeHostJobRunnerService
             $state['outputPath'] = $parsed['outputPath'];
         }
 
-        if (!$this->isCancelling($jobId, $state)) {
+        if (!$this->isCancelling($jobId, $state) && !$this->isTerminalStatus($state['status'] ?? null)) {
             $state['status'] = $parsed['status'];
             $state['progressPercent'] = $parsed['progressPercent'];
             $state['progressText'] = $parsed['progressText'];
-            $state['canCancel'] = !\in_array($state['status'], ['completed', 'failed', 'cancelled'], true);
+            $state['canCancel'] = !$this->isTerminalStatus($state['status']);
         }
 
         $state['updatedAt'] = $this->now();
@@ -360,6 +457,11 @@ final readonly class NativeHostJobRunnerService
             return true;
         }
         return ($state['status'] ?? null) === 'cancelling';
+    }
+
+    private function isTerminalStatus(mixed $status): bool
+    {
+        return \in_array($status, ['completed', 'failed', 'cancelled', 'skipped'], true);
     }
 
     /**

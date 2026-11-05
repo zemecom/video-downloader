@@ -28,6 +28,9 @@ Runtime-конфигурация хранится в двух файлах:
 - `YTD_PROJECT_ROOT` - явный runtime-root, если нужно переопределить автоматическое определение каталога проекта
 - `YTD_ERROR_LOG_FILE` - кастомный путь для лога ошибок (по умолчанию: `logs/errors.log`)
 - `YTD_NATIVE_HOST_RECENT_DOWNLOADS_DB_FILE` - кастомный путь для `sqlite`-базы загрузок Native Host
+- `YTD_COOKIES_FILE` - путь к локальному файлу cookies в формате Netscape (по умолчанию `cookies.txt`, генерируется командой `make sync-cookies`). Имеет приоритет над `YTD_COOKIES_FROM_BROWSER` и позволяет избежать блокировок macOS TCC (`com.apple.macl`) при запуске из Chrome Native Host
+- `YTD_COOKIES_FROM_BROWSER` - профиль или браузер для передачи cookies в `yt-dlp` и синхронизации через `make sync-cookies` (например, `chrome:Profile 12`, `chrome`, `firefox`). Позволяет обходить блокировки botguard / Sign in to confirm you're not a bot
+- `YTD_AUDIO_LANG` - предпочитаемый язык аудиодорожки (по умолчанию: `ru`). Если у видео на YouTube есть несколько звуковых дорожек (дубляж), автоматически скачивается указанный язык. При отсутствии дорожки на указанном языке загрузка автоматически откатывается к языку оригинала. Для отключения задай `none` или оставь пустым
 - `YT_DLP_PATH` - путь к кастомному исполняемому файлу `yt-dlp` (по умолчанию системный `yt-dlp`)
 - `FFMPEG_PATH` - путь к кастомному исполняемому файлу `ffmpeg` (по умолчанию системный `ffmpeg`)
 

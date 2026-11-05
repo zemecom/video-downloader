@@ -38,4 +38,25 @@ YAML);
             putenv('YTD_PROJECT_ROOT');
         }
     }
+
+    public function testCollectResultsWarnsWhenLocalProxyIsUnreachable(): void
+    {
+        $root = sys_get_temp_dir() . '/ytd_php_doctor_unreachable_' . uniqid();
+        mkdir($root, 0777, true);
+        file_put_contents($root . '/.env', "PROXY_LOCAL=http://127.0.0.1:59998\n");
+        file_put_contents($root . '/proxy_rules.yaml', "routing:\n  direct:\n    - \"*\"\n  local:\n  remote:\n");
+        putenv('YTD_PROJECT_ROOT=' . $root);
+        putenv('YTD_DOCTOR_SKIP_BINARY_CHECKS');
+        putenv('YTD_DOCTOR_SKIP_NETWORK_CHECKS');
+
+        try {
+            $service = new DoctorService(new RuntimeBootstrap($root), new RoutingService(new RuntimeBootstrap($root)));
+            $results = $service->collectResults($root);
+            $titles = array_map(static fn(\YtdPhp\Diagnostics\DoctorResult $result): string => $result->title, $results);
+
+            self::assertContains('PROXY_LOCAL сервер недоступен (127.0.0.1:59998)', $titles);
+        } finally {
+            putenv('YTD_PROJECT_ROOT');
+        }
+    }
 }

@@ -1,4 +1,4 @@
-.PHONY: help install install-deps alias init doctor doctor-smoke clean-logs test test-integration lint lint-fix check check-entrypoint-local ci-current chrome-ext-paths chrome-ext-install chrome-ext-uninstall proxy-install proxy-uninstall install-box build build-release
+.PHONY: help install install-deps update-ytdlp sync-cookies alias init doctor doctor-smoke clean-logs test test-integration lint lint-fix check check-entrypoint-local ci-current chrome-ext-paths chrome-ext-install chrome-ext-uninstall proxy-install proxy-uninstall install-box build build-release
 
 PHP ?= php
 COMPOSER ?= composer
@@ -19,6 +19,8 @@ help:
 	@echo "Install:"
 	@echo "  make install       - add $(PHP_ALIAS_NAME) alias to ~/.zshrc"
 	@echo "  make install-deps  - install Composer dependencies"
+	@echo "  make update-ytdlp  - update yt-dlp binary (venv, Homebrew)"
+	@echo "  make sync-cookies  - export browser cookies into cookies.txt"
 	@echo ""
 	@echo "Project commands:"
 	@echo "  make init          - create runtime config files from templates"
@@ -49,6 +51,26 @@ install: alias
 
 install-deps:
 	$(COMPOSER) install
+
+update-ytdlp:
+	@echo "Updating yt-dlp..."
+	@if [ -x "$$HOME/.local/share/ytd-video-downloader/venv/bin/pip" ]; then \
+		echo "Updating yt-dlp in venv (~/.local/share/ytd-video-downloader/venv)..."; \
+		"$$HOME/.local/share/ytd-video-downloader/venv/bin/pip" install -U --pre "yt-dlp[default]"; \
+	fi
+	@if command -v brew >/dev/null 2>&1 && brew list yt-dlp >/dev/null 2>&1; then \
+		echo "Updating yt-dlp via Homebrew..."; \
+		brew upgrade yt-dlp 2>/dev/null || echo "yt-dlp in Homebrew is already up-to-date."; \
+	fi
+	@echo "Current yt-dlp version:"
+	@$$(which yt-dlp 2>/dev/null || echo yt-dlp) --version
+
+sync-cookies:
+	@echo "Syncing browser cookies to cookies.txt..."
+	@browser_spec=$$($(PHP) -r 'require "vendor/autoload.php"; $$b = new YtdPhp\Runtime\RuntimeBootstrap(__DIR__); $$b->ensureProjectRoot(); $$b->initializeEnvironment(); echo $$b->getCookiesFromBrowser() ?? "chrome:Profile 12";'); \
+	ytdlp_bin=$$(which yt-dlp 2>/dev/null || echo /opt/homebrew/bin/yt-dlp); \
+	python_bin=$$(head -n 1 "$$ytdlp_bin" | cut -c 3-); \
+	"$$python_bin" -c 'import os, sys; from yt_dlp.cookies import _parse_browser_specification, extract_cookies_from_browser; spec = sys.argv[1]; b_name, prof, keyring, cont = _parse_browser_specification(*spec.split(":", 1)) if ":" in spec else _parse_browser_specification(spec); jar = extract_cookies_from_browser(b_name, prof, keyring=keyring, container=cont); jar.save("cookies.txt"); os.chmod("cookies.txt", 0o600); print(f"Saved {len(jar)} cookies from {spec} to cookies.txt")' "$$browser_spec"
 
 alias:
 	@echo "Configuring alias in ~/.zshrc..."

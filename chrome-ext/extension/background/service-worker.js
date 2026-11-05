@@ -75,7 +75,7 @@ class DownloadManager {
 
   async broadcastStateToPort(port) {
     console.log('[YTD] broadcastStateToPort', port.name);
-    const active = await readActiveDownload();
+    const active = await readAndHydrateActiveDownload();
     if (active) {
       console.log('[YTD] Broadcasting active state to port:', active);
       port.postMessage({
@@ -102,13 +102,14 @@ class DownloadManager {
 
   startPolling(jobId) {
     console.log('[YTD] startPolling for job:', jobId);
-    this.activeJobId = jobId;
     this.stopPolling();
+    this.activeJobId = jobId;
     const generation = ++this.pollGeneration;
     this.schedulePoll(generation);
   }
 
   stopPolling() {
+    this.activeJobId = null;
     this.pollGeneration += 1;
     if (this.pollTimer !== null) {
       clearTimeout(this.pollTimer);
@@ -157,6 +158,8 @@ class DownloadManager {
           status: 'failed',
           progressPercent: null,
           progressText:
+            'Связь с загрузкой потеряна (возможно файл был удалён).',
+          errorDetails:
             'Связь с загрузкой потеряна (возможно файл был удалён).',
           canCancel: false,
         };
@@ -342,6 +345,7 @@ async function startDownload(message) {
       status: 'failed',
       progressPercent: null,
       progressText: messageText,
+      errorDetails: response.payload?.errorDetails || response.errorMessage || messageText,
       canCancel: false,
     };
     await rememberActiveDownload(errorPayload);
@@ -371,7 +375,7 @@ async function startDownload(message) {
 }
 
 async function getActiveDownload() {
-  const activeDownload = await readActiveDownload();
+  const activeDownload = await readAndHydrateActiveDownload();
   return {
     ok: true,
     payload: activeDownload || null,
@@ -453,6 +457,17 @@ async function previewRecentDownload(message) {
     };
   }
 
+  let startTime = Number.isFinite(message?.startTime) && message.startTime > 0
+    ? message.startTime
+    : null;
+
+  if (startTime === null && Number.isInteger(originTabId)) {
+    const queriedTime = await queryTabVideoTime(originTabId);
+    if (queriedTime > 0) {
+      startTime = queriedTime;
+    }
+  }
+
   const response = await callNativeHost({
     action: 'preview_recent_download',
     entryId,
@@ -480,6 +495,7 @@ async function previewRecentDownload(message) {
       normalizeText(response.payload?.filePath) ||
       normalizeText(message?.filePath),
     originTabId,
+    startTime,
   });
 }
 
@@ -494,6 +510,17 @@ async function openPreviewPage(message, sender = null) {
     normalizeText(message?.filePath) ||
     (await findRecentDownloadPath(recentDownloadId));
   const originTabId = resolveYoutubeOriginTabId(message, sender);
+  let startTime = Number.isFinite(message?.startTime) && message.startTime > 0
+    ? message.startTime
+    : null;
+
+  if (startTime === null && Number.isInteger(originTabId)) {
+    const queriedTime = await queryTabVideoTime(originTabId);
+    if (queriedTime > 0) {
+      startTime = queriedTime;
+    }
+  }
+
   if (previewUrl === '') {
     return {
       ok: false,
@@ -509,6 +536,7 @@ async function openPreviewPage(message, sender = null) {
       recentDownloadId,
       filePath,
       originTabId,
+      startTime: startTime || 0,
       createdAt: Date.now(),
     },
   });
@@ -601,6 +629,82 @@ async function pauseOriginVideo(message) {
   }
 }
 
+async function queryTabVideoTime(tabId) {
+  if (!Number.isInteger(tabId)) {
+    return 0;
+  }
+
+  if (chrome.scripting?.executeScript) {
+    try {
+      const results = await chrome.scripting.executeScript({
+        target: { tabId },
+        func: () => {
+          const ytVideo = document.querySelector('video.html5-main-video');
+          if (ytVideo && Number.isFinite(ytVideo.currentTime) && ytVideo.currentTime > 0) {
+            return ytVideo.currentTime;
+          }
+
+          const videos = Array.from(document.querySelectorAll('video'));
+          const playing = videos.find((v) => !v.paused && Number.isFinite(v.currentTime) && v.currentTime > 0);
+          if (playing) {
+            return playing.currentTime;
+          }
+
+          const withTime = videos.find((v) => Number.isFinite(v.currentTime) && v.currentTime > 0);
+          if (withTime) {
+            return withTime.currentTime;
+          }
+
+          try {
+            const params = new URLSearchParams(window.location.search);
+            const raw = params.get('t') || params.get('start');
+            if (raw) {
+              const matchH = raw.match(/(\d+)h/);
+              const matchM = raw.match(/(\d+)m/);
+              const matchS = raw.match(/(\d+)s/);
+              if (matchH || matchM || matchS) {
+                let sec = 0;
+                if (matchH) sec += parseInt(matchH[1], 10) * 3600;
+                if (matchM) sec += parseInt(matchM[1], 10) * 60;
+                if (matchS) sec += parseInt(matchS[1], 10);
+                if (sec > 0) return sec;
+              }
+              const parsed = parseFloat(raw);
+              if (Number.isFinite(parsed) && parsed > 0) {
+                return parsed;
+              }
+            }
+          } catch {
+            // ignore
+          }
+
+          return 0;
+        },
+      });
+
+      const scriptTime = results?.[0]?.result;
+      if (Number.isFinite(scriptTime) && scriptTime > 0) {
+        return scriptTime;
+      }
+    } catch {
+      // Игнорируем ошибки executeScript
+    }
+  }
+
+  try {
+    const timeResponse = await sendTabMessage(tabId, {
+      type: 'ytd-get-page-video-time',
+    });
+    if (Number.isFinite(timeResponse?.currentTime) && timeResponse.currentTime > 0) {
+      return timeResponse.currentTime;
+    }
+  } catch {
+    // ignore
+  }
+
+  return 0;
+}
+
 function resolveYoutubeOriginTabId(message, sender = null) {
   if (Number.isInteger(message?.originTabId)) {
     return message.originTabId;
@@ -618,7 +722,15 @@ function resolveYoutubeOriginTabId(message, sender = null) {
         ? sender.tab.url
         : '';
 
-  return Number.isInteger(tabId) && isYoutubeUrl(url) ? tabId : null;
+  if (!Number.isInteger(tabId)) {
+    return null;
+  }
+
+  if (url === '' || isYoutubeUrl(url)) {
+    return tabId;
+  }
+
+  return null;
 }
 
 function normalizeText(value) {
@@ -632,6 +744,34 @@ async function readActiveDownload() {
   return activeDownload && typeof activeDownload === 'object'
     ? activeDownload
     : null;
+}
+
+async function readAndHydrateActiveDownload() {
+  const activeDownload = await readActiveDownload();
+  if (
+    activeDownload &&
+    activeDownload.status === 'failed' &&
+    activeDownload.jobId &&
+    activeDownload.jobId !== 'pending' &&
+    (!activeDownload.errorDetails ||
+      activeDownload.errorDetails === 'Загрузка завершилась с ошибкой.' ||
+      !activeDownload.errorDetails.includes('--- Лог выполнения ---'))
+  ) {
+    try {
+      const response = await callNativeHost({
+        action: 'get_job_status',
+        jobId: activeDownload.jobId,
+      });
+      if (response?.ok && response.payload?.errorDetails) {
+        await rememberActiveDownload(response.payload);
+        return await readActiveDownload();
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  return activeDownload;
 }
 
 async function rememberActiveDownload(payload) {
@@ -688,6 +828,12 @@ async function rememberActiveDownload(payload) {
         ? payload.recentDownloadId
         : isExistingDownload
           ? existing?.recentDownloadId
+          : '',
+    errorDetails:
+      typeof payload?.errorDetails === 'string' && payload.errorDetails !== ''
+        ? payload.errorDetails
+        : isExistingDownload
+          ? normalizeText(existing?.errorDetails)
           : '',
     url:
       normalizeText(payload?.url) ||
@@ -854,7 +1000,10 @@ function sendTabMessage(tabId, payload) {
 
 function isTerminalStatus(status) {
   return (
-    status === 'completed' || status === 'failed' || status === 'cancelled'
+    status === 'completed' ||
+    status === 'failed' ||
+    status === 'cancelled' ||
+    status === 'skipped'
   );
 }
 

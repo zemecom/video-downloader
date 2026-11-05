@@ -128,6 +128,7 @@ final readonly class PlaylistItemPreflightService
                 $options->insecure,
                 $tempJsonPath,
                 $options->outputFormat,
+                $options->allow4k,
             ) ?: $this->fallbackExpectedPath(
                 $targetDir,
                 $metadata,
@@ -155,6 +156,7 @@ final readonly class PlaylistItemPreflightService
             $options->insecure,
             $tempJsonPath,
             $options->outputFormat,
+            $options->allow4k,
         ) ?: $this->fallbackExpectedPath(
             $targetDir,
             $metadata,

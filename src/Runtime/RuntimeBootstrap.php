@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace YtdPhp\Runtime;
 
+use DateTimeZone;
 use Normalizer;
 use Symfony\Component\Dotenv\Dotenv;
 use Symfony\Component\Dotenv\Exception\FormatException;
@@ -88,6 +89,7 @@ final readonly class RuntimeBootstrap
     public function initializeEnvironment(): void
     {
         $this->loadEnvFile('.env');
+        $this->configureTimezone();
     }
 
     public function loadEnvFile(string $filename): void
@@ -220,6 +222,27 @@ final readonly class RuntimeBootstrap
         return \in_array($normalized, ['mkv', 'mp4'], true) ? $normalized : 'mkv';
     }
 
+    public function getAudioLanguage(): ?string
+    {
+        $lang = \getenv('YTD_AUDIO_LANG');
+
+        return $this->normalizeAudioLanguage(\is_string($lang) ? $lang : null);
+    }
+
+    public function normalizeAudioLanguage(?string $lang): ?string
+    {
+        if ($lang === null) {
+            return null;
+        }
+
+        $normalized = \strtolower(\trim($lang));
+        if ($normalized === '' || \in_array($normalized, ['none', 'off', '0', 'false', 'no'], true)) {
+            return null;
+        }
+
+        return $normalized;
+    }
+
     public function getConcurrentDownloads(): int
     {
         $value = \getenv('CONCURRENT_DOWNLOADS');
@@ -254,6 +277,44 @@ final readonly class RuntimeBootstrap
         $normalized = \strtolower(\trim($value));
 
         return !in_array($normalized, ['', '0', 'false', 'no'], true);
+    }
+
+    public function getCookiesFromBrowser(): ?string
+    {
+        $value = \getenv('YTD_COOKIES_FROM_BROWSER');
+        if (!\is_string($value)) {
+            return null;
+        }
+
+        $trimmed = \trim($value);
+
+        return $trimmed !== '' ? $trimmed : null;
+    }
+
+    public function getCookiesFilePath(): ?string
+    {
+        $value = \getenv('YTD_COOKIES_FILE');
+        if (!\is_string($value)) {
+            return null;
+        }
+
+        return $this->resolveCookiesFilePath($value);
+    }
+
+    public function resolveCookiesFilePath(?string $path): ?string
+    {
+        if (!\is_string($path)) {
+            return null;
+        }
+
+        $trimmed = \trim($path);
+        if ($trimmed === '' || \strtolower($trimmed) === 'none') {
+            return null;
+        }
+
+        $resolved = $this->resolveConfiguredPath($trimmed);
+
+        return \is_file($resolved) ? $resolved : null;
     }
 
     public function isYoutubeUrl(string $videoUrl): bool
@@ -539,5 +600,15 @@ final readonly class RuntimeBootstrap
         \putenv($key . '=' . $value);
         $_ENV[$key] = $value;
         $_SERVER[$key] = $value;
+    }
+
+    private function configureTimezone(): void
+    {
+        $timezone = \trim((string) (\getenv('YTD_TIMEZONE') ?: ''));
+        if ($timezone === '' || !\in_array($timezone, DateTimeZone::listIdentifiers(), true)) {
+            return;
+        }
+
+        \date_default_timezone_set($timezone);
     }
 }

@@ -3,9 +3,12 @@ const STATUS_LABELS = {
   completed: 'Готово',
   failed: 'Ошибка',
   cancelled: 'Отменено',
+  skipped: 'Пропущено',
   cancelling: 'Останавливаю',
   starting: 'Подготовка',
 };
+
+const { getDownloadProgressPresentation } = globalThis.YtdDownloadProgressUi;
 
 const recentDownloadsUi = globalThis.YtdRecentDownloadsUi || {};
 const {
@@ -49,11 +52,21 @@ const activeDownloadCancelButton = document.querySelector(
 const activeDownloadCloseButton = document.querySelector(
   '.active-download-close'
 );
+const activeDownloadErrorButton = document.querySelector(
+  '.active-download-error-btn'
+);
+const errorModalNode = document.querySelector('.error-modal');
+const errorModalTextNode = document.querySelector('.error-modal-text');
+const errorModalCloseButton = document.querySelector('.error-modal-close');
+const errorModalCopyButton = document.querySelector('.error-modal-copy');
 
 let activeJobId = null;
+let isStartingDownload = false;
 let lastKnownStatus = null;
+let currentErrorDetails = '';
 
 void loadRecentDownloads();
+void hydrateActiveDownload();
 
 const port = chrome.runtime.connect({ name: 'ytd-popup' });
 port.onMessage.addListener(async (message) => {
@@ -105,7 +118,42 @@ activeDownloadCloseButton?.addEventListener('click', () => {
   hideActiveDownload();
 });
 
+activeDownloadErrorButton?.addEventListener('click', () => {
+  if (!currentErrorDetails) return;
+  errorModalTextNode.textContent = currentErrorDetails;
+  errorModalNode.hidden = false;
+});
+
+errorModalCloseButton?.addEventListener('click', () => {
+  errorModalNode.hidden = true;
+});
+
+errorModalNode?.addEventListener('click', (e) => {
+  if (e.target === errorModalNode) {
+    errorModalNode.hidden = true;
+  }
+});
+
+errorModalCopyButton?.addEventListener('click', async () => {
+  if (!currentErrorDetails) return;
+  try {
+    await navigator.clipboard.writeText(currentErrorDetails);
+    const orig = errorModalCopyButton.textContent;
+    errorModalCopyButton.textContent = 'Скопировано!';
+    setTimeout(() => {
+      errorModalCopyButton.textContent = orig;
+    }, 1500);
+  } catch {
+    // ignore
+  }
+});
+
 async function startDownload(mode) {
+  if (isStartingDownload) {
+    return;
+  }
+
+  isStartingDownload = true;
   setBusyState(true);
   setStatus(
     mode === 'audio'
@@ -113,29 +161,48 @@ async function startDownload(mode) {
       : 'Запускаю загрузку видео...'
   );
 
-  const [tab] = await chrome.tabs.query({
-    active: true,
-    currentWindow: true,
-  });
+  try {
+    const [tab] = await chrome.tabs.query({
+      active: true,
+      currentWindow: true,
+    });
 
-  const response = await sendMessage({
-    type: 'ytd:start-download',
-    mode,
-    tabId: tab?.id,
-    url: tab?.url,
-  });
+    const response = await sendMessage({
+      type: 'ytd:start-download',
+      mode,
+      tabId: tab?.id,
+      url: tab?.url,
+    });
 
-  if (response?.ok) {
-    if (response.payload) {
-      renderActiveDownload(response.payload);
+    if (response?.ok) {
+      if (response.payload) {
+        renderActiveDownload(response.payload);
+      }
+
+      return;
     }
 
-    window.close();
+    setBusyState(false);
+    setStatus(response?.errorMessage || 'Не удалось запустить загрузку.');
+  } catch {
+    setBusyState(false);
+    setStatus('Не удалось получить текущую вкладку.');
+  } finally {
+    isStartingDownload = false;
+  }
+}
+
+async function hydrateActiveDownload() {
+  const response = await sendMessage({
+    type: 'ytd:get-active-download',
+  });
+
+  if (isStartingDownload || !response?.ok || !response.payload) {
     return;
   }
 
-  setBusyState(false);
-  setStatus(response?.errorMessage || 'Не удалось запустить загрузку.');
+  renderActiveDownload(response.payload);
+  lastKnownStatus = response.payload.status;
 }
 
 async function loadRecentDownloads() {
@@ -274,6 +341,80 @@ async function playRecentVideo(entryId, title, filePath) {
     currentWindow: true,
   });
 
+  let startTime = 0;
+  if (Number.isInteger(tab?.id)) {
+    if (chrome.scripting?.executeScript) {
+      try {
+        const results = await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          func: () => {
+            const ytVideo = document.querySelector('video.html5-main-video');
+            if (ytVideo && Number.isFinite(ytVideo.currentTime) && ytVideo.currentTime > 0) {
+              return ytVideo.currentTime;
+            }
+            const videos = Array.from(document.querySelectorAll('video'));
+            const playing = videos.find((v) => !v.paused && Number.isFinite(v.currentTime) && v.currentTime > 0);
+            if (playing) {
+              return playing.currentTime;
+            }
+            const withTime = videos.find((v) => Number.isFinite(v.currentTime) && v.currentTime > 0);
+            if (withTime) {
+              return withTime.currentTime;
+            }
+            try {
+              const params = new URLSearchParams(window.location.search);
+              const raw = params.get('t') || params.get('start');
+              if (raw) {
+                const matchH = raw.match(/(\d+)h/);
+                const matchM = raw.match(/(\d+)m/);
+                const matchS = raw.match(/(\d+)s/);
+                if (matchH || matchM || matchS) {
+                  let sec = 0;
+                  if (matchH) sec += parseInt(matchH[1], 10) * 3600;
+                  if (matchM) sec += parseInt(matchM[1], 10) * 60;
+                  if (matchS) sec += parseInt(matchS[1], 10);
+                  if (sec > 0) return sec;
+                }
+                const parsed = parseFloat(raw);
+                if (Number.isFinite(parsed) && parsed > 0) {
+                  return parsed;
+                }
+              }
+            } catch {
+              // ignore
+            }
+            return 0;
+          },
+        });
+        const resTime = results?.[0]?.result;
+        if (Number.isFinite(resTime) && resTime > 0) {
+          startTime = resTime;
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    if (startTime === 0) {
+      try {
+        const timeResponse = await new Promise((resolve) => {
+          chrome.tabs.sendMessage(tab.id, { type: 'ytd-get-page-video-time' }, (resp) => {
+            if (chrome.runtime.lastError) {
+              resolve(null);
+            } else {
+              resolve(resp);
+            }
+          });
+        });
+        if (Number.isFinite(timeResponse?.currentTime) && timeResponse.currentTime > 0) {
+          startTime = timeResponse.currentTime;
+        }
+      } catch {
+        // Игнорируем ошибки, если на вкладке нет видео или скрипта
+      }
+    }
+  }
+
   setStatus(`Открываю ${title}...`);
   const response = await sendMessage({
     type: 'ytd:preview-recent-download',
@@ -281,6 +422,7 @@ async function playRecentVideo(entryId, title, filePath) {
     tabId: tab?.id,
     url: tab?.url,
     filePath,
+    startTime,
   });
 
   if (!response?.ok) {
@@ -395,13 +537,20 @@ function renderActiveDownload(payload) {
       ? payload.progressPercent
       : null;
   const canCancel = Boolean(payload?.canCancel);
+  const progressPresentation = getDownloadProgressPresentation(
+    status,
+    progressPercent
+  );
 
   activeJobId =
     typeof payload?.jobId === 'string' && payload.jobId !== ''
       ? payload.jobId
       : activeJobId;
   activeDownloadNode.hidden = false;
-  activeDownloadStatusNode.textContent = progressText;
+  activeDownloadStatusNode.textContent =
+    status === 'failed'
+      ? progressText.split('\n')[0] || 'Загрузка завершилась с ошибкой.'
+      : progressText;
   activeDownloadPhaseNode.textContent =
     STATUS_LABELS[status] || STATUS_LABELS.starting;
   activeDownloadPercentNode.textContent =
@@ -413,23 +562,36 @@ function renderActiveDownload(payload) {
       : 'Отменить';
   activeDownloadCancelButton.disabled =
     isTerminalStatus(status) || (!canCancel && status !== 'cancelling');
+  setBusyState(!isTerminalStatus(status));
 
   if (activeDownloadCloseButton) {
     activeDownloadCloseButton.hidden = !isTerminalStatus(status);
   }
 
-  if (
-    progressPercent === null ||
-    status === 'starting' ||
-    status === 'cancelling'
-  ) {
-    activeDownloadFillNode.dataset.indeterminate = 'true';
-    activeDownloadFillNode.style.width = '38%';
-    return;
-  }
+  activeDownloadFillNode.dataset.indeterminate = String(
+    progressPresentation.isIndeterminate
+  );
+  activeDownloadFillNode.style.width = `${progressPresentation.widthPercent}%`;
 
-  activeDownloadFillNode.dataset.indeterminate = 'false';
-  activeDownloadFillNode.style.width = `${Math.max(0, Math.min(100, progressPercent))}%`;
+  const errorDetails =
+    typeof payload?.errorDetails === 'string' && payload.errorDetails !== ''
+      ? payload.errorDetails
+      : (status === 'failed' ? progressText : '');
+
+  if (status === 'failed' && errorDetails) {
+    currentErrorDetails = errorDetails;
+    if (activeDownloadErrorButton) {
+      activeDownloadErrorButton.hidden = false;
+    }
+  } else {
+    currentErrorDetails = '';
+    if (activeDownloadErrorButton) {
+      activeDownloadErrorButton.hidden = true;
+    }
+    if (errorModalNode) {
+      errorModalNode.hidden = true;
+    }
+  }
 }
 
 function renderActiveDownloadError(message) {
@@ -441,8 +603,13 @@ function renderActiveDownloadError(message) {
   if (activeDownloadCloseButton) {
     activeDownloadCloseButton.hidden = false;
   }
-  activeDownloadFillNode.dataset.indeterminate = 'true';
-  activeDownloadFillNode.style.width = '38%';
+  currentErrorDetails = message;
+  if (activeDownloadErrorButton) {
+    activeDownloadErrorButton.hidden = false;
+  }
+  activeDownloadFillNode.dataset.indeterminate = 'false';
+  activeDownloadFillNode.style.width = '0%';
+  setBusyState(false);
 }
 
 function hideActiveDownload() {
@@ -452,13 +619,24 @@ function hideActiveDownload() {
   activeDownloadPhaseNode.textContent = STATUS_LABELS.starting;
   activeDownloadPercentNode.textContent = '--';
   activeDownloadCancelButton.disabled = false;
+  currentErrorDetails = '';
+  if (activeDownloadErrorButton) {
+    activeDownloadErrorButton.hidden = true;
+  }
+  if (errorModalNode) {
+    errorModalNode.hidden = true;
+  }
   activeDownloadFillNode.dataset.indeterminate = 'true';
   activeDownloadFillNode.style.width = '38%';
+  setBusyState(false);
 }
 
 function isTerminalStatus(status) {
   return (
-    status === 'completed' || status === 'failed' || status === 'cancelled'
+    status === 'completed' ||
+    status === 'failed' ||
+    status === 'cancelled' ||
+    status === 'skipped'
   );
 }
 

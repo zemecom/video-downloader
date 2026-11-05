@@ -12,7 +12,8 @@ PHP-версия `YTD` - это CLI-обёртка вокруг `yt-dlp` для 
 - Поддерживает dry-run и опциональное отключение SSL-проверки.
 - Предупреждает перед перезаписью существующих файлов.
 - Пишет подробности необработанных ошибок в `logs/errors.log` внутри runtime-root.
-- Содержит Chrome-расширение в `chrome-ext/`, которое умеет запускать локальные загрузки через native host.
+- Поддерживает использование локального файла `cookies.txt` (`YTD_COOKIES_FILE`, синхронизация через `make sync-cookies`) и прямого чтения из браузера (`YTD_COOKIES_FROM_BROWSER`) для обхода ограничений YouTube ("Sign in to confirm you're not a bot") и macOS TCC в Chrome Native Host.
+- Содержит Chrome-расширение в `chrome-ext/`, которое умеет запускать локальные загрузки через native host и просматривать детали ошибок в UI.
 
 ## Когда это полезно
 
@@ -51,13 +52,25 @@ make init
 make install
 ```
 
+Для быстрого обновления бинарника `yt-dlp` (в виртуальном окружении и Homebrew):
+
+```bash
+make update-ytdlp
+```
+
+Для экспорта cookies из профиля Chrome (`YTD_COOKIES_FROM_BROWSER`) в локальный файл `cookies.txt` (рекомендуется на macOS для работы Chrome-расширения без блокировок TCC):
+
+```bash
+make sync-cookies
+```
+
 > 📖 **Подробнее:** Альтернативные способы установки (вручную или сборка PHAR-архива) описаны в [Инструкции по установке](docs/installation.md).
 
 ## Быстрый старт
 
 После установки сделай следующее:
 
-1. Заполни `.env` (особенно `PROXY_LOCAL`, `DOWNLOAD_DIR_YOUTUBE`) и при необходимости поправь `proxy_rules.yaml`.
+1. Заполни `.env` (особенно `PROXY_LOCAL`, `DOWNLOAD_DIR_YOUTUBE`, `YTD_TIMEZONE`) и при необходимости поправь `proxy_rules.yaml`. По умолчанию время в логах native host настроено на `Europe/Moscow`.
 1. Проверь окружение:
 
    ```bash
