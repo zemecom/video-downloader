@@ -325,10 +325,25 @@ final readonly class NativeHostJobManagerService
      */
     private function stateDetails(array $state): array
     {
+        $jobId = \is_string($state['jobId'] ?? null) ? $state['jobId'] : null;
+        $status = $state['status'] ?? 'starting';
+        $errorDetails = \is_string($state['errorDetails'] ?? null) ? \trim($state['errorDetails']) : null;
+        if ($status === 'failed' && ($errorDetails === null || $errorDetails === '' || $errorDetails === 'Загрузка завершилась с ошибкой.')) {
+            $fromLog = $jobId !== null ? $this->readFallbackErrorDetailsFromLog($jobId) : null;
+            if ($fromLog !== null && $fromLog !== '') {
+                $errorDetails = $fromLog;
+            } elseif ($errorDetails === null || $errorDetails === '') {
+                $progressText = $state['progressText'] ?? null;
+                $errorDetails = \is_string($progressText) && \trim($progressText) !== ''
+                    ? \trim($progressText)
+                    : 'Загрузка завершилась с ошибкой.';
+            }
+        }
+
         return [
-            'jobId' => $state['jobId'] ?? null,
+            'jobId' => $jobId,
             'mode' => $state['mode'] ?? NativeHostRequest::MODE_VIDEO,
-            'status' => $state['status'] ?? 'starting',
+            'status' => $status,
             'progressPercent' => $state['progressPercent'] ?? null,
             'progressText' => $state['progressText'] ?? 'Подготавливаю загрузку...',
             'canCancel' => $state['canCancel'] ?? false,
@@ -336,8 +351,51 @@ final readonly class NativeHostJobManagerService
             'previewUrl' => $state['previewUrl'] ?? null,
             'recentDownloadId' => $state['recentDownloadId'] ?? null,
             'outputPath' => $state['outputPath'] ?? null,
-            'errorDetails' => $state['errorDetails'] ?? null,
+            'errorDetails' => $errorDetails !== '' ? $errorDetails : null,
         ];
+    }
+
+    private function readFallbackErrorDetailsFromLog(string $jobId): ?string
+    {
+        $jobLogPath = $this->bootstrap->getNativeHostJobsDirectoryPath() . DIRECTORY_SEPARATOR . $jobId . '.log';
+        if (!\is_file($jobLogPath)) {
+            return null;
+        }
+
+        $content = (string) @\file_get_contents($jobLogPath);
+        if (\trim($content) === '') {
+            return null;
+        }
+
+        $lines = \array_values(\array_filter(\array_map('trim', \explode("\n", $content))));
+        $allLogLines = [];
+        $explicitErrors = [];
+        foreach ($lines as $line) {
+            $clean = \trim((string) \preg_replace('/\e\[[\d;]*[A-Za-z]/', '', $line));
+            if ($clean === '') {
+                continue;
+            }
+            if (\str_starts_with($clean, '[download]') && \str_contains($clean, '%')) {
+                continue;
+            }
+            $allLogLines[] = $clean;
+            if (\str_contains($clean, 'ERROR:') || \str_contains($clean, '❌') || \str_contains($clean, 'Exception') || \str_contains($clean, 'Error:')) {
+                $explicitErrors[] = $clean;
+            }
+        }
+
+        if ($allLogLines === []) {
+            return null;
+        }
+
+        $logTail = \implode("\n", \array_slice($allLogLines, -30));
+        if ($explicitErrors !== []) {
+            $errorBlock = \implode("\n", \array_slice(\array_values(\array_unique($explicitErrors)), -8));
+
+            return $errorBlock . "\n\n--- Лог выполнения ---\n" . $logTail;
+        }
+
+        return $logTail;
     }
 
     /**

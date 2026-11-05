@@ -75,7 +75,7 @@ class DownloadManager {
 
   async broadcastStateToPort(port) {
     console.log('[YTD] broadcastStateToPort', port.name);
-    const active = await readActiveDownload();
+    const active = await readAndHydrateActiveDownload();
     if (active) {
       console.log('[YTD] Broadcasting active state to port:', active);
       port.postMessage({
@@ -375,7 +375,7 @@ async function startDownload(message) {
 }
 
 async function getActiveDownload() {
-  const activeDownload = await readActiveDownload();
+  const activeDownload = await readAndHydrateActiveDownload();
   return {
     ok: true,
     payload: activeDownload || null,
@@ -746,6 +746,34 @@ async function readActiveDownload() {
     : null;
 }
 
+async function readAndHydrateActiveDownload() {
+  const activeDownload = await readActiveDownload();
+  if (
+    activeDownload &&
+    activeDownload.status === 'failed' &&
+    activeDownload.jobId &&
+    activeDownload.jobId !== 'pending' &&
+    (!activeDownload.errorDetails ||
+      activeDownload.errorDetails === 'Загрузка завершилась с ошибкой.' ||
+      !activeDownload.errorDetails.includes('--- Лог выполнения ---'))
+  ) {
+    try {
+      const response = await callNativeHost({
+        action: 'get_job_status',
+        jobId: activeDownload.jobId,
+      });
+      if (response?.ok && response.payload?.errorDetails) {
+        await rememberActiveDownload(response.payload);
+        return await readActiveDownload();
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  return activeDownload;
+}
+
 async function rememberActiveDownload(payload) {
   const jobId = normalizeText(payload?.jobId);
 
@@ -800,6 +828,12 @@ async function rememberActiveDownload(payload) {
         ? payload.recentDownloadId
         : isExistingDownload
           ? existing?.recentDownloadId
+          : '',
+    errorDetails:
+      typeof payload?.errorDetails === 'string' && payload.errorDetails !== ''
+        ? payload.errorDetails
+        : isExistingDownload
+          ? normalizeText(existing?.errorDetails)
           : '',
     url:
       normalizeText(payload?.url) ||

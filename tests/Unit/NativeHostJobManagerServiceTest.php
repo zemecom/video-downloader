@@ -422,4 +422,49 @@ final class NativeHostJobManagerServiceTest extends TestCase
             putenv('YTD_PROJECT_ROOT');
         }
     }
+
+    public function testGetJobStatusHydratesErrorDetailsFromJobLogWhenFailed(): void
+    {
+        $root = \sys_get_temp_dir() . '/ytd_native_failed_log_' . \uniqid();
+        \mkdir($root . '/logs/native-host-jobs', 0777, true);
+        putenv('YTD_PROJECT_ROOT=' . $root);
+
+        try {
+            $bootstrap = new RuntimeBootstrap($root);
+            $store = new NativeHostJobStateStore($bootstrap);
+            $store->write('job-fail-log', [
+                'jobId' => 'job-fail-log',
+                'url' => 'https://example.com/watch?v=fail',
+                'mode' => 'video',
+                'status' => 'failed',
+                'progressPercent' => null,
+                'progressText' => 'Загрузка завершилась с ошибкой.',
+                'canCancel' => false,
+            ]);
+            \file_put_contents(
+                $root . '/logs/native-host-jobs/job-fail-log.log',
+                "[2026-04-20T09:56:56+03:00] Starting job job-fail-log\n"
+                . "Command: /opt/homebrew/bin/php bin/ytd https://example.com/watch?v=fail\n"
+                . "❌ Подробности: ERROR: [youtube] Sign in to confirm you're not a bot\n"
+                . "[2026-04-20T09:56:58+03:00] Process exited with code 1\n",
+            );
+
+            $manager = new NativeHostJobManagerService(
+                $bootstrap,
+                $store,
+                static function (): void {},
+                static function (): void {},
+            );
+
+            $payload = $manager->getJobStatus('job-fail-log')->toPayload();
+
+            self::assertTrue($payload['ok']);
+            self::assertSame('failed', $payload['status']);
+            self::assertStringContainsString("ERROR: [youtube] Sign in to confirm you're not a bot", (string) $payload['errorDetails']);
+            self::assertStringContainsString('--- Лог выполнения ---', (string) $payload['errorDetails']);
+            self::assertStringContainsString('Command: /opt/homebrew/bin/php bin/ytd', (string) $payload['errorDetails']);
+        } finally {
+            putenv('YTD_PROJECT_ROOT');
+        }
+    }
 }

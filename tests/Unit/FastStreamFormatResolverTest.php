@@ -98,4 +98,45 @@ final class FastStreamFormatResolverTest extends TestCase
         self::assertNotNull($pair);
         self::assertSame('137', $pair->video->formatId);
     }
+
+    public function testResolvePrefersTargetAudioLanguageWhenAvailable(): void
+    {
+        $resolver = new FastStreamFormatResolver();
+
+        $pair = $resolver->resolve(
+            qualityPreset: 'best',
+            metadata: [
+                'formats' => [
+                    ['format_id' => '137', 'ext' => 'mp4', 'vcodec' => 'avc1.640028', 'acodec' => 'none', 'height' => 1080, 'tbr' => 4500],
+                    ['format_id' => '251-en', 'ext' => 'webm', 'vcodec' => 'none', 'acodec' => 'opus', 'abr' => 160, 'language' => 'en'],
+                    ['format_id' => '251-ru', 'ext' => 'webm', 'vcodec' => 'none', 'acodec' => 'opus', 'abr' => 130, 'language' => 'ru'],
+                ],
+            ],
+            preferLanguage: 'ru',
+        );
+
+        self::assertNotNull($pair);
+        self::assertSame('137', $pair->video->formatId);
+        self::assertSame('251-ru', $pair->audio->formatId);
+    }
+
+    public function testResolveFallsBackToBestAudioWhenTargetLanguageMissing(): void
+    {
+        $resolver = new FastStreamFormatResolver();
+
+        $pair = $resolver->resolve(
+            qualityPreset: 'best',
+            metadata: [
+                'formats' => [
+                    ['format_id' => '137', 'ext' => 'mp4', 'vcodec' => 'avc1.640028', 'acodec' => 'none', 'height' => 1080, 'tbr' => 4500],
+                    ['format_id' => '251-en', 'ext' => 'webm', 'vcodec' => 'none', 'acodec' => 'opus', 'abr' => 160, 'language' => 'en'],
+                ],
+            ],
+            preferLanguage: 'ru',
+        );
+
+        self::assertNotNull($pair);
+        self::assertSame('137', $pair->video->formatId);
+        self::assertSame('251-en', $pair->audio->formatId);
+    }
 }

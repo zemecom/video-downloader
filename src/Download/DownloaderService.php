@@ -95,6 +95,7 @@ final readonly class DownloaderService
             proxy: $options->proxy,
             insecure: $options->insecure,
             cookiesFromBrowser: $options->cookiesFromBrowser,
+            cookiesFile: $options->cookiesFile,
         );
         if ($metadataResult->failure instanceof DownloadResult) {
             return $metadataResult->failure;
@@ -192,7 +193,13 @@ final readonly class DownloaderService
         $basePath = $this->bootstrap->getDownloadBasePath($videoUrl, $options->downloadDir);
         $outputTemplate = $basePath . '/%(title)s [%(resolution)s].%(ext)s';
 
-        $metadataResult = $this->metadataService->fetch(videoUrl: $videoUrl, proxy: $options->proxy, insecure: $options->insecure);
+        $metadataResult = $this->metadataService->fetch(
+            videoUrl: $videoUrl,
+            proxy: $options->proxy,
+            insecure: $options->insecure,
+            cookiesFromBrowser: $options->cookiesFromBrowser,
+            cookiesFile: $options->cookiesFile,
+        );
         if ($metadataResult->failure instanceof DownloadResult) {
             return $metadataResult->failure;
         }
@@ -207,6 +214,7 @@ final readonly class DownloaderService
                 $metadata->payload,
                 $qualityPreset !== 'best' && $options->allow4k === false && $this->bootstrap->isYoutubeUrl($videoUrl),
                 $qualityPreset !== 'best' && $options->allow4k === false && $options->outputFormat === 'mp4' ? 'mp4' : 'mkv',
+                $options->audioLanguage,
             );
             if (!$pair instanceof \YtdPhp\Download\Format\FastStreamFormatPair) {
                 $this->logger->warning('⚠️ Не удалось подобрать отдельные video/audio потоки для `--fast`; использую обычную загрузку.');
@@ -331,11 +339,16 @@ final readonly class DownloaderService
 
         $builder = new YtDlpCommandBuilder($sourceUrl);
         $builder->setProxy($options->proxy)->setInsecure($options->insecure)->loadInfoJson($infoJsonPath);
-        if ($options->cookiesFromBrowser !== null) {
+        if ($options->cookiesFile !== null) {
+            $builder->setCookiesFile($options->cookiesFile);
+        } elseif ($options->cookiesFromBrowser !== null) {
             $builder->setCookiesFromBrowser($options->cookiesFromBrowser);
         }
         if ($options->forceOverwrites) {
             $builder->addArg('--force-overwrites');
+        }
+        if ($options->audioLanguage !== null) {
+            $builder->setAudioLanguage($options->audioLanguage);
         }
 
         $command = $builder->buildForDownload(
@@ -382,11 +395,16 @@ final readonly class DownloaderService
     ): Process {
         $builder = new YtDlpCommandBuilder($sourceUrl);
         $builder->setProxy($options->proxy)->setInsecure($options->insecure)->loadInfoJson($infoJsonPath);
-        if ($options->cookiesFromBrowser !== null) {
+        if ($options->cookiesFile !== null) {
+            $builder->setCookiesFile($options->cookiesFile);
+        } elseif ($options->cookiesFromBrowser !== null) {
             $builder->setCookiesFromBrowser($options->cookiesFromBrowser);
         }
         if ($options->forceOverwrites) {
             $builder->addArg('--force-overwrites');
+        }
+        if ($options->audioLanguage !== null) {
+            $builder->setAudioLanguage($options->audioLanguage);
         }
 
         return $this->processRunner->createProcess($builder->buildForDownload(

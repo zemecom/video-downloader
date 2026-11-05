@@ -5,6 +5,7 @@
 /chrome-ext/logs/
 /chrome-ext/data/
 /.env
+/cookies.txt
 /proxy_rules.yaml
 .DS_Store
 .idea/

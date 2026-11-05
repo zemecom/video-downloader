@@ -12,8 +12,13 @@ final class FastStreamFormatResolver
     /**
      * @param array<mixed> $metadata
      */
-    public function resolve(string $qualityPreset, array $metadata, bool $preferNonAv1 = false, string $outputFormat = 'mkv'): ?FastStreamFormatPair
-    {
+    public function resolve(
+        string $qualityPreset,
+        array $metadata,
+        bool $preferNonAv1 = false,
+        string $outputFormat = 'mkv',
+        ?string $preferLanguage = null,
+    ): ?FastStreamFormatPair {
         $formats = $metadata['formats'] ?? null;
         if (!\is_array($formats)) {
             return null;
@@ -22,7 +27,7 @@ final class FastStreamFormatResolver
         $maxHeight = $this->qualityPresetMaxHeight($qualityPreset);
         $mp4Only = $outputFormat === 'mp4';
         $video = $this->selectBestVideoFormat($formats, $maxHeight, $preferNonAv1, $mp4Only);
-        $audio = $this->selectBestAudioFormat($formats, $mp4Only);
+        $audio = $this->selectBestAudioFormat($formats, $mp4Only, $preferLanguage);
         if (!$video instanceof \YtdPhp\Download\Format\FastStreamFormat || !$audio instanceof \YtdPhp\Download\Format\FastStreamFormat) {
             return null;
         }
@@ -99,7 +104,22 @@ final class FastStreamFormatResolver
     /**
      * @param array<mixed> $formats
      */
-    private function selectBestAudioFormat(array $formats, bool $mp4Only): ?FastStreamFormat
+    private function selectBestAudioFormat(array $formats, bool $mp4Only, ?string $preferLanguage = null): ?FastStreamFormat
+    {
+        if ($preferLanguage !== null && $preferLanguage !== '') {
+            $preferred = $this->findBestAudioFormat($formats, $mp4Only, $preferLanguage);
+            if ($preferred instanceof FastStreamFormat) {
+                return $preferred;
+            }
+        }
+
+        return $this->findBestAudioFormat($formats, $mp4Only, null);
+    }
+
+    /**
+     * @param array<mixed> $formats
+     */
+    private function findBestAudioFormat(array $formats, bool $mp4Only, ?string $matchLanguage = null): ?FastStreamFormat
     {
         $bestFormat = null;
         $bestScore = -1;
@@ -112,6 +132,9 @@ final class FastStreamFormatResolver
                 continue;
             }
             if ($mp4Only && !$this->isMp4CompatibleAudio($format)) {
+                continue;
+            }
+            if ($matchLanguage !== null && !$this->matchesLanguage($format, $matchLanguage)) {
                 continue;
             }
 
@@ -132,6 +155,19 @@ final class FastStreamFormatResolver
         }
 
         return $bestFormat;
+    }
+
+    /**
+     * @param array<mixed> $format
+     */
+    private function matchesLanguage(array $format, string $targetLanguage): bool
+    {
+        $lang = $format['language'] ?? null;
+        if (!\is_string($lang) || $lang === '') {
+            return false;
+        }
+
+        return \str_starts_with(\strtolower($lang), \strtolower($targetLanguage));
     }
 
     /**

@@ -317,4 +317,53 @@ ENV,
             putenv('YTD_COOKIES_FROM_BROWSER');
         }
     }
+
+    public function testGetCookiesFilePathResolvesExistingFileAndReturnsNullWhenMissing(): void
+    {
+        $projectRoot = sys_get_temp_dir() . '/ytd_php_cookies_file_' . uniqid();
+        mkdir($projectRoot, 0777, true);
+        $cookiesPath = $projectRoot . '/cookies.txt';
+        file_put_contents($cookiesPath, "# Netscape HTTP Cookie File\n");
+
+        putenv('YTD_PROJECT_ROOT=' . $projectRoot);
+        putenv('YTD_COOKIES_FILE=cookies.txt');
+
+        try {
+            $bootstrap = new RuntimeBootstrap($projectRoot);
+            self::assertSame(realpath($cookiesPath), $bootstrap->getCookiesFilePath());
+
+            unlink($cookiesPath);
+            self::assertNull($bootstrap->getCookiesFilePath());
+        } finally {
+            putenv('YTD_PROJECT_ROOT');
+            putenv('YTD_COOKIES_FILE');
+            @rmdir($projectRoot);
+        }
+    }
+
+    public function testGetAudioLanguageReadsEnvAndNormalizes(): void
+    {
+        $bootstrap = new RuntimeBootstrap('/tmp/project');
+
+        putenv('YTD_AUDIO_LANG=  ru  ');
+        try {
+            self::assertSame('ru', $bootstrap->getAudioLanguage());
+        } finally {
+            putenv('YTD_AUDIO_LANG');
+        }
+
+        putenv('YTD_AUDIO_LANG=none');
+        try {
+            self::assertNull($bootstrap->getAudioLanguage());
+        } finally {
+            putenv('YTD_AUDIO_LANG');
+        }
+
+        putenv('YTD_AUDIO_LANG=   ');
+        try {
+            self::assertNull($bootstrap->getAudioLanguage());
+        } finally {
+            putenv('YTD_AUDIO_LANG');
+        }
+    }
 }

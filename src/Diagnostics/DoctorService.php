@@ -103,8 +103,18 @@ final readonly class DoctorService
                 }
             }
 
+            $cookiesFileRaw = $envValues['YTD_COOKIES_FILE'] ?? \getenv('YTD_COOKIES_FILE');
+            $cookiesFilePath = \is_string($cookiesFileRaw) && \trim($cookiesFileRaw) !== ''
+                ? $this->bootstrap->resolveCookiesFilePath($cookiesFileRaw)
+                : null;
             $cookiesFromBrowser = $envValues['YTD_COOKIES_FROM_BROWSER'] ?? \getenv('YTD_COOKIES_FROM_BROWSER');
-            if (\is_string($cookiesFromBrowser) && \trim($cookiesFromBrowser) !== '') {
+            if ($cookiesFilePath !== null) {
+                $results[] = new DoctorResult(
+                    self::STATUS_OK,
+                    'Cookies-файл найден',
+                    'Используется: ' . $cookiesFilePath,
+                );
+            } elseif (\is_string($cookiesFromBrowser) && \trim($cookiesFromBrowser) !== '') {
                 $results[] = new DoctorResult(
                     self::STATUS_OK,
                     'Cookies из браузера настроены',
@@ -114,7 +124,7 @@ final readonly class DoctorService
                 $results[] = new DoctorResult(
                     self::STATUS_WARN,
                     'Cookies из браузера не настроены (YTD_COOKIES_FROM_BROWSER пуст)',
-                    'YouTube может требовать подтверждение входа (Sign in to confirm you’re not a bot). Укажи, например, "chrome:Profile 12".',
+                    'YouTube может требовать подтверждение входа (Sign in to confirm you’re not a bot). Укажи YTD_COOKIES_FILE (make sync-cookies) или YTD_COOKIES_FROM_BROWSER.',
                 );
             }
         }

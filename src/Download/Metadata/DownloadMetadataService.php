@@ -18,13 +18,20 @@ final readonly class DownloadMetadataService
         private DownloadTemporaryStorage $temporaryStorage,
     ) {}
 
-    public function fetch(string $videoUrl, ?string $proxy, bool $insecure, ?string $cookiesFromBrowser = null): DownloadMetadataFetchResult
-    {
+    public function fetch(
+        string $videoUrl,
+        ?string $proxy,
+        bool $insecure,
+        ?string $cookiesFromBrowser = null,
+        ?string $cookiesFile = null,
+    ): DownloadMetadataFetchResult {
         $this->logger->info('⏳ Получаю метаданные...');
 
         $builder = new YtDlpCommandBuilder($videoUrl);
         $builder->setProxy($proxy)->setInsecure($insecure);
-        if ($cookiesFromBrowser !== null) {
+        if ($cookiesFile !== null) {
+            $builder->setCookiesFile($cookiesFile);
+        } elseif ($cookiesFromBrowser !== null) {
             $builder->setCookiesFromBrowser($cookiesFromBrowser);
         }
         $process = $this->ytDlpClient->runCaptured($builder->buildForMetadata());

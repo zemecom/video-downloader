@@ -28,5 +28,7 @@ final readonly class RuntimeOptions
         public string $hostname,
         public bool $allow4k = false,
         public ?string $cookiesFromBrowser = null,
+        public ?string $cookiesFile = null,
+        public ?string $audioLanguage = null,
     ) {}
 }

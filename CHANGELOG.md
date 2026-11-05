@@ -4,9 +4,12 @@
 
 ### Added
 
+- Автоматический выбор русской звуковой дорожки (`ru`) при скачивании видео с YouTube, если ролик содержит многоязычный дубляж, с прозрачным фолбэком на язык оригинала при отсутствии дубляжа.
+- Поддержка настройки предпочитаемого языка аудио через `YTD_AUDIO_LANG` в `.env` и опцию командной строки `--audio-lang` (работает как в обычном режиме `yt-dlp`, так и в быстром параллельном режиме `--fast`).
+- Поддержка локального файла `cookies.txt` (`YTD_COOKIES_FILE` в `.env`, CLI-флаг `--cookies` и команда `make sync-cookies`) с приоритетом над `--cookies-from-browser` для работы в Chrome Native Host без блокировок macOS TCC (`com.apple.macl`).
 - Поддержка извлечения cookies из профилей браузера через `YTD_COOKIES_FROM_BROWSER` (в `.env`) и CLI-флаг `--cookies-from-browser` (с возможностью отключения через `--no-cookies`) для обхода ограничений YouTube ("Sign in to confirm you're not a bot").
-- Проверка статуса cookies в диагностике `DoctorService` (`php bin/ytd --doctor`).
-- Извлечение подробностей ошибок процессов `yt-dlp` в Native Host (`errorDetails`) и передача их в Chrome-расширение.
+- Проверка статуса cookies (`cookies.txt` и `YTD_COOKIES_FROM_BROWSER`) в диагностике `DoctorService` (`php bin/ytd --doctor`).
+- Извлечение подробностей ошибок процессов `yt-dlp` вместе с полным логом выполнения задачи (`--- Лог выполнения ---`) в Native Host (`errorDetails`) и автоматическое чтение `.log` файла задачи в `NativeHostJobManagerService`.
 - Кнопка «Посмотреть ошибку» и модальное окно просмотра/копирования деталей ошибки в popup расширения и overlay на веб-страницах.
 - Команда `make update-ytdlp` в `Makefile` для быстрого обновления `yt-dlp` в виртуальном окружении и через Homebrew.
 - Настраиваемый таймаут сокета `YTD_SOCKET_TIMEOUT` (по умолчанию 30с) в `YtDlpCommandBuilder` для предотвращения ошибок `Read timed out` на медленных ресурсах.
@@ -16,8 +19,9 @@
 
 ### Fixed
 
+- Устранена ошибка `could not find chrome cookies database` при запуске скачивания из Chrome-расширения на macOS (связанная с TCC-защитой `com.apple.macl` каталога `Google/Chrome`) за счёт использования экспортированного файла `cookies.txt`.
 - Устранена ошибка скачивания видео YouTube `Sign in to confirm you’re not a bot` благодаря использованию сессии и cookies браузерного профиля.
-- Устранена потеря текста ошибок при завершении процессов в `NativeHostJobRunnerService`, теперь детали ошибок (`errorDetails`) надежно парсятся из логов и буферов процесса.
+- Исправлена потеря поля `errorDetails` в `rememberActiveDownload()` (`service-worker.js`) при сохранении состояния в `chrome.storage.session`, из-за которой в модальном окне ошибки отображалась общая фраза вместо реального лога `yt-dlp`.
 
 - Повторные попытки при ошибке YouTube `HTTP 403 Forbidden` сбрасывают закэшированный `info.json`, запрашивают свежие ссылки по URL видео и очищают кэш `yt-dlp` с небольшой паузой, обеспечивая корректную докачку.
 - Исключен шумный ежесекундный дебаг-лог операций поллинга (`get_job_status`, `list_recent_downloads`) в `native-host.log` (доступен через `YTD_DEBUG=1`).

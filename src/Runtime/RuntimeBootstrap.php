@@ -222,6 +222,27 @@ final readonly class RuntimeBootstrap
         return \in_array($normalized, ['mkv', 'mp4'], true) ? $normalized : 'mkv';
     }
 
+    public function getAudioLanguage(): ?string
+    {
+        $lang = \getenv('YTD_AUDIO_LANG');
+
+        return $this->normalizeAudioLanguage(\is_string($lang) ? $lang : null);
+    }
+
+    public function normalizeAudioLanguage(?string $lang): ?string
+    {
+        if ($lang === null) {
+            return null;
+        }
+
+        $normalized = \strtolower(\trim($lang));
+        if ($normalized === '' || \in_array($normalized, ['none', 'off', '0', 'false', 'no'], true)) {
+            return null;
+        }
+
+        return $normalized;
+    }
+
     public function getConcurrentDownloads(): int
     {
         $value = \getenv('CONCURRENT_DOWNLOADS');
@@ -268,6 +289,32 @@ final readonly class RuntimeBootstrap
         $trimmed = \trim($value);
 
         return $trimmed !== '' ? $trimmed : null;
+    }
+
+    public function getCookiesFilePath(): ?string
+    {
+        $value = \getenv('YTD_COOKIES_FILE');
+        if (!\is_string($value)) {
+            return null;
+        }
+
+        return $this->resolveCookiesFilePath($value);
+    }
+
+    public function resolveCookiesFilePath(?string $path): ?string
+    {
+        if (!\is_string($path)) {
+            return null;
+        }
+
+        $trimmed = \trim($path);
+        if ($trimmed === '' || \strtolower($trimmed) === 'none') {
+            return null;
+        }
+
+        $resolved = $this->resolveConfiguredPath($trimmed);
+
+        return \is_file($resolved) ? $resolved : null;
     }
 
     public function isYoutubeUrl(string $videoUrl): bool

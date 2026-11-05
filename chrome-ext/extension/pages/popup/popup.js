@@ -547,7 +547,10 @@ function renderActiveDownload(payload) {
       ? payload.jobId
       : activeJobId;
   activeDownloadNode.hidden = false;
-  activeDownloadStatusNode.textContent = progressText;
+  activeDownloadStatusNode.textContent =
+    status === 'failed'
+      ? progressText.split('\n')[0] || 'Загрузка завершилась с ошибкой.'
+      : progressText;
   activeDownloadPhaseNode.textContent =
     STATUS_LABELS[status] || STATUS_LABELS.starting;
   activeDownloadPercentNode.textContent =

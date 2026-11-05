@@ -237,7 +237,7 @@ final readonly class NativeHostJobRunnerService
         }
 
         $errorDetails = $this->extractErrorDetails($jobLogPath, $buffers);
-        $errorMessage = $errorDetails !== '' ? $errorDetails : 'Загрузка завершилась с ошибкой.';
+        $errorMessage = $this->extractShortErrorMessage($errorDetails);
 
         \error_log(
             \sprintf("[%s] [ERROR] Job %s failed (exit %d). See logs: %s\n", $this->now(), $jobId, $exitCode, $jobLogPath),
@@ -245,7 +245,7 @@ final readonly class NativeHostJobRunnerService
             $this->bootstrap->getNativeHostLogPath(),
         );
 
-        $this->finalizeFailure($jobId, $state, $errorMessage, $errorDetails);
+        $this->finalizeFailure($jobId, $state, $errorMessage, $errorDetails !== '' ? $errorDetails : $errorMessage);
 
         return $exitCode > 0 ? $exitCode : 1;
     }
@@ -262,6 +262,25 @@ final readonly class NativeHostJobRunnerService
         $state['updatedAt'] = $this->now();
         $this->store->write($jobId, $state);
         $this->store->clearCancelRequest($jobId);
+    }
+
+    private function extractShortErrorMessage(string $errorDetails): string
+    {
+        if ($errorDetails === '') {
+            return 'Загрузка завершилась с ошибкой.';
+        }
+
+        $lines = \array_values(\array_filter(\array_map('trim', \explode("\n", $errorDetails))));
+        foreach ($lines as $line) {
+            if ($line === '--- Лог выполнения ---') {
+                break;
+            }
+            if (\str_contains($line, 'ERROR:') || \str_contains($line, '❌') || \str_contains($line, 'Exception') || \str_contains($line, 'Error:')) {
+                return $line;
+            }
+        }
+
+        return $lines[0] ?? 'Загрузка завершилась с ошибкой.';
     }
 
     /**
@@ -286,33 +305,30 @@ final readonly class NativeHostJobRunnerService
             return '';
         }
 
-        $meaningfulLines = [];
+        $allLogLines = [];
+        $explicitErrors = [];
         foreach ($lines as $line) {
             $clean = \trim((string) \preg_replace('/\e\[[\d;]*[A-Za-z]/', '', $line));
             if ($clean === '') {
                 continue;
             }
-            if (\preg_match('/^\[\d{4}-\d{2}-\d{2}[^\]]+\]\s+(?:Starting job|Process exited)/', $clean)) {
+            if (\str_starts_with($clean, '[download]') && \str_contains($clean, '%')) {
                 continue;
             }
-            if (\str_starts_with($clean, 'Command:')) {
-                continue;
-            }
-            $meaningfulLines[] = $clean;
-        }
-
-        $explicitErrors = [];
-        foreach ($meaningfulLines as $line) {
+            $allLogLines[] = $clean;
             if (\str_contains($line, 'ERROR:') || \str_contains($line, '❌') || \str_contains($line, 'Exception') || \str_contains($line, 'Error:')) {
-                $explicitErrors[] = $line;
+                $explicitErrors[] = $clean;
             }
         }
 
+        $logTail = \implode("\n", \array_slice($allLogLines, -30));
         if ($explicitErrors !== []) {
-            return \implode("\n", \array_slice($explicitErrors, -8));
+            $errorBlock = \implode("\n", \array_slice(\array_values(\array_unique($explicitErrors)), -8));
+
+            return $errorBlock . "\n\n--- Лог выполнения ---\n" . $logTail;
         }
 
-        return \implode("\n", \array_slice($meaningfulLines, -5));
+        return $logTail;
     }
 
     /**

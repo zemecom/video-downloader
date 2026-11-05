@@ -63,8 +63,10 @@ final class YtdCommand extends Command
             ->addOption('progress-delta', null, InputOption::VALUE_REQUIRED, 'Интервал обновления прогресса yt-dlp в секундах', $this->bootstrap->getProgressDelta())
             ->addOption('doctor', null, InputOption::VALUE_NONE, 'Проверить окружение и конфиги без скачивания')
             ->addOption('4k', '4', InputOption::VALUE_NONE, 'Игнорировать ограничения кодеков и качать в максимальном 4K/8K разрешении')
+            ->addOption('cookies', null, InputOption::VALUE_REQUIRED, 'Путь к файлу cookies в формате Netscape (например, cookies.txt)', $this->bootstrap->getCookiesFilePath())
             ->addOption('cookies-from-browser', null, InputOption::VALUE_REQUIRED, 'Браузер для извлечения cookies (например, chrome, "chrome:Profile 12", firefox)', $this->bootstrap->getCookiesFromBrowser())
-            ->addOption('no-cookies', null, InputOption::VALUE_NONE, 'Не использовать cookies браузера');
+            ->addOption('no-cookies', null, InputOption::VALUE_NONE, 'Не использовать cookies браузера')
+            ->addOption('audio-lang', null, InputOption::VALUE_REQUIRED, 'Предпочитаемый язык звуковой дорожки (например, ru, en, none)', $this->bootstrap->getAudioLanguage());
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -115,9 +117,15 @@ final class YtdCommand extends Command
         $this->validateFastMode($fastMode, $manualMode, $audioOnly);
 
         $noCookies = (bool) $input->getOption('no-cookies');
-        $cookiesFromBrowser = $noCookies
+        $explicitBrowserCookies = $input->hasParameterOption('--cookies-from-browser');
+        $cookiesFile = $noCookies || $explicitBrowserCookies
+            ? null
+            : $this->bootstrap->resolveCookiesFilePath($this->optionalString($input->getOption('cookies')));
+        $cookiesFromBrowser = $noCookies || $cookiesFile !== null
             ? null
             : $this->optionalString($input->getOption('cookies-from-browser'));
+
+        $audioLanguage = $this->bootstrap->normalizeAudioLanguage($this->optionalString($input->getOption('audio-lang')));
 
         return new RuntimeOptions(
             $proxyUrl,
@@ -141,6 +149,8 @@ final class YtdCommand extends Command
             $route->hostname,
             (bool) $input->getOption('4k'),
             $cookiesFromBrowser,
+            $cookiesFile,
+            $audioLanguage,
         );
     }
 
@@ -227,7 +237,9 @@ final class YtdCommand extends Command
             $this->logger->warning('⚠️ SSL проверка отключена');
         }
 
-        if ($options->cookiesFromBrowser !== null) {
+        if ($options->cookiesFile !== null) {
+            $this->logger->info('🍪 Использую файл cookies: ' . $options->cookiesFile);
+        } elseif ($options->cookiesFromBrowser !== null) {
             $this->logger->info('🍪 Использую cookies браузера: ' . $options->cookiesFromBrowser);
         }
     }

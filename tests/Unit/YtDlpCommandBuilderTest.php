@@ -176,6 +176,7 @@ final class YtDlpCommandBuilderTest extends TestCase
 
     public function testCookiesFromBrowserCanBeConfiguredViaEnv(): void
     {
+        putenv('YTD_COOKIES_FILE=none');
         putenv('YTD_COOKIES_FROM_BROWSER=chrome:Profile 12');
         try {
             $builder = new YtDlpCommandBuilder('https://youtube.com/watch?v=123');
@@ -184,6 +185,7 @@ final class YtDlpCommandBuilderTest extends TestCase
             self::assertContains('--cookies-from-browser', $command);
             self::assertSame('chrome:Profile 12', $command[array_search('--cookies-from-browser', $command, true) + 1]);
         } finally {
+            putenv('YTD_COOKIES_FILE');
             putenv('YTD_COOKIES_FROM_BROWSER');
         }
     }
@@ -205,5 +207,77 @@ final class YtDlpCommandBuilderTest extends TestCase
         $builder->setCookiesFromBrowser(null);
         $commandNull = $builder->buildForMetadata();
         self::assertNotContains('--cookies-from-browser', $commandNull);
+    }
+
+    public function testCookiesFileTakesPrecedenceOverCookiesFromBrowser(): void
+    {
+        $tempCookiesFile = sys_get_temp_dir() . '/ytd_test_cookies_' . uniqid() . '.txt';
+        file_put_contents($tempCookiesFile, "# Netscape HTTP Cookie File\n");
+        putenv('YTD_COOKIES_FILE=' . $tempCookiesFile);
+        putenv('YTD_COOKIES_FROM_BROWSER=chrome:Profile 12');
+
+        try {
+            $builder = new YtDlpCommandBuilder('https://youtube.com/watch?v=123');
+            $command = $builder->buildForMetadata();
+
+            self::assertContains('--cookies', $command);
+            self::assertSame($tempCookiesFile, $command[array_search('--cookies', $command, true) + 1]);
+            self::assertNotContains('--cookies-from-browser', $command);
+
+            $builder->setCookiesFromBrowser('firefox');
+            $browserCommand = $builder->buildForMetadata();
+            self::assertContains('--cookies-from-browser', $browserCommand);
+            self::assertNotContains('--cookies', $browserCommand);
+
+            $builder->setCookiesFile($tempCookiesFile);
+            $fileCommand = $builder->buildForMetadata();
+            self::assertContains('--cookies', $fileCommand);
+            self::assertNotContains('--cookies-from-browser', $fileCommand);
+        } finally {
+            putenv('YTD_COOKIES_FILE');
+            putenv('YTD_COOKIES_FROM_BROWSER');
+            @unlink($tempCookiesFile);
+        }
+    }
+
+    public function testBuildForDownloadUsesLanguageAwareBestFormat(): void
+    {
+        $builder = new YtDlpCommandBuilder(audioLanguage: 'ru');
+        $command = $builder->buildForDownload('best', '/tmp/video.%(ext)s', 'mkv');
+
+        self::assertSame(
+            'bestvideo+bestaudio[language^=ru]/bestvideo+bestaudio/best',
+            $command[array_search('-f', $command, true) + 1],
+        );
+    }
+
+    public function testBuildForDownloadUsesLanguageAwareFhdMp4Format(): void
+    {
+        $builder = new YtDlpCommandBuilder('https://www.youtube.com/watch?v=123', audioLanguage: 'ru');
+        $command = $builder->buildForDownload('fhd', '/tmp/video.%(ext)s', 'mp4');
+
+        $format = $command[array_search('-f', $command, true) + 1];
+        self::assertStringContainsString('bestaudio[language^=ru][ext=m4a]', $format);
+        self::assertStringContainsString('bestaudio[ext=m4a]', $format);
+    }
+
+    public function testBuildForDownloadAudioOnlyUsesLanguageAwareSelector(): void
+    {
+        $builder = new YtDlpCommandBuilder(audioLanguage: 'ru');
+        $command = $builder->buildForDownload('bestaudio', '/tmp/audio.%(ext)s', 'opus');
+
+        self::assertSame(
+            'bestaudio[language^=ru]/bestaudio/best',
+            $command[array_search('-f', $command, true) + 1],
+        );
+    }
+
+    public function testSetAudioLanguageOverridesConfiguredLanguage(): void
+    {
+        $builder = new YtDlpCommandBuilder(audioLanguage: 'ru');
+        $builder->setAudioLanguage('none');
+        $command = $builder->buildForDownload('best', '/tmp/video.%(ext)s', 'mkv');
+
+        self::assertSame('bestvideo+bestaudio/best', $command[array_search('-f', $command, true) + 1]);
     }
 }
