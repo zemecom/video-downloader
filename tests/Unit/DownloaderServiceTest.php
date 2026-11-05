@@ -401,7 +401,7 @@ final class DownloaderServiceTest extends TestCase
         }
     }
 
-    public function testDownloadVideoRetriesHttp403WithResume(): void
+    public function testDownloadVideoRetriesHttp403WithFallback(): void
     {
         $root = \sys_get_temp_dir() . '/ytd_php_downloader_retry_' . uniqid();
         $binDir = $root . '/bin';
@@ -435,10 +435,10 @@ final class DownloaderServiceTest extends TestCase
             self::assertFileExists($downloadDir . '/My_Cool_Video_1080p.mkv');
             self::assertFalse(\file_exists($downloadDir . '/My_Cool_Video_1080p.mkv.part'));
             self::assertSame('2', trim((string) \file_get_contents($root . '/download-attempts.txt')));
-            self::assertFileExists($root . '/download-resume-seen.txt');
             self::assertIsArray($lastDownloadArgs);
             self::assertContains('--continue', $lastDownloadArgs);
-            self::assertStringContainsString('повторяю попытку 2/3 с докачкой', $logs);
+            self::assertContains('vcodec:vp9,res,fps', $lastDownloadArgs);
+            self::assertStringContainsString('повторяю попытку в кодеке VP9', $logs);
         } finally {
             if ($previousPath === false) {
                 putenv('PATH');

@@ -48,7 +48,7 @@ final readonly class DownloaderService
         $this->temporaryStorage = $temporaryStorage ?? new DownloadTemporaryStorage();
         $this->outputFormatter = $outputFormatter ?? new DownloadOutputFormatter($this->logger);
         $this->artifactCleaner = $artifactCleaner ?? new DownloadArtifactCleaner();
-        $this->processRunner = $processRunner ?? new DownloadProcessRunner($this->ytDlpClient, $this->logger);
+        $this->processRunner = $processRunner ?? new DownloadProcessRunner($this->ytDlpClient, $this->logger, $this->artifactCleaner);
         $this->metadataService = $metadataService ?? new DownloadMetadataService($this->ytDlpClient, $this->logger, $this->temporaryStorage);
         $this->expectedOutputResolver = $expectedOutputResolver ?? new ExpectedOutputResolver($this->ytDlpClient, $this->bootstrap);
         $this->fastStreamDownloadService = $fastStreamDownloadService ?? new FastStreamDownloadService(
@@ -363,7 +363,7 @@ final readonly class DownloaderService
         if ($options->emitLogs) {
             $this->logger->info('🚀 Начинаю загрузку...');
         }
-        $process = $this->processRunner->runWithRetries($command, $options->emitLogs, $sourceUrl);
+        $process = $this->processRunner->runWithRetries($command, $options->emitLogs, $sourceUrl, $expectedFile);
 
         return $this->finalizeProcessResult($process, $expectedFile, $options->emitLogs);
     }
@@ -421,10 +421,21 @@ final readonly class DownloaderService
     public function finalizeProcessResult(Process $process, ?string $expectedFile, bool $emitLogs): DownloadResult
     {
         if ($process->isSuccessful()) {
-            if (\is_string($expectedFile) && $expectedFile !== '' && \file_exists($expectedFile) && $emitLogs) {
-                $size = \filesize($expectedFile);
-                $this->outputFormatter->logOutputPath($expectedFile, $size !== false ? $size : null);
-                $this->outputFormatter->logOutputDirectory($expectedFile);
+            $resolvedFile = $expectedFile;
+            if (\is_string($expectedFile) && $expectedFile !== '' && !\file_exists($expectedFile)) {
+                $baseWithoutExt = \dirname($expectedFile) . DIRECTORY_SEPARATOR . \pathinfo($expectedFile, PATHINFO_FILENAME);
+                foreach (['mkv', 'mp4', 'webm'] as $ext) {
+                    $candidate = $baseWithoutExt . '.' . $ext;
+                    if (\file_exists($candidate)) {
+                        $resolvedFile = $candidate;
+                        break;
+                    }
+                }
+            }
+            if (\is_string($resolvedFile) && $resolvedFile !== '' && \file_exists($resolvedFile) && $emitLogs) {
+                $size = \filesize($resolvedFile);
+                $this->outputFormatter->logOutputPath($resolvedFile, $size !== false ? $size : null);
+                $this->outputFormatter->logOutputDirectory($resolvedFile);
             }
             if ($emitLogs) {
                 $this->logger->info('🎉 Ура! Загрузка завершена!');

@@ -15,10 +15,15 @@ final readonly class DownloadProcessRunner
 {
     private const int DOWNLOAD_MAX_ATTEMPTS = 3;
 
+    private DownloadArtifactCleaner $artifactCleaner;
+
     public function __construct(
         private YtDlpGateway $ytDlpClient,
         private ConsoleLogger $logger,
-    ) {}
+        ?DownloadArtifactCleaner $artifactCleaner = null,
+    ) {
+        $this->artifactCleaner = $artifactCleaner ?? new DownloadArtifactCleaner();
+    }
 
     /**
      * @param list<string> $command
@@ -35,15 +40,26 @@ final readonly class DownloadProcessRunner
     /**
      * @param list<string> $command
      */
-    public function runWithRetries(array $command, bool $emitLogs, ?string $sourceUrl = null): Process
-    {
+    public function runWithRetries(
+        array $command,
+        bool $emitLogs,
+        ?string $sourceUrl = null,
+        ?string $expectedFile = null,
+    ): Process {
         $process = null;
         $currentCommand = $command;
+        $hasCookiesInitially = $this->hasCookies($command);
 
         for ($attempt = 1; $attempt <= self::DOWNLOAD_MAX_ATTEMPTS; ++$attempt) {
             if ($attempt > 1) {
-                $currentCommand = $this->prepareRetryCommand($command, $sourceUrl);
                 $this->sleepBeforeRetry();
+                $this->cleanupArtifactsBeforeRetry($expectedFile, $currentCommand);
+                $currentCommand = $this->prepareNextAttemptCommand(
+                    command: $command,
+                    attempt: $attempt,
+                    hasCookiesInitially: $hasCookiesInitially,
+                    sourceUrl: $sourceUrl,
+                );
             }
 
             $process = $emitLogs
@@ -55,15 +71,171 @@ final readonly class DownloadProcessRunner
             }
 
             if ($emitLogs) {
-                $this->logger->warning(\sprintf(
-                    '🔁 HTTP 403 во время загрузки; повторяю попытку %d/%d с докачкой (со свежими ссылками).',
-                    $attempt + 1,
-                    self::DOWNLOAD_MAX_ATTEMPTS,
-                ));
+                $this->logRetryNotice($attempt + 1, $hasCookiesInitially);
             }
         }
 
         return $process;
+    }
+
+    /**
+     * @param list<string> $command
+     */
+    public function hasCookies(array $command): bool
+    {
+        return \in_array('--cookies', $command, true) || \in_array('--cookies-from-browser', $command, true);
+    }
+
+    /**
+     * @param list<string> $command
+     * @return list<string>
+     */
+    public function prepareNextAttemptCommand(
+        array $command,
+        int $attempt,
+        bool $hasCookiesInitially,
+        ?string $sourceUrl = null,
+    ): array {
+        if ($hasCookiesInitially) {
+            return match ($attempt) {
+                2 => $this->prepareNoCookiesCommand($command, $sourceUrl),
+                default => $this->prepareVp9Command($command, $sourceUrl),
+            };
+        }
+
+        return $this->prepareVp9Command($command, $sourceUrl);
+    }
+
+    /**
+     * @param list<string> $command
+     * @return list<string>
+     */
+    public function prepareNoCookiesCommand(array $command, ?string $sourceUrl = null): array
+    {
+        $base = $this->prepareRetryCommand($command, $sourceUrl);
+        $newCommand = [];
+        $skipNext = false;
+
+        foreach ($base as $arg) {
+            if ($skipNext) {
+                $skipNext = false;
+                continue;
+            }
+            if ($arg === '--cookies' || $arg === '--cookies-from-browser') {
+                $skipNext = true;
+                continue;
+            }
+            $newCommand[] = $arg;
+        }
+
+        if (!\in_array('--no-cookies', $newCommand, true)) {
+            $newCommand[] = '--no-cookies';
+        }
+
+        return $newCommand;
+    }
+
+    /**
+     * @param list<string> $command
+     * @return list<string>
+     */
+    public function prepareVp9Command(array $command, ?string $sourceUrl = null): array
+    {
+        $base = $this->prepareNoCookiesCommand($command, $sourceUrl);
+        $newCommand = [];
+        $skipNext = false;
+
+        foreach ($base as $arg) {
+            if ($skipNext) {
+                $skipNext = false;
+                continue;
+            }
+            if ($arg === '-S' || $arg === '--format-sort') {
+                $skipNext = true;
+                continue;
+            }
+            $newCommand[] = $arg;
+        }
+
+        $newCommand = $this->adjustFormatForVp9($newCommand);
+        $newCommand[] = '-S';
+        $newCommand[] = 'vcodec:vp9,res,fps';
+
+        return $newCommand;
+    }
+
+    /**
+     * @param list<string> $command
+     * @return list<string>
+     */
+    private function adjustFormatForVp9(array $command): array
+    {
+        $count = \count($command);
+        for ($i = 0; $i < $count - 1; ++$i) {
+            if ($command[$i] === '-f') {
+                $format = $command[$i + 1];
+                if (\preg_match('/^\d+(?:\+\d+(?:-\d+)?)?$/', $format) === 1) {
+                    $command[$i + 1] = 'bestvideo+bestaudio/best';
+                }
+                break;
+            }
+        }
+
+        return $command;
+    }
+
+    /**
+     * @param list<string> $command
+     */
+    private function cleanupArtifactsBeforeRetry(?string $expectedFile, array $command): void
+    {
+        $target = $expectedFile ?? $this->resolveOutputTargetFromCommand($command);
+        if ($target !== null) {
+            $this->artifactCleaner->cleanupFailedDownloadArtifacts($target);
+        }
+    }
+
+    /**
+     * @param list<string> $command
+     */
+    private function resolveOutputTargetFromCommand(array $command): ?string
+    {
+        $count = \count($command);
+        for ($i = 0; $i < $count - 1; ++$i) {
+            if ($command[$i] === '-o' && isset($command[$i + 1])) {
+                return $command[$i + 1];
+            }
+        }
+
+        return null;
+    }
+
+    private function logRetryNotice(int $nextAttempt, bool $hasCookiesInitially): void
+    {
+        if ($hasCookiesInitially) {
+            if ($nextAttempt === 2) {
+                $this->logger->warning('🔁 Ошибка HTTP 403 при скачивании с куками; повторяю попытку без куков...');
+
+                return;
+            }
+            if ($nextAttempt === 3) {
+                $this->logger->warning('🔁 Скачивание без куков не удалось; повторяю попытку в кодеке VP9...');
+
+                return;
+            }
+        } else {
+            if ($nextAttempt === 2) {
+                $this->logger->warning('🔁 Ошибка HTTP 403 во время загрузки; повторяю попытку в кодеке VP9...');
+
+                return;
+            }
+        }
+
+        $this->logger->warning(\sprintf(
+            '🔁 Повторяю попытку %d/%d со свежими ссылками...',
+            $nextAttempt,
+            self::DOWNLOAD_MAX_ATTEMPTS,
+        ));
     }
 
     /**

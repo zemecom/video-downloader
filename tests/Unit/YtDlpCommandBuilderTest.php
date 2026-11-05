@@ -280,4 +280,27 @@ final class YtDlpCommandBuilderTest extends TestCase
 
         self::assertSame('bestvideo+bestaudio/best', $command[array_search('-f', $command, true) + 1]);
     }
+
+    public function testBuildForDownloadIncludesPlayerClientForYoutubeUrls(): void
+    {
+        $youtubeBuilder = new YtDlpCommandBuilder('https://www.youtube.com/watch?v=123');
+        $command = $youtubeBuilder->buildForDownload('best', '/tmp/video.%(ext)s', 'mp4');
+
+        self::assertContains('--extractor-args', $command);
+        self::assertContains('youtube:player_client=tv_samsung,visionos', $command);
+
+        $rawCommand = $youtubeBuilder->buildForRawStreamDownload('137', '/tmp/raw.mp4');
+        self::assertContains('--extractor-args', $rawCommand);
+        self::assertContains('youtube:player_client=tv_samsung,visionos', $rawCommand);
+
+        $metadataCommand = $youtubeBuilder->buildForMetadata();
+        self::assertContains('--extractor-args', $metadataCommand);
+        self::assertContains('youtube:player_client=tv_samsung,visionos', $metadataCommand);
+
+        $otherBuilder = new YtDlpCommandBuilder('https://vimeo.com/123456');
+        $otherCommand = $otherBuilder->buildForDownload('best', '/tmp/video.%(ext)s', 'mp4');
+        self::assertNotContains('--extractor-args', $otherCommand);
+        $otherMetadataCommand = $otherBuilder->buildForMetadata();
+        self::assertNotContains('--extractor-args', $otherMetadataCommand);
+    }
 }

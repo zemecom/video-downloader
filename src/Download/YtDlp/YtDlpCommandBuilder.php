@@ -210,6 +210,7 @@ final class YtDlpCommandBuilder
     {
         $command = $this->command;
         array_splice($command, 1, 0, ['--dump-json']);
+        $command = $this->appendYoutubePlayerClient($command);
         if (is_string($this->url) && $this->url !== '') {
             $command[] = $this->url;
         }
@@ -293,6 +294,7 @@ final class YtDlpCommandBuilder
         }
         $command[] = '--concurrent-fragments';
         $command[] = (string) max(1, $concurrentFragments);
+        $command = $this->appendYoutubePlayerClient($command);
 
         if (is_string($this->url) && $this->url !== '' && !\in_array('--load-info-json', $command, true)) {
             $command[] = $this->url;
@@ -321,8 +323,23 @@ final class YtDlpCommandBuilder
         }
         $command[] = '--concurrent-fragments';
         $command[] = (string) max(1, $concurrentFragments);
+        $command = $this->appendYoutubePlayerClient($command);
         if (is_string($this->url) && $this->url !== '' && !\in_array('--load-info-json', $command, true)) {
             $command[] = $this->url;
+        }
+
+        return $command;
+    }
+
+    /**
+     * @param list<string> $command
+     * @return list<string>
+     */
+    private function appendYoutubePlayerClient(array $command): array
+    {
+        if ($this->isYoutubeUrl($this->url) && !\in_array('--extractor-args', $command, true)) {
+            $command[] = '--extractor-args';
+            $command[] = 'youtube:player_client=tv_samsung,visionos';
         }
 
         return $command;

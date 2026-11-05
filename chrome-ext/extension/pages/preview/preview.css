@@ -62,6 +62,22 @@ body {
   max-height: 100%;
   object-fit: contain;
   background: #000;
+  border-radius: 16px;
+}
+
+.player:focus,
+.player:focus-visible {
+  outline: 2px solid var(--ytd-blue-1);
+  animation: fadeOutOutline 0.8s ease-out forwards;
+}
+
+@keyframes fadeOutOutline {
+  0% {
+    outline-color: var(--ytd-blue-1);
+  }
+  100% {
+    outline-color: transparent;
+  }
 }
 
 .status {
